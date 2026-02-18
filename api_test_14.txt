@@ -1,0 +1,1 @@
+{"encontrado":true,"rc":"23005A01700030","lat":38.115614026922,"lon":-4.0202870452361,"direccion":"Polígono 17 Parcela 30 PEÑASCALES. ANDUJAR (JAÉN)","municipio":"ANDUJAR","provincia":"JAÉN","uso":""}

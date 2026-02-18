@@ -1,0 +1,16 @@
+
+> nextn@0.1.0 typecheck
+> tsc --noEmit
+
+src/components/tools/coordinates-table.tsx(173,45): error TS2503: Cannot find namespace 'JSX'.
+src/components/tools/gml-converter.tsx(105,21): error TS2322: Type '"warning"' is not assignable to type '"destructive" | "default" | null | undefined'.
+src/components/tools/gml-viewer.tsx(113,30): error TS2349: This expression is not callable.
+  Type 'typeof control' has no call signatures.
+src/components/ui/calendar.tsx(57,9): error TS2353: Object literal may only specify known properties, and 'IconLeft' does not exist in type 'Partial<CustomComponents>'.
+src/components/ui/calendar.tsx(57,22): error TS7031: Binding element 'className' implicitly has an 'any' type.
+src/components/ui/calendar.tsx(60,23): error TS7031: Binding element 'className' implicitly has an 'any' type.
+src/lib/gml-utils.ts(10,22): error TS7016: Could not find a declaration file for module 'shpjs'. 'D:/WEB_CATASTRO_ALBERTO/node_modules/shpjs/lib/index.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/shpjs` if it exists or add a new declaration (.d.ts) file containing `declare module 'shpjs';`
+src/lib/parseDxf-new.ts(107,75): error TS2304: Cannot find name 'GmlFeature'.
+src/lib/parseDxf-new.ts(108,24): error TS2552: Cannot find name 'DxfParser'. Did you mean 'parser'?
+src/lib/parseDxf-new.ts(158,26): error TS2304: Cannot find name 'GmlFeature'.

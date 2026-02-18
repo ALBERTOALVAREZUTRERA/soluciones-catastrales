@@ -1,0 +1,9 @@
+error TS2688: Cannot find type definition file for 'aws-lambda'.
+  The file is in the program because:
+    Entry point for implicit type library 'aws-lambda'
+error TS2688: Cannot find type definition file for 'pg'.
+  The file is in the program because:
+    Entry point for implicit type library 'pg'
+error TS2688: Cannot find type definition file for 'request'.
+  The file is in the program because:
+    Entry point for implicit type library 'request'

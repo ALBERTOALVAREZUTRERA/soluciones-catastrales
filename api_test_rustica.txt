@@ -1,0 +1,1 @@
+{"encontrado":true,"rc":"23039A04900005","lat":38.095493059195,"lon":-3.85500400147206,"direccion":"Polígono 49 Parcela 5 PALOMARES. GUARROMAN (JAÉN)","municipio":"GUARROMAN","provincia":"JAÉN","uso":""}

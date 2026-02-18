@@ -1,0 +1,1 @@
+{"encontrado":true,"rc":"4067926VH2137S","lat":38.092706551211,"lon":-3.86836156327564,"direccion":"AL ZOCUECA 23210 GUARROMAN (JAÉN)","municipio":"GUARROMAN","provincia":"JAÉN","uso":""}

@@ -1,0 +1,17 @@
+Python: D:\CATASTRO\CONVERSOR_GML_EDIFICIO\venv_gml\Scripts\python.exe
+Version: 3.13.0 | packaged by conda-forge | (main, Nov 27 2024, 19:03:49) [MSC v.1942 64 bit (AMD64)]
+Path:
+  D:\WEB_CATASTRO_ALBERTO
+  C:\Users\Usuario\anaconda3\python313.zip
+  C:\Users\Usuario\anaconda3\DLLs
+  C:\Users\Usuario\anaconda3\Lib
+  C:\Users\Usuario\anaconda3
+  D:\CATASTRO\CONVERSOR_GML_EDIFICIO\venv_gml
+  D:\CATASTRO\CONVERSOR_GML_EDIFICIO\venv_gml\Lib\site-packages
+
+fastapi: MISSING (No module named 'fastapi')
+uvicorn: MISSING (No module named 'uvicorn')
+ezdxf: MISSING (No module named 'ezdxf')
+shapely: OK (2.1.2)
+
+Done!

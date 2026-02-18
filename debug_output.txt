@@ -1,0 +1,9 @@
+(node:26508) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///D:/WEB_CATASTRO_ALBERTO/src/scripts/debug_topology.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to D:\WEB_CATASTRO_ALBERTO\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Puntos originales: 151
+Kinks (Original): 1
+  Kink 0: [ 424318.7882266268, 4216967.540538641 ]
+--- Running TSP Fix ---
+Kinks after TSP: 2

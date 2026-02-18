@@ -1,0 +1,16 @@
+<svg width="800" height="600" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="600" fill="#0F172A"/>
+  <circle cx="400" cy="300" r="250" stroke="#F59E0B" stroke-width="2" stroke-dasharray="10 10" opacity="0.3"/>
+  <path d="M200 400L300 200L500 250L600 450L450 500L250 480L200 400Z" stroke="#F59E0B" stroke-width="4" stroke-linejoin="round"/>
+  <circle cx="200" cy="400" r="8" fill="#F59E0B"/>
+  <circle cx="300" cy="200" r="8" fill="#F59E0B"/>
+  <circle cx="500" cy="250" r="8" fill="#F59E0B"/>
+  <circle cx="600" cy="450" r="8" fill="#F59E0B"/>
+  <circle cx="450" cy="500" r="8" fill="#F59E0B"/>
+  <circle cx="250" cy="480" r="8" fill="#F59E0B"/>
+  <path d="M300 200V150" stroke="#F59E0B" stroke-width="2" opacity="0.5"/>
+  <path d="M500 250V100" stroke="#F59E0B" stroke-width="2" opacity="0.5"/>
+  <path d="M600 450V350" stroke="#F59E0B" stroke-width="2" opacity="0.5"/>
+  <text x="400" y="550" text-anchor="middle" fill="#F59E0B" font-family="sans-serif" font-size="24" font-weight="bold" opacity="0.8">GML v4 INSPIRE</text>
+  <path d="M100 100H200M100 130H150M100 160H180" stroke="white" stroke-width="4" stroke-linecap="round" opacity="0.2"/>
+</svg>

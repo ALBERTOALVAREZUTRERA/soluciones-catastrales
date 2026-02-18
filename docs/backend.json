@@ -1,0 +1,29 @@
+
+{
+  "entities": {
+    "Expedient": {
+      "title": "Expediente Técnico",
+      "description": "Solicitud de trámite catastral o registral enviada por un cliente.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Nombre completo del cliente" },
+        "email": { "type": "string", "format": "email", "description": "Email de contacto" },
+        "type": { "type": "string", "description": "Tipo de trámite (GML, IBI, Titularidad, etc.)" },
+        "refCatastral": { "type": "string", "description": "Referencia catastral de la finca" },
+        "message": { "type": "string", "description": "Descripción detallada del caso" },
+        "status": { "type": "string", "enum": ["pendiente", "en_revision", "completado"], "description": "Estado del expediente" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Fecha de creación" }
+      },
+      "required": ["name", "email", "type"]
+    }
+  },
+  "auth": {
+    "providers": ["google.com"]
+  },
+  "firestore": {
+    "/expedients/{expedientId}": {
+      "schema": "Expedient",
+      "description": "Colección de solicitudes de trámites técnicos."
+    }
+  }
+}

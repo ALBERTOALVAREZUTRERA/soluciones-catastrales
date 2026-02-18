@@ -1,0 +1,58 @@
+{
+  "placeholderImages": [
+    {
+      "id": "hero-bg",
+      "description": "Ortofotografía aérea con superposición de parcelas catastrales",
+      "imageUrl": "/servicios/hero_servicios.png",
+      "imageHint": "cadastral map"
+    },
+    {
+      "id": "gml-parcela",
+      "description": "Salida gráfica técnica de parcela catastral con delimitación de linderos ETRS89",
+      "imageUrl": "/servicios/gml_v4_real.png",
+      "imageHint": "cadastral parcel"
+    },
+    {
+      "id": "gml-edificio",
+      "description": "Informe Catastral de Ubicación de las Construcciones (ICUC) mostrando la huella georreferenciada",
+      "imageUrl": "/servicios/gml_edificio_real.png",
+      "imageHint": "cadastre footprint"
+    },
+    {
+      "id": "titularidad",
+      "description": "Documentación oficial de cambio de titularidad catastral",
+      "imageUrl": "/servicios/img_extra_2.png",
+      "imageHint": "property documents"
+    },
+    {
+      "id": "revision-ibi",
+      "description": "Análisis técnico de valores catastrales y recibos de IBI",
+      "imageUrl": "/servicios/img_extra_1.png",
+      "imageHint": "tax audit"
+    },
+    {
+      "id": "ivga",
+      "description": "Informe de Validación Gráfica Alternativa con resultado Positivo",
+      "imageUrl": "/servicios/ivga_real.png",
+      "imageHint": "validation report"
+    },
+    {
+      "id": "segregacion",
+      "description": "Plano técnico de segregación y división de fincas",
+      "imageUrl": "/servicios/segregacion_real.png",
+      "imageHint": "land division"
+    },
+    {
+      "id": "pericial",
+      "description": "Informe pericial de ingeniería visado",
+      "imageUrl": "/servicios/img_extra_3.png",
+      "imageHint": "engineer report"
+    },
+    {
+      "id": "levantamiento-topografico",
+      "description": "Levantamiento topográfico de precisión con GPS y estación total",
+      "imageUrl": "/servicios/topografia_real.png",
+      "imageHint": "land surveying gps"
+    }
+  ]
+}

@@ -1,0 +1,160 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 20% 98%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 234 66% 30%;
+    /* #1A237E */
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 20% 90%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 20% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 180 100% 25%;
+    /* #008080 */
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 234 66% 30%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 210 40% 98%;
+    --primary-foreground: 222 47% 11%;
+    --secondary: 217 32% 17%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 32% 17%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 180 100% 35%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217 32% 17%;
+    --input: 217 32% 17%;
+    --ring: 212 26% 83%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* ===== ESTILOS PARA VISUALIZACIÓN CATASTRAL (MEJORA 4) ===== */
+
+/* Animación de borde parpadeante para conflictos */
+@keyframes blink-border {
+
+  0%,
+  100% {
+    stroke-width: 3px;
+    stroke-opacity: 1;
+  }
+
+  50% {
+    stroke-width: 6px;
+    stroke-opacity: 0.6;
+  }
+}
+
+.leaflet-interactive.blink-border {
+  animation: blink-border 1s ease-in-out infinite;
+}
+
+/* Leyenda del mapa */
+.map-legend {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  background: white;
+  padding: 12px;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  z-index: 1000;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.map-legend h4 {
+  margin: 0 0 8px 0;
+  font-weight: 600;
+  font-size: 14px;
+  color: #333;
+}
+
+.map-legend-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.legend-color {
+  display: inline-block;
+  width: 24px;
+  height: 16px;
+  margin-right: 8px;
+  border: 1.5px solid #333;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.legend-color.green {
+  background: rgba(0, 200, 0, 0.35);
+  border-color: #006400;
+}
+
+.legend-color.blue {
+  background: rgba(0, 100, 255, 0.4);
+  border-color: #000080;
+}
+
+.legend-color.red {
+  background: rgba(255, 0, 0, 0.5);
+  border-color: #8B0000;
+}
+
+.legend-color.blink {
+  animation: blink-border 1s infinite;
+}
+
+/* Estilos para etiquetas de vértices numerados */
+.vertex-label {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border: 1px solid #333 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+  font-weight: normal;
+  font-size: 13px;
+  color: #000000;
+  pointer-events: none;
+  padding: 2px 5px !important;
+  border-radius: 3px !important;
+  line-height: 1 !important;
+}
+
+.map-legend-divider {
+  height: 1px;
+  background: rgba(0, 0, 0, 0.1);
+  margin: 8px 0;
+}

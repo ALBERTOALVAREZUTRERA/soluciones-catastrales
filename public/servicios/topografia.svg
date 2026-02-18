@@ -1,0 +1,13 @@
+<svg width="800" height="600" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="600" fill="#0F172A"/>
+  <path d="M400 200L350 500H450L400 200Z" fill="#F59E0B" opacity="0.1"/>
+  <path d="M400 200L450 500" stroke="#F59E0B" stroke-width="4"/>
+  <path d="M400 200L350 500" stroke="#F59E0B" stroke-width="4"/>
+  <path d="M400 200V550" stroke="#F59E0B" stroke-width="2" stroke-dasharray="5 5" opacity="0.5"/>
+  <rect x="360" y="160" width="80" height="60" rx="5" fill="#F59E0B"/>
+  <circle cx="400" cy="190" r="10" fill="white" opacity="0.5"/>
+  <path d="M100 500C250 450 550 550 700 500" stroke="white" stroke-width="2" opacity="0.1"/>
+  <circle cx="150" cy="490" r="5" fill="#F59E0B" opacity="0.5"/>
+  <circle cx="650" cy="510" r="5" fill="#F59E0B" opacity="0.5"/>
+  <text x="400" y="120" text-anchor="middle" fill="#F59E0B" font-family="sans-serif" font-size="20" font-weight="bold" opacity="0.8">PRECISIÓN GNSS</text>
+</svg>
