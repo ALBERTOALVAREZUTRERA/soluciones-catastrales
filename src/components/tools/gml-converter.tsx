@@ -300,14 +300,45 @@ export function GmlConverter() {
                                     <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Procesando {files.length} archivo(s)...
                                 </>
                             ) : (
-                                `Procesar ${files.length > 0 ? files.length : ''} Archivo(s)`
+                                `Procesar y Generar ${files.length > 0 ? files.length : ''} GML(s)`
                             )}
                         </Button>
                     </div>
 
                     {/* Download Section */}
                     {result && (
-                        <div className="mt-6 flex justify-center gap-4 animate-fade-in">
+                        <div className="mt-6 flex flex-wrap justify-center gap-4 animate-fade-in">
+                            {files.length > 1 && (
+                                <Button
+                                    size="lg"
+                                    variant="outline"
+                                    className="border-2 border-orange-600 text-orange-600 hover:bg-orange-600 hover:text-white gap-2 font-bold"
+                                    onClick={async () => {
+                                        try {
+                                            const JSZip = (await import('jszip')).default;
+                                            const zip = new JSZip();
+
+                                            fileResults.forEach((content, i) => {
+                                                if (content) {
+                                                    const cleanName = files[i].name.replace(/\.[^/.]+$/, "");
+                                                    zip.file(`${cleanName}.gml`, content);
+                                                }
+                                            });
+
+                                            const blob = await zip.generateAsync({ type: "blob" });
+                                            const { saveAs } = await import('file-saver');
+                                            saveAs(blob, `parcelas_catastro_${new Date().getTime()}.zip`);
+
+                                            toast({ title: "ZIP Generado", description: "Todos los archivos GML se han descargado en un ZIP." });
+                                        } catch (error) {
+                                            toast({ title: "Error", description: "No se pudo generar el ZIP", variant: "destructive" });
+                                        }
+                                    }}
+                                >
+                                    <Download className="h-5 w-5" />
+                                    Descargar Todo (ZIP)
+                                </Button>
+                            )}
                             <Button
                                 size="lg"
                                 variant="outline"
