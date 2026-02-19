@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import dynamic from "next/dynamic";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -208,8 +209,18 @@ export function BuildingConverter() {
                         </CardHeader>
                         <CardContent className="p-0">
                             <GmlViewer features={features} crs={crs} />
-                            <div className="p-4">
+                            <div className="p-4 space-y-4">
                                 <CoordinatesTable features={features} coordinateSystem={crs} />
+
+                                {/* Soporte Técnico Persistente */}
+                                <div className="mt-4 bg-blue-50/50 border border-blue-100 rounded-lg p-4 text-center">
+                                    <p className="text-sm font-medium text-slate-700 mb-3">¿Necesitas un informe pericial o ayuda con la validación?</p>
+                                    <Link href="#tramites">
+                                        <Button size="sm" variant="outline" className="border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white font-bold uppercase text-[10px]">
+                                            Consultar con Alberto Álvarez
+                                        </Button>
+                                    </Link>
+                                </div>
                             </div>
                         </CardContent>
                         <CardFooter className="p-6 bg-slate-50 flex justify-center">

@@ -559,6 +559,19 @@ export function GmlConverter() {
                                 {/* Tabla de Coordenadas */}
                                 <CoordinatesTable features={features} coordinateSystem={crs} />
                             </div>
+
+                            {/* Soporte Técnico Persistente */}
+                            <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-xl p-6 text-center">
+                                <h4 className="font-bold text-slate-800 mb-2">¿DUDAS CON LA CONVERSIÓN O EL IVG?</h4>
+                                <p className="text-sm text-slate-600 mb-4 max-w-lg mx-auto">
+                                    Si eres técnico y necesitas asesoramiento profesional para subsanaciones complejas o validaciones gráficas alternativas, contacta directamente con Alberto Álvarez.
+                                </p>
+                                <Link href="#tramites">
+                                    <Button className="bg-primary hover:bg-primary/90 font-bold uppercase tracking-wider">
+                                        Solicitar Consultoría Técnica
+                                    </Button>
+                                </Link>
+                            </div>
                         </div>
                     )}
                 </CardContent>
