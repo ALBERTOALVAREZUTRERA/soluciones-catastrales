@@ -1,10 +1,14 @@
 import { jsPDF } from "jspdf";
 import "jspdf-autotable";
+import { UserOptions } from "jspdf-autotable";
 import { GmlFeature } from "./gml-utils";
 
 // Extender tipos para jsPDF con autotable
 interface jsPDFWithAutoTable extends jsPDF {
-    autoTable: (options: any) => jsPDF;
+    autoTable: (options: UserOptions) => jsPDF;
+    lastAutoTable: {
+        finalY: number;
+    };
 }
 
 export async function generateTechnicalReport(features: GmlFeature[], crs: string) {
@@ -70,15 +74,15 @@ export async function generateTechnicalReport(features: GmlFeature[], crs: strin
                 ["Sistema de Coordenadas", crs]
             ],
             theme: "striped",
-            headStyles: { fillStyle: [30, 41, 59] },
+            headStyles: { fillColor: [30, 41, 59] },
             margin: { left: 15 }
         });
 
         // --- LISTADO DE COORDENADAS ---
         doc.setFontSize(12);
         doc.setFont("helvetica", "bold");
-        // @ts-ignore
-        doc.text("LISTADO DE VÉRTICES (UTM)", 15, doc.lastAutoTable.finalY + 15);
+        const finalY = doc.lastAutoTable.finalY || 100;
+        doc.text("LISTADO DE VÉRTICES (UTM)", 15, finalY + 15);
 
         const tableData = feature.geometry[0].map((coord, i) => [
             (i + 1).toString(),
@@ -87,12 +91,11 @@ export async function generateTechnicalReport(features: GmlFeature[], crs: strin
         ]);
 
         doc.autoTable({
-            // @ts-ignore
-            startY: doc.lastAutoTable.finalY + 20,
+            startY: (doc.lastAutoTable.finalY || 100) + 20,
             head: [["Vértice", "Coordenada X (m)", "Coordenada Y (m)"]],
             body: tableData,
             theme: "grid",
-            headStyles: { fillStyle: [30, 41, 59], halign: "center" },
+            headStyles: { fillColor: [30, 41, 59], halign: "center" },
             columnStyles: {
                 0: { halign: "center" },
                 1: { halign: "right" },
