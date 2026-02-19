@@ -112,6 +112,40 @@ export function BuildingConverter() {
                 </p>
             </div>
 
+            {/* Instrucciones Específicas */}
+            <div className="grid md:grid-cols-2 gap-4 mb-8">
+                <div className="bg-white p-5 rounded-xl border border-blue-100 shadow-sm flex gap-4">
+                    <div className="bg-blue-100 p-3 rounded-lg h-fit">
+                        <FileCode className="h-6 w-6 text-blue-600" />
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-slate-800 mb-1">Detección Inteligente</h3>
+                        <p className="text-sm text-muted-foreground">
+                            El sistema detecta automáticamente capas de edificios como <code>EDIFICIO</code>, <code>CONSTRU</code> o <code>MASA</code>.
+                        </p>
+                    </div>
+                </div>
+                <div className="bg-white p-5 rounded-xl border border-blue-100 shadow-sm flex gap-4">
+                    <div className="bg-green-100 p-3 rounded-lg h-fit">
+                        <CheckCircle2 className="h-6 w-6 text-green-600" />
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-slate-800 mb-1">Formato Validado</h3>
+                        <p className="text-sm text-muted-foreground">
+                            GML resultante alineado estrictamente con la normativa <strong>INSPIRE</strong> y admitido por la SEC.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl mb-8 flex gap-3 shadow-sm">
+                <Loader2 className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="text-sm text-amber-900">
+                    <p className="font-bold mb-1">Nota Técnica:</p>
+                    <p>Subir el archivo ZIP completo si usas Shapefiles terrestres o el archivo DXF directo si trabajas en AutoCAD.</p>
+                </div>
+            </div>
+
             <Card className="border-t-4 border-blue-600 shadow-xl bg-white mb-8">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">

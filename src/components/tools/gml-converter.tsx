@@ -150,6 +150,43 @@ export function GmlConverter() {
                 </p>
             </div>
 
+            {/* Guía de Uso Rápida */}
+            <div className="grid md:grid-cols-3 gap-4 mb-8">
+                <div className="bg-white p-4 rounded-xl border-l-4 border-accent shadow-sm">
+                    <h3 className="font-bold text-primary mb-1 flex items-center gap-2">
+                        <span className="bg-accent text-white w-5 h-5 rounded-full flex items-center justify-center text-xs">1</span>
+                        Carga de Datos
+                    </h3>
+                    <p className="text-sm text-muted-foreground">Sube tus archivos DXF, Shapefiles (en ZIP) o CSV de coordenadas.</p>
+                </div>
+                <div className="bg-white p-4 rounded-xl border-l-4 border-accent shadow-sm">
+                    <h3 className="font-bold text-primary mb-1 flex items-center gap-2">
+                        <span className="bg-accent text-white w-5 h-5 rounded-full flex items-center justify-center text-xs">2</span>
+                        Huso y Sistema
+                    </h3>
+                    <p className="text-sm text-muted-foreground">Asegúrate de elegir el Huso correcto (ej: 30N para Jaén/Península).</p>
+                </div>
+                <div className="bg-white p-4 rounded-xl border-l-4 border-accent shadow-sm">
+                    <h3 className="font-bold text-primary mb-1 flex items-center gap-2">
+                        <span className="bg-accent text-white w-5 h-5 rounded-full flex items-center justify-center text-xs">3</span>
+                        Generar y Descargar
+                    </h3>
+                    <p className="text-sm text-muted-foreground">Valida en el mapa y descarga tu GML validado para Catastro/Registro.</p>
+                </div>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl mb-8 flex gap-3 items-start">
+                <AlertCircle className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+                <div className="text-sm text-blue-800">
+                    <p className="font-bold mb-1">Requisitos para DXF:</p>
+                    <ul className="list-disc pl-4 space-y-1">
+                        <li>Las parcelas deben ser <strong>Polilíneas Cerradas</strong> (Cerrada = Sí en Propiedades).</li>
+                        <li>Las capas recomendadas son: <code>RECINTO</code>, <code>PARCELA</code> o similares.</li>
+                        <li>No mezclar metros con otras unidades; usa siempre coordenadas <strong>UTM</strong>.</li>
+                    </ul>
+                </div>
+            </div>
+
             <Card className="border-t-4 border-accent shadow-xl bg-white mb-8">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
