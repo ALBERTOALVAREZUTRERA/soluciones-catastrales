@@ -312,31 +312,33 @@ export function GmlConverter() {
                                 <Button
                                     size="lg"
                                     variant="outline"
-                                    className="border-2 border-orange-600 text-orange-600 hover:bg-orange-600 hover:text-white gap-2 font-bold"
-                                    onClick={async () => {
-                                        try {
-                                            const JSZip = (await import('jszip')).default;
-                                            const zip = new JSZip();
-
-                                            fileResults.forEach((content, i) => {
-                                                if (content) {
+                                    className="border-2 border-green-600 text-green-600 hover:bg-green-600 hover:text-white gap-2 font-bold"
+                                    onClick={() => {
+                                        fileResults.forEach((content, i) => {
+                                            if (content) {
+                                                // Retraso muy breve para que el navegador no bloquee descargas múltiples
+                                                setTimeout(() => {
                                                     const cleanName = files[i].name.replace(/\.[^/.]+$/, "");
-                                                    zip.file(`${cleanName}.gml`, content);
-                                                }
-                                            });
-
-                                            const blob = await zip.generateAsync({ type: "blob" });
-                                            const { saveAs } = await import('file-saver');
-                                            saveAs(blob, `parcelas_catastro_${new Date().getTime()}.zip`);
-
-                                            toast({ title: "ZIP Generado", description: "Todos los archivos GML se han descargado en un ZIP." });
-                                        } catch (error) {
-                                            toast({ title: "Error", description: "No se pudo generar el ZIP", variant: "destructive" });
-                                        }
+                                                    const blob = new Blob([content], { type: 'text/xml' });
+                                                    const url = URL.createObjectURL(blob);
+                                                    const a = document.createElement('a');
+                                                    a.href = url;
+                                                    a.download = `${cleanName}.gml`;
+                                                    document.body.appendChild(a);
+                                                    a.click();
+                                                    document.body.removeChild(a);
+                                                    URL.revokeObjectURL(url);
+                                                }, i * 300); // 300ms entre cada archivo
+                                            }
+                                        });
+                                        toast({
+                                            title: "Descargas de archivos individuales iniciadas",
+                                            description: "Es posible que el navegador te pida permiso para descargar varios archivos."
+                                        });
                                     }}
                                 >
                                     <Download className="h-5 w-5" />
-                                    Descargar Todo (ZIP)
+                                    Descargar Todos Separadamente
                                 </Button>
                             )}
                             <Button
