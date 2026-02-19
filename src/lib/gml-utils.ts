@@ -30,6 +30,7 @@ export interface GmlFeature {
     isHole?: boolean;             // Del backend (MEJORA 4)
     coordsLatLon?: number[][][]; // Para Leaflet (del backend)
     capaOrigen?: string;         // Capa DXF de origen
+    nombre_archivo?: string;     // Nombre del archivo de origen
 }
 
 const NS_MAP = {

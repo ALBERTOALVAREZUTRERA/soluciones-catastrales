@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Upload, Home, Download, Loader2, FileCode, CheckCircle2, Map as MapIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { analyzeWithBackend, generateBuildingGMLWithBackend } from "@/lib/backend-api";
+import { GmlFeature } from "@/lib/gml-utils";
 
 const GmlViewer = dynamic(() => import("./gml-viewer"), {
     ssr: false,
@@ -25,7 +26,7 @@ export function BuildingConverter() {
     const [file, setFile] = useState<File | null>(null);
     const [crs, setCrs] = useState("EPSG:25830");
     const [processing, setProcessing] = useState(false);
-    const [features, setFeatures] = useState<any[]>([]);
+    const [features, setFeatures] = useState<GmlFeature[]>([]);
     const [gmlResult, setGmlResult] = useState<Blob | null>(null);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
