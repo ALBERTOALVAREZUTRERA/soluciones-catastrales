@@ -1,0 +1,9 @@
+src/components/ui/form.tsx(21,24): error TS2709: Cannot use namespace 'FieldValues' as a type.
+src/components/ui/form.tsx(21,38): error TS2709: Cannot use namespace 'FieldValues' as a type.
+src/components/ui/form.tsx(22,17): error TS2709: Cannot use namespace 'FieldPath' as a type.
+src/components/ui/form.tsx(22,43): error TS2709: Cannot use namespace 'FieldPath' as a type.
+src/components/ui/form.tsx(32,24): error TS2709: Cannot use namespace 'FieldValues' as a type.
+src/components/ui/form.tsx(32,38): error TS2709: Cannot use namespace 'FieldValues' as a type.
+src/components/ui/form.tsx(33,17): error TS2709: Cannot use namespace 'FieldPath' as a type.
+src/components/ui/form.tsx(33,43): error TS2709: Cannot use namespace 'FieldPath' as a type.
+src/components/ui/form.tsx(36,4): error TS2709: Cannot use namespace 'ControllerProps' as a type.

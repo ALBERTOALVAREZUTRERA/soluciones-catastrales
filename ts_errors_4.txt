@@ -1,0 +1,37 @@
+src/components/ui/accordion.tsx(4,37): error TS7016: Could not find a declaration file for module '@radix-ui/react-accordion'. 'D:/WEB_CATASTRO_ALBERTO/node_modules/@radix-ui/react-accordion/dist/index.mjs' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/radix-ui__react-accordion` if it exists or add a new declaration (.d.ts) file containing `declare module '@radix-ui/react-accordion';`
+src/components/ui/collapsible.tsx(3,39): error TS2306: File 'D:/WEB_CATASTRO_ALBERTO/node_modules/@radix-ui/react-collapsible/dist/index.d.mts' is not a module.
+src/components/ui/dropdown-menu.tsx(26,6): error TS2339: Property 'className' does not exist on type 'Omit<DropdownMenuSubTriggerProps & RefAttributes<HTMLDivElement>, "ref"> & { inset?: boolean | undefined; }'.
+src/components/ui/dropdown-menu.tsx(26,24): error TS2339: Property 'children' does not exist on type 'Omit<DropdownMenuSubTriggerProps & RefAttributes<HTMLDivElement>, "ref"> & { inset?: boolean | undefined; }'.
+src/components/ui/dropdown-menu.tsx(27,4): error TS2322: Type '{ children: any[]; key?: Key | null | undefined; ref: ForwardedRef<HTMLDivElement>; className: any; }' is not assignable to type 'IntrinsicAttributes & DropdownMenuSubTriggerProps & RefAttributes<HTMLDivElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & DropdownMenuSubTriggerProps & RefAttributes<HTMLDivElement>'.
+src/components/ui/dropdown-menu.tsx(46,6): error TS2339: Property 'className' does not exist on type 'Omit<DropdownMenuSubContentProps & RefAttributes<HTMLDivElement>, "ref">'.
+src/components/ui/dropdown-menu.tsx(49,5): error TS2322: Type '{ key?: Key | null | undefined; ref: ForwardedRef<HTMLDivElement>; className: any; }' is not assignable to type 'IntrinsicAttributes & DropdownMenuSubContentProps & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & DropdownMenuSubContentProps & RefAttributes<HTMLDivElement>'.
+src/components/ui/dropdown-menu.tsx(82,6): error TS2339: Property 'className' does not exist on type 'Omit<DropdownMenuItemProps & RefAttributes<HTMLDivElement>, "ref"> & { inset?: boolean | undefined; }'.
+src/components/ui/dropdown-menu.tsx(85,5): error TS2322: Type '{ key?: Key | null | undefined; ref: ForwardedRef<HTMLDivElement>; className: any; }' is not assignable to type 'IntrinsicAttributes & DropdownMenuItemProps & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & DropdownMenuItemProps & RefAttributes<HTMLDivElement>'.
+src/components/ui/dropdown-menu.tsx(98,6): error TS2339: Property 'className' does not exist on type 'Omit<DropdownMenuCheckboxItemProps & RefAttributes<HTMLDivElement>, "ref">'.
+src/components/ui/dropdown-menu.tsx(98,17): error TS2339: Property 'children' does not exist on type 'Omit<DropdownMenuCheckboxItemProps & RefAttributes<HTMLDivElement>, "ref">'.
+src/components/ui/dropdown-menu.tsx(98,27): error TS2339: Property 'checked' does not exist on type 'Omit<DropdownMenuCheckboxItemProps & RefAttributes<HTMLDivElement>, "ref">'.
+src/components/ui/dropdown-menu.tsx(99,4): error TS2322: Type '{ children: any[]; key?: Key | null | undefined; ref: ForwardedRef<HTMLDivElement>; className: any; checked: any; }' is not assignable to type 'IntrinsicAttributes & DropdownMenuCheckboxItemProps & RefAttributes<HTMLDivElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & DropdownMenuCheckboxItemProps & RefAttributes<HTMLDivElement>'.
+src/components/ui/dropdown-menu.tsx(122,6): error TS2339: Property 'className' does not exist on type 'Omit<DropdownMenuRadioItemProps & RefAttributes<HTMLDivElement>, "ref">'.
+src/components/ui/dropdown-menu.tsx(122,17): error TS2339: Property 'children' does not exist on type 'Omit<DropdownMenuRadioItemProps & RefAttributes<HTMLDivElement>, "ref">'.
+src/components/ui/dropdown-menu.tsx(123,4): error TS2322: Type '{ children: any[]; key?: Key | null | undefined; ref: ForwardedRef<HTMLDivElement>; className: any; }' is not assignable to type 'IntrinsicAttributes & DropdownMenuRadioItemProps & RefAttributes<HTMLDivElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & DropdownMenuRadioItemProps & RefAttributes<HTMLDivElement>'.
+src/components/ui/dropdown-menu.tsx(146,6): error TS2339: Property 'className' does not exist on type 'Omit<DropdownMenuLabelProps & RefAttributes<HTMLDivElement>, "ref"> & { inset?: boolean | undefined; }'.
+src/components/ui/dropdown-menu.tsx(149,5): error TS2322: Type '{ key?: Key | null | undefined; ref: ForwardedRef<HTMLDivElement>; className: any; }' is not assignable to type 'IntrinsicAttributes & DropdownMenuLabelProps & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & DropdownMenuLabelProps & RefAttributes<HTMLDivElement>'.
+src/components/ui/dropdown-menu.tsx(162,6): error TS2339: Property 'className' does not exist on type 'Omit<DropdownMenuSeparatorProps & RefAttributes<HTMLDivElement>, "ref">'.
+src/components/ui/dropdown-menu.tsx(165,5): error TS2322: Type '{ key?: Key | null | undefined; ref: ForwardedRef<HTMLDivElement>; className: any; }' is not assignable to type 'IntrinsicAttributes & DropdownMenuSeparatorProps & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & DropdownMenuSeparatorProps & RefAttributes<HTMLDivElement>'.
+src/components/ui/form.tsx(13,8): error TS2307: Cannot find module 'react-hook-form' or its corresponding type declarations.
+src/components/ui/menubar.tsx(5,35): error TS2306: File 'D:/WEB_CATASTRO_ALBERTO/node_modules/@radix-ui/react-menubar/dist/index.d.mts' is not a module.
+src/components/ui/scroll-area.tsx(4,38): error TS7016: Could not find a declaration file for module '@radix-ui/react-scroll-area'. 'D:/WEB_CATASTRO_ALBERTO/node_modules/@radix-ui/react-scroll-area/dist/index.mjs' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/radix-ui__react-scroll-area` if it exists or add a new declaration (.d.ts) file containing `declare module '@radix-ui/react-scroll-area';`
+src/components/ui/slider.tsx(4,34): error TS2306: File 'D:/WEB_CATASTRO_ALBERTO/node_modules/@radix-ui/react-slider/dist/index.d.mts' is not a module.
+src/components/ui/toast.tsx(4,34): error TS7016: Could not find a declaration file for module '@radix-ui/react-toast'. 'D:/WEB_CATASTRO_ALBERTO/node_modules/@radix-ui/react-toast/dist/index.mjs' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/radix-ui__react-toast` if it exists or add a new declaration (.d.ts) file containing `declare module '@radix-ui/react-toast';`
+src/lib/utils.ts(1,39): error TS2306: File 'D:/WEB_CATASTRO_ALBERTO/node_modules/clsx/clsx.d.mts' is not a module.
+src/lib/utils.ts(2,25): error TS2307: Cannot find module 'tailwind-merge' or its corresponding type declarations.

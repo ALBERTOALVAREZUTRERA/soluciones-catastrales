@@ -1,11 +1,10 @@
 import { jsPDF } from "jspdf";
 import "jspdf-autotable";
-import { UserOptions } from "jspdf-autotable";
 import { GmlFeature } from "./gml-utils";
 
 // Extender tipos para jsPDF con autotable
 interface jsPDFWithAutoTable extends jsPDF {
-    autoTable: (options: UserOptions) => jsPDF;
+    autoTable: (options: any) => jsPDF;
     lastAutoTable: {
         finalY: number;
     };

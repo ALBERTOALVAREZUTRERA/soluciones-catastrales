@@ -194,7 +194,7 @@ export default function CalculadoraPage() {
                                         {/* Municipio y Clase */}
                                         <div className="space-y-2">
                                             <Label>Municipio</Label>
-                                            <Select value={formData.municipio} onValueChange={v => handleSelectChange("municipio", v)}>
+                                            <Select value={formData.municipio} onValueChange={(v: string) => handleSelectChange("municipio", v)}>
                                                 <SelectTrigger>
                                                     <SelectValue placeholder="Selecciona municipio" />
                                                 </SelectTrigger>
@@ -206,7 +206,7 @@ export default function CalculadoraPage() {
 
                                         <div className="space-y-2">
                                             <Label>Clase de Inmueble</Label>
-                                            <Select value={formData.clase} onValueChange={v => handleSelectChange("clase", v)}>
+                                            <Select value={formData.clase} onValueChange={(v: string) => handleSelectChange("clase", v)}>
                                                 <SelectTrigger>
                                                     <SelectValue placeholder="Urbano / Rústico" />
                                                 </SelectTrigger>
@@ -297,7 +297,7 @@ export default function CalculadoraPage() {
 
                                         <div className="space-y-2">
                                             <Label>Uso Principal</Label>
-                                            <Select value={formData.uso_const} onValueChange={v => handleSelectChange("uso_const", v)}>
+                                            <Select value={formData.uso_const} onValueChange={(v: string) => handleSelectChange("uso_const", v)}>
                                                 <SelectTrigger>
                                                     <SelectValue />
                                                 </SelectTrigger>
@@ -325,7 +325,7 @@ export default function CalculadoraPage() {
 
                                         <div className="space-y-2">
                                             <Label>Estado de Conservación</Label>
-                                            <Select value={formData.estado} onValueChange={v => handleSelectChange("estado", v)}>
+                                            <Select value={formData.estado} onValueChange={(v: string) => handleSelectChange("estado", v)}>
                                                 <SelectTrigger>
                                                     <SelectValue />
                                                 </SelectTrigger>

@@ -32,7 +32,7 @@ export function ProcessPortal() {
     e.preventDefault();
     if (!db) return;
     setLoading(true);
-    
+
     const docData = {
       name: formData.name,
       email: formData.email,
@@ -143,8 +143,8 @@ export function ProcessPortal() {
               <CardContent className="p-8 space-y-6 bg-white">
                 <div className="space-y-2">
                   <Label htmlFor="type" className="text-primary font-semibold">Tipo de Trámite Necesario</Label>
-                  <Select 
-                    onValueChange={(value) => setFormData({...formData, type: value})}
+                  <Select
+                    onValueChange={(value: string) => setFormData({ ...formData, type: value })}
                     required
                   >
                     <SelectTrigger id="type" className="h-12 border-muted-foreground/20 focus:ring-accent">
@@ -164,48 +164,48 @@ export function ProcessPortal() {
                 <div className="grid sm:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label htmlFor="name" className="text-primary font-semibold">Nombre Completo</Label>
-                    <Input 
-                      id="name" 
-                      placeholder="Ej: Juan Pérez" 
-                      className="h-12" 
-                      required 
+                    <Input
+                      id="name"
+                      placeholder="Ej: Juan Pérez"
+                      className="h-12"
+                      required
                       value={formData.name}
-                      onChange={(e) => setFormData({...formData, name: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="email" className="text-primary font-semibold">Email de Contacto</Label>
-                    <Input 
-                      id="email" 
-                      type="email" 
-                      placeholder="suemail@ejemplo.com" 
-                      className="h-12" 
-                      required 
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="suemail@ejemplo.com"
+                      className="h-12"
+                      required
                       value={formData.email}
-                      onChange={(e) => setFormData({...formData, email: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="ref" className="text-primary font-semibold">Referencia Catastral (si dispone de ella)</Label>
-                  <Input 
-                    id="ref" 
-                    placeholder="14 o 20 caracteres alfanuméricos" 
-                    className="h-12" 
+                  <Input
+                    id="ref"
+                    placeholder="14 o 20 caracteres alfanuméricos"
+                    className="h-12"
                     value={formData.ref}
-                    onChange={(e) => setFormData({...formData, ref: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, ref: e.target.value })}
                   />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="message" className="text-primary font-semibold">Descripción del Caso</Label>
-                  <Textarea 
-                    id="message" 
-                    placeholder="Explique brevemente su necesidad técnica..." 
-                    className="min-h-[120px] resize-none" 
+                  <Textarea
+                    id="message"
+                    placeholder="Explique brevemente su necesidad técnica..."
+                    className="min-h-[120px] resize-none"
                     value={formData.message}
-                    onChange={(e) => setFormData({...formData, message: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                   />
                 </div>
               </CardContent>
