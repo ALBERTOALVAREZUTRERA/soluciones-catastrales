@@ -6,6 +6,18 @@ export const metadata: Metadata = {
   title: 'SOLUCIONES CATASTRALES | Alberto Álvarez',
   description: 'Ingeniería Técnica especializada en archivos GML, coordinación Catastro-Registro y revisiones de IBI. Soluciones profesionales en Jaén.',
   keywords: ['GML', 'Catastro', 'Registro de la Propiedad', 'Ingeniero Técnico', 'Jaén', 'Andújar', 'IBI', 'Topografía', 'SOLUCIONES CATASTRALES'],
+  metadataBase: new URL('https://solucionescatastrales.app'),
+  alternates: {
+    canonical: '/',
+  },
+  openGraph: {
+    title: 'SOLUCIONES CATASTRALES | Alberto Álvarez',
+    description: 'Ingeniería Técnica y archivos GML en Jaén.',
+    url: 'https://solucionescatastrales.app',
+    siteName: 'Soluciones Catastrales',
+    locale: 'es_ES',
+    type: 'website',
+  },
 };
 
 export default function RootLayout({
