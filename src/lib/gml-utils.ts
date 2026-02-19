@@ -249,7 +249,32 @@ function calculateSignedAreaSimple(points: [number, number][]): number {
     for (let i = 0; i < points.length - 1; i++) {
         area += points[i][0] * points[i + 1][1] - points[i + 1][0] * points[i][1];
     }
+    area += points[points.length - 1][0] * points[0][1] - points[0][0] * points[points.length - 1][1];
     return area / 2;
+}
+
+// Función auxiliar para calcular área de GeoJSON Feature (Polygon o MultiPolygon) en coordenadas planares
+function calculatePlanarAreaFromFeature(feature: Feature<Polygon | MultiPolygon>): number {
+    if (feature.geometry.type === 'Polygon') {
+        const rings = feature.geometry.coordinates as [number, number][][];
+        // Area exterior - sum(areas interiores)
+        let totalArea = Math.abs(calculateSignedAreaSimple(rings[0]));
+        for (let i = 1; i < rings.length; i++) {
+            totalArea -= Math.abs(calculateSignedAreaSimple(rings[i]));
+        }
+        return totalArea;
+    } else if (feature.geometry.type === 'MultiPolygon') {
+        let totalArea = 0;
+        const polyCoords = feature.geometry.coordinates as [number, number][][][];
+        polyCoords.forEach(rings => {
+            totalArea += Math.abs(calculateSignedAreaSimple(rings[0]));
+            for (let i = 1; i < rings.length; i++) {
+                totalArea -= Math.abs(calculateSignedAreaSimple(rings[i]));
+            }
+        });
+        return totalArea;
+    }
+    return 0;
 }
 
 // Procesa DXF con capas PG-LP (límites) y PG-LI (divisiones interiores)
@@ -606,9 +631,12 @@ export function validateTopology(layers: { name: string, features: GmlFeature[] 
 
                         // Si hay intersección y NO es solo una línea o punto (comprobando área > 0)
                         if (intersection) {
-                            const intersectionArea = turf.area(intersection);
-                            // Tolerancia mínima (0.1 m2) para evitar falsos positivos por imprecisión float
-                            if (intersectionArea > 0.1) {
+                            // IMPORTANTE: No usar turf.area ya que asume WGS84 y explota con coordenadas UTM
+                            // Calculamos área planar usando nuestra función simple
+                            const intersectionArea = calculatePlanarAreaFromFeature(intersection as Feature<Polygon | MultiPolygon>);
+
+                            // Tolerancia mínima (0.5 m2) para evitar falsos positivos por imprecisión float en adjacencias
+                            if (intersectionArea > 0.5) {
                                 issues.push({
                                     type: 'OVERLAP',
                                     geometry: intersection as Feature<Polygon | MultiPolygon>,
