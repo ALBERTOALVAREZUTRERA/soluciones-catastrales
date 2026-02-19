@@ -84,6 +84,16 @@ export function Footer() {
           <p className="mt-2 text-[10px] opacity-40 italic tracking-wider uppercase">
             Plataforma técnica diseñada y desarrollada por Alberto Álvarez Utrera
           </p>
+          <div className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-2 text-[10px] opacity-60 uppercase tracking-tighter decoration-accent/30 underline-offset-4">
+            <Link href="/legal/aviso-legal" className="hover:text-accent hover:underline">Aviso Legal</Link>
+            <Link href="/legal/privacidad" className="hover:text-accent hover:underline">Política de Privacidad</Link>
+            <Link href="/legal/cookies" className="hover:text-accent hover:underline">Cookies</Link>
+            <Link href="/legal/terminos" className="hover:text-accent hover:underline">Términos y Condiciones</Link>
+          </div>
+          <div className="mt-6 pt-6 border-t border-white/5 text-[9px] opacity-30 flex flex-col items-center gap-1">
+            <p>SOFTWARE MAPA POR LEAFLET. ICONOS POR FONT AWESOME (CC BY 4.0).</p>
+            <p>ACCESO A DATOS CATASTRALES VÍA SEDE ELECTRÓNICA DEL CATASTRO (WMS/WFS).</p>
+          </div>
         </div>
       </div>
     </footer>
