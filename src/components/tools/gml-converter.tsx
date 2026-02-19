@@ -317,7 +317,13 @@ export function GmlConverter() {
                                     const url = URL.createObjectURL(blob);
                                     const a = document.createElement('a');
                                     a.href = url;
-                                    a.download = `parcelas_catastro_${new Date().getTime()}.gml`;
+                                    // Use first filename if only one file, otherwise generic
+                                    if (files.length === 1) {
+                                        const cleanName = files[0].name.replace(/\.[^/.]+$/, "");
+                                        a.download = `${cleanName}.gml`;
+                                    } else {
+                                        a.download = `parcelas_catastro_${new Date().getTime()}.gml`;
+                                    }
                                     document.body.appendChild(a);
                                     a.click();
                                     document.body.removeChild(a);

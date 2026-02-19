@@ -212,7 +212,11 @@ export function parseDxf(text: string, baseName: string = 'PARCELA_DXF'): GmlFea
 
     // Renumerar IDs
     finalFeatures.forEach((f, idx) => {
-        f.id = `${baseName}_${idx + 1}`;
+        if (finalFeatures.length === 1) {
+            f.id = baseName;
+        } else {
+            f.id = `${baseName}_${idx + 1}`;
+        }
     });
 
     console.log(`[parseDxf] Resultado: ${finalFeatures.length} parcelas finales`);
