@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import dynamic from "next/dynamic";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -502,11 +503,19 @@ export function GmlConverter() {
 
                             {/* Topology Alerts */}
                             {topologyIssues.length > 0 && (
-                                <Alert variant="destructive" className="border-red-500 bg-red-50">
+                                <Alert variant="destructive" className="border-red-500 bg-red-50 mb-6">
                                     <AlertTriangle className="h-5 w-5" />
-                                    <AlertTitle>Conflictos de Topología Detectados</AlertTitle>
+                                    <AlertTitle className="flex items-center justify-between">
+                                        <span>Conflictos de Topología Detectados</span>
+                                        <Link href="#tramites">
+                                            <Button size="sm" variant="destructive" className="h-7 text-[10px] uppercase font-bold">
+                                                Consultar con Ingeniero
+                                            </Button>
+                                        </Link>
+                                    </AlertTitle>
                                     <AlertDescription>
-                                        <ul className="list-disc pl-5 mt-2 space-y-1 text-sm">
+                                        <p className="text-xs mb-2 opacity-80">Si cree que estos solapes son errores del sistema o necesita ayuda para corregirlos:</p>
+                                        <ul className="list-disc pl-5 space-y-1 text-sm">
                                             {topologyIssues.map((issue, idx) => (
                                                 <li key={idx}>
                                                     {issue.message}
