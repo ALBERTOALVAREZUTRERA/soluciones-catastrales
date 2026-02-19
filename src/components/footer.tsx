@@ -81,6 +81,9 @@ export function Footer() {
 
         <div className="border-t border-white/10 pt-8 mt-8 text-center text-sm text-gray-400">
           <p>© {year || "..."} SOLUCIONES CATASTRALES. Todos los derechos reservados. Alberto Álvarez - Ingeniero Técnico.</p>
+          <p className="mt-2 text-[10px] opacity-40 italic tracking-wider uppercase">
+            Plataforma técnica diseñada y desarrollada por Alberto Álvarez Utrera
+          </p>
         </div>
       </div>
     </footer>

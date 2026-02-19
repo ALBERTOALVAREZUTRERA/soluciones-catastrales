@@ -39,9 +39,11 @@ export function Navbar() {
                 {link.name}
               </Link>
             ))}
-            <Button variant="outline" className="border-accent text-accent hover:bg-accent hover:text-white">
-              Área Cliente
-            </Button>
+            <Link href="#tramites">
+              <Button variant="outline" className="border-accent text-accent hover:bg-accent hover:text-white">
+                Área Cliente
+              </Button>
+            </Link>
           </div>
 
           {/* Mobile Menu Button */}
@@ -69,9 +71,11 @@ export function Navbar() {
                 {link.name}
               </Link>
             ))}
-            <Button className="w-full bg-accent hover:bg-accent/90">
-              Área Cliente
-            </Button>
+            <Link href="#tramites" onClick={() => setIsOpen(false)}>
+              <Button className="w-full bg-accent hover:bg-accent/90">
+                Área Cliente
+              </Button>
+            </Link>
           </div>
         </div>
       )}
