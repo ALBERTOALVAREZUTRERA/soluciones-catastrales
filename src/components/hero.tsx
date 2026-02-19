@@ -78,7 +78,7 @@ export function Hero() {
           data-ai-hint="aerial landscape"
         />
       </div>
-      
+
       <div className="container relative z-10 mx-auto px-4 md:px-8">
         <div className="max-w-4xl animate-fade-in-up">
           <div className="inline-flex items-center gap-2 bg-accent/20 backdrop-blur-md border border-accent/30 text-accent-foreground px-4 py-2 rounded-full mb-8">
@@ -86,16 +86,16 @@ export function Hero() {
             <span className="text-sm font-semibold tracking-wide uppercase">Especialistas en Archivos GML</span>
           </div>
           <h1 className="text-4xl md:text-7xl font-bold text-white font-headline leading-tight mb-6 drop-shadow-[0_5px_5px_rgba(0,0,0,0.8)]">
-            Soluciones <span className="text-accent">Catastrales</span> y Registrales
+            Soluciones <span className="text-accent">Catastrales</span> a Nivel Nacional
           </h1>
           <p className="text-lg md:text-2xl text-gray-200 mb-10 max-w-2xl leading-relaxed">
-            Ingeniería técnica para la generación de archivos GML de parcelas y edificaciones. Garantizamos la precisión en linderos y coordinación con el Registro de la Propiedad.
+            Generación profesional de archivos **GML GRATUITOS** para parcelas y edificios. Ingeniería avanzada para técnicos y propietarios en toda España.
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
             <Button size="lg" className="bg-accent text-white hover:bg-accent/90 text-lg h-14 px-10" asChild>
               <a href="#servicios">Ver Servicios GML</a>
             </Button>
-            
+
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
                 <Button size="lg" className="bg-white text-black hover:bg-gray-200 text-lg h-14 px-10 border-none">
@@ -131,7 +131,7 @@ export function Hero() {
           </div>
         </div>
       </div>
-      
+
       <div className="absolute bottom-10 left-1/2 -translate-x-1/2 animate-bounce">
         <div className="w-1 h-12 bg-gradient-to-b from-accent to-transparent rounded-full opacity-50"></div>
       </div>

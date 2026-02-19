@@ -188,11 +188,18 @@ export function GmlConverter() {
             </div>
 
             <Card className="border-t-4 border-accent shadow-xl bg-white mb-8">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <FileCode className="h-6 w-6 text-accent" />
-                        Carga de Archivos
-                    </CardTitle>
+                <CardHeader className="bg-primary text-white p-8">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <CardTitle className="text-2xl font-headline uppercase tracking-wide">Conversor DXF a GML Catastral</CardTitle>
+                            <CardDescription className="text-gray-300 text-base">
+                                Generación inmediata de archivos GML para validación en Sede Electrónica.
+                            </CardDescription>
+                        </div>
+                        <div className="bg-accent text-white px-3 py-1 rounded-full text-xs font-bold animate-pulse">
+                            SERVICIO GRATUITO
+                        </div>
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <Tabs defaultValue="dxf" onValueChange={setFormat} className="w-full">
