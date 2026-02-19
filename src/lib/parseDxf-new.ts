@@ -117,25 +117,53 @@ export function parseDxf(text: string, baseName: string = 'PARCELA_DXF'): GmlFea
 
     console.log(`[parseDxf] Procesando ${dxf.entities.length} entidades DXF`);
 
-    // 1. Buscar geometrías en capa PG-LP (Límites) usando el unificador
-    const outerPolysPoints = mergeFragments(dxf.entities, 'PG-LP');
+    // 1. Buscar geometrías en capas por prioridad
+    let outerPolysPoints: [number, number][][] = [];
+    let innerPolysPoints: [number, number][][] = [];
 
-    // 2. Buscar geometrías en capa PG-LI (Divisiones interiores)
-    const innerPolysPoints = mergeFragments(dxf.entities, 'PG-LI');
+    // Prioridad 1: Capas estándares catastrales
+    outerPolysPoints = mergeFragments(dxf.entities, 'PG-LP');
+    innerPolysPoints = mergeFragments(dxf.entities, 'PG-LI');
 
-    console.log(`[parseDxf] PG-LP: ${outerPolysPoints.length} polígonos, PG-LI: ${innerPolysPoints.length} polígonos`);
+    // Prioridad 2: Si no hay nada, buscar en capas comunes de dibujo
+    if (outerPolysPoints.length === 0) {
+        const fallbackLayers = ['0', 'RECINTO', 'PARCELA', 'CATASTRO', 'RECINTOS', 'POLIGONO'];
+        for (const layer of fallbackLayers) {
+            const found = mergeFragments(dxf.entities, layer);
+            if (found.length > 0) {
+                console.log(`[parseDxf] Encontrada geometría en capa de fallback: ${layer}`);
+                outerPolysPoints = found;
+                break;
+            }
+        }
+    }
+
+    // Prioridad 3: Si sigue sin haber nada, intentar CUALQUIER capa que tenga algo
+    if (outerPolysPoints.length === 0) {
+        const allLayers = Array.from(new Set(dxf.entities.map((e: any) => e.layer))).filter(l => l && l !== 'Defpoints');
+        for (const layer of allLayers) {
+            const found = mergeFragments(dxf.entities, layer as string);
+            if (found.length > 0) {
+                console.log(`[parseDxf] Usando capa con datos: ${layer}`);
+                outerPolysPoints = found;
+                break;
+            }
+        }
+    }
+
+    console.log(`[parseDxf] Final: LP/Main: ${outerPolysPoints.length} polígonos, LI/Holes: ${innerPolysPoints.length} polígonos`);
 
     // Convertir a estructura intermedia
     const rawPolys: { id: string, points: [number, number][], area: number }[] = [];
 
-    // Procesar Exteriores (PG-LP)
+    // Procesar Exteriores (PG-LP o fallback)
     outerPolysPoints.forEach((points, index) => {
         if (points[0][0] !== points[points.length - 1][0] || points[0][1] !== points[points.length - 1][1]) {
             points.push(points[0]);
         }
         const signedArea = calculateSignedAreaSimple(points);
         rawPolys.push({
-            id: `${baseName}_LP_${index + 1}`,
+            id: `${baseName}_EXT_${index + 1}`,
             points,
             area: Math.abs(signedArea)
         });
@@ -145,7 +173,7 @@ export function parseDxf(text: string, baseName: string = 'PARCELA_DXF'): GmlFea
     innerPolysPoints.forEach((points, i) => {
         if (points[0][0] !== points[points.length - 1][0]) points.push(points[0]);
         rawPolys.push({
-            id: `${baseName}_LI_${i + 1}`,
+            id: `${baseName}_INT_${i + 1}`,
             points: points,
             area: Math.abs(calculateSignedAreaSimple(points))
         });
@@ -175,7 +203,7 @@ export function parseDxf(text: string, baseName: string = 'PARCELA_DXF'): GmlFea
         }
 
         finalFeatures.push({
-            id: parent.id.replace(/_LP_\d+$/, '').replace(/_LI_\d+$/, ''),
+            id: parent.id.replace(/_(EXT|INT)_\d+$/, ''),
             geometry: [parent.points, ...holes_found],
             area: parent.area
         });
