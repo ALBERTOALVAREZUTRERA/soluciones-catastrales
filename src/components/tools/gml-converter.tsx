@@ -494,6 +494,24 @@ export function GmlConverter() {
                                 <Download className="h-5 w-5" />
                                 Descargar SHAPE
                             </Button>
+                            <Button
+                                size="lg"
+                                variant="outline"
+                                className="border-2 border-red-600 text-red-600 hover:bg-red-600 hover:text-white gap-2 font-bold"
+                                onClick={async () => {
+                                    try {
+                                        const { generateTechnicalReport } = await import('@/lib/report-generator');
+                                        await generateTechnicalReport(features, crs);
+                                        toast({ title: "Informe Generado", description: "PDF listo para Notaría/Registro." });
+                                    } catch (error) {
+                                        console.error("PDF Error:", error);
+                                        toast({ title: "Error", description: "No se pudo generar el PDF", variant: "destructive" });
+                                    }
+                                }}
+                            >
+                                <FileText className="h-5 w-5" />
+                                Descargar Informe PDF
+                            </Button>
                         </div>
                     )}
 

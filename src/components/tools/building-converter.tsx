@@ -216,10 +216,27 @@ export function BuildingConverter() {
                             <Button
                                 size="lg"
                                 onClick={handleDownloadGML}
-                                className="gap-2 px-12 h-14 text-xl font-bold shadow-xl shadow-green-200"
+                                className="gap-2 px-8 h-12 text-lg font-bold shadow-lg shadow-green-200"
                             >
-                                <Download className="h-6 w-6" />
-                                Descargar GML de Edificio
+                                <Download className="h-5 w-5" />
+                                Descargar GML
+                            </Button>
+                            <Button
+                                size="lg"
+                                variant="outline"
+                                className="border-2 border-red-600 text-red-600 hover:bg-red-600 hover:text-white gap-2 font-bold px-8 h-12 text-lg"
+                                onClick={async () => {
+                                    try {
+                                        const { generateTechnicalReport } = await import('@/lib/report-generator');
+                                        await generateTechnicalReport(features, crs);
+                                        toast({ title: "Informe Generado", description: "PDF listo para Notaría/Registro." });
+                                    } catch (error) {
+                                        toast({ title: "Error", description: "No se pudo generar el PDF", variant: "destructive" });
+                                    }
+                                }}
+                            >
+                                <FileCode className="h-5 w-5" />
+                                Descargar Informe PDF
                             </Button>
                         </CardFooter>
                     </Card>
