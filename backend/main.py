@@ -106,6 +106,14 @@ async def health():
     """Health check endpoint"""
     return {"status": "healthy", "service": "catastro-api"}
 
+@app.get("/debug-cors")
+async def debug_cors():
+    """Endpoint temporal para depurar el valor de ADMITTED_ORIGINS en Railway"""
+    return {
+        "env_admitted_origins_str": admitted_origins_str,
+        "allow_origins_list": allow_origins
+    }
+
 from core.shp_reader import SHPReader
 
 @app.post("/analyze", response_model=AnalyzeResponse)
