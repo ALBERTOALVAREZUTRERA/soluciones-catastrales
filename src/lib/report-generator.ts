@@ -1,5 +1,5 @@
 import { jsPDF } from "jspdf";
-import "jspdf-autotable";
+import autoTable from "jspdf-autotable";
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, BorderStyle, WidthType, HeadingLevel, AlignmentType } from 'docx';
 import { saveAs } from 'file-saver';
 import { GmlFeature } from "./gml-utils";
@@ -66,7 +66,7 @@ export async function generateTechnicalReport(features: GmlFeature[], crs: strin
 
         const areaValue = feature.area ? `${feature.area.toFixed(2)} m²` : "No calculada";
 
-        doc.autoTable({
+        autoTable(doc, {
             startY: 100,
             head: [["Concepto", "Valor"]],
             body: [
@@ -91,7 +91,7 @@ export async function generateTechnicalReport(features: GmlFeature[], crs: strin
             coord[1].toFixed(3)
         ]);
 
-        doc.autoTable({
+        autoTable(doc, {
             startY: (doc.lastAutoTable.finalY || 100) + 20,
             head: [["Vértice", "Coordenada X (m)", "Coordenada Y (m)"]],
             body: tableData,
@@ -192,7 +192,7 @@ export const generatePDFReport = (data: ReportData) => {
     doc.setFont("helvetica", "bold");
     doc.text("3. VALORES CATASTRALES OFICIALES", 14, currY); currY += 5;
 
-    doc.autoTable({
+    autoTable(doc, {
         startY: currY,
         head: [['Concepto', 'Importe (€)']],
         body: [
