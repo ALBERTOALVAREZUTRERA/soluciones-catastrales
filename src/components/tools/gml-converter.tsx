@@ -142,14 +142,6 @@ export function GmlConverter() {
 
     return (
         <div className="max-w-4xl mx-auto p-4 md:p-8">
-            <div className="text-center mb-10">
-                <h1 className="text-3xl md:text-5xl font-bold font-headline text-primary mb-4">
-                    Conversor <span className="text-accent">GML</span> Catastro
-                </h1>
-                <p className="text-lg text-muted-foreground">
-                    Transforma DXF, SHP o coordenadas a GML. <strong>Soporta múltiples archivos con descarga individual.</strong>
-                </p>
-            </div>
 
             {/* Guía de Uso Rápida */}
             <div className="grid md:grid-cols-3 gap-4 mb-8">
@@ -188,17 +180,15 @@ export function GmlConverter() {
                 </div>
             </div>
 
-            <Card className="border-t-4 border-accent shadow-xl bg-white mb-8">
-                <CardHeader className="bg-primary text-white p-8">
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <CardTitle className="text-2xl font-headline uppercase tracking-wide">Conversor DXF a GML Catastral</CardTitle>
-                            <CardDescription className="text-gray-300 text-base">
-                                Generación inmediata de archivos GML para validación en Sede Electrónica.
-                            </CardDescription>
-                        </div>
-                        <div className="bg-accent text-white px-3 py-1 rounded-full text-xs font-bold animate-pulse">
-                            SERVICIO GRATUITO
+            <Card className="shadow-2xl border-0 overflow-hidden rounded-2xl mb-8">
+                <CardHeader className="bg-slate-900 text-white p-8 text-center">
+                    <div className="flex flex-col items-center justify-center space-y-2">
+                        <CardTitle className="text-2xl font-bold tracking-tight">Carga y Procesamiento de Archivos</CardTitle>
+                        <CardDescription className="text-slate-400 font-medium">
+                            Generación inmediata de archivos GML con validación topológica
+                        </CardDescription>
+                        <div className="mt-4 bg-accent/20 border border-accent text-accent px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest">
+                            Software Técnico Gratuito
                         </div>
                     </div>
                 </CardHeader>

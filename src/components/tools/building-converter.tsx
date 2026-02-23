@@ -105,14 +105,6 @@ export function BuildingConverter() {
 
     return (
         <div className="max-w-4xl mx-auto p-4 md:p-8">
-            <div className="text-center mb-10">
-                <h1 className="text-3xl md:text-5xl font-bold font-headline text-primary mb-4">
-                    Conversor <span className="text-accent">GML Edificios</span>
-                </h1>
-                <p className="text-lg text-muted-foreground">
-                    Genera archivos GML INSPIRE para construcciones a partir de DXF o Shapefiles.
-                </p>
-            </div>
 
             {/* Instrucciones Específicas */}
             <div className="grid md:grid-cols-2 gap-4 mb-8">
@@ -148,15 +140,14 @@ export function BuildingConverter() {
                 </div>
             </div>
 
-            <Card className="border-t-4 border-blue-600 shadow-xl bg-white mb-8">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Home className="h-6 w-6 text-blue-600" />
-                        Carga de Geometría de Edificio
-                    </CardTitle>
-                    <CardDescription>
-                        Sube el archivo DXF o ZIP (con SHP) que contiene la huella del edificio.
-                    </CardDescription>
+            <Card className="shadow-2xl border-0 overflow-hidden rounded-2xl mb-8">
+                <CardHeader className="bg-slate-900 text-white p-8 text-center">
+                    <div className="flex flex-col items-center justify-center space-y-2">
+                        <CardTitle className="text-2xl font-bold tracking-tight">Carga de Geometría de Edificio</CardTitle>
+                        <CardDescription className="text-slate-400 font-medium">
+                            Sube el archivo DXF o ZIP (con SHP) que contiene la huella del edificio.
+                        </CardDescription>
+                    </div>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <div className="grid gap-4 md:grid-cols-2">
