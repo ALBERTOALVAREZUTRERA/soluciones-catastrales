@@ -37,11 +37,20 @@ app = FastAPI(
 )
 
 # Configurar CORS para producción y desarrollo
-admitted_origins = os.getenv("ADMITTED_ORIGINS", "http://localhost:9002,http://localhost:3000").split(",")
+admitted_origins = os.getenv(
+    "ADMITTED_ORIGINS", 
+    "http://localhost:9002,http://localhost:3000,https://www.solucionescatastrales.app,https://solucionescatastrales.app,*"
+).split(",")
+
+# If empty string is in list, allow all temporarily
+if "*" in admitted_origins:
+    allow_origins = ["*"]
+else:
+    allow_origins = admitted_origins
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=admitted_origins,
+    allow_origins=allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -841,5 +850,8 @@ async def get_municipios():
 
 if __name__ == "__main__":
     import uvicorn
-    # Para usar reload=True, hay que pasar el nombre del modulo como string
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    import os
+    # En Railway el puerto viene dado por la variable de entorno PORT
+    port = int(os.environ.get("PORT", 8000))
+    # Desactivar reload en producción y usar el puerto dinámico
+    uvicorn.run("main:app", host="0.0.0.0", port=port)
