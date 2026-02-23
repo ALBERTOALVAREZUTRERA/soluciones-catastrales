@@ -92,10 +92,11 @@ COEF_TIPOLOGIA = {
 }
 
 COEF_SUELO_OCUPADO_RUSTICO = {
-    "residencial": 0.070,
-    "industrial": 0.047,
-    "deportivo": 0.023,
-    "varios": 0.059
+    "residencial": {"mbr_type": "urbano", "coef": 0.070},
+    "industrial": {"mbr_type": "urbano", "coef": 0.047},
+    "deportivo": {"mbr_type": "urbano", "coef": 0.023},
+    "agricola": {"mbr_type": "rustico", "coef": 0.1007},
+    "varios": {"mbr_type": "rustico", "coef": 0.50}
 }
 
 def get_coef_edificabilidad(edif_max, edif_real):
@@ -190,6 +191,7 @@ class TaxCalculator:
 
         data = base_data
         RM = data["rm"]
+        GB = float(params.get("custom_gb", 1.0))
         clase = params.get("clase", "urbano")
         
         # 1. VALOR SUELO URBANO
@@ -208,7 +210,7 @@ class TaxCalculator:
             edif_real = float(params.get("edif_real", 0))
             coef_edif = get_coef_edificabilidad(edif_max, edif_real)
             
-            suelo_urb = round(sup_parcela * valor_rep * coef_edif * RM, 2)
+            suelo_urb = round(sup_parcela * valor_rep * coef_edif * RM * GB, 2)
 
         # 2. VALOR SUELO RÚSTICO
         suelo_rust_no = 0.0
@@ -220,8 +222,16 @@ class TaxCalculator:
             
             uso_suelo = params.get("uso_suelo_rust", "residencial")
             sup_oc = float(params.get("sup_ocupada", 0))
-            coef_suelo = COEF_SUELO_OCUPADO_RUSTICO.get(uso_suelo, 0.059)
-            suelo_rust_oc = round(sup_oc * (data["mbr"] * coef_suelo) * RM, 2)
+            
+            suelo_rustico_config = COEF_SUELO_OCUPADO_RUSTICO.get(uso_suelo, {"mbr_type": "rustico", "coef": 0.50})
+            coef_suelo = suelo_rustico_config["coef"]
+            
+            # TODO: Idealmente tener mbr_rustico en MUNICIPALITIES. Aquí usamos el valor de polígono poblados como aproximación o el parametrizado
+            mbr_aplicar = data["mbr"] if suelo_rustico_config["mbr_type"] == "urbano" else data.get("mbr_rustico", 37.80)
+            if params.get("custom_mbr_rustico"):
+                mbr_aplicar = float(params["custom_mbr_rustico"])
+                
+            suelo_rust_oc = round(sup_oc * (mbr_aplicar * coef_suelo) * RM * GB, 2)
 
         # 3. VALOR CONSTRUCCIÓN
         construccion = 0.0
@@ -236,7 +246,25 @@ class TaxCalculator:
             coef_h = get_coef_antiguedad(anio_const, data["anio_ponencia"])
             coef_i = COEF_CONSERVACION.get(estado, 0.92)
             
-            construccion = round(sup_const * data["mbc"] * coef_tipo * coef_h * coef_i * RM, 2)
+            construccion_base = round(sup_const * data["mbc"] * coef_tipo * coef_h * coef_i * RM * GB, 2)
+            
+            # Support array of constructions
+            construccion = construccion_base
+            if "construcciones" in params and isinstance(params["construcciones"], list):
+                construccion = 0.0
+                for c in params["construcciones"]:
+                    c_uso = c.get("uso", "vivienda")
+                    c_cat = int(c.get("categoria", 3))
+                    c_anio = int(c.get("anio_const", 2000))
+                    c_estado = c.get("estado", "normal")
+                    c_sup = float(c.get("sup_const", 0))
+                    
+                    c_coef_tipo = COEF_TIPOLOGIA.get(c_uso, COEF_TIPOLOGIA["vivienda"]).get(c_cat, 1.0)
+                    c_coef_h = get_coef_antiguedad(c_anio, data["anio_ponencia"])
+                    c_coef_i = COEF_CONSERVACION.get(c_estado, 0.92)
+                    
+                    c_valor = round(c_sup * data["mbc"] * c_coef_tipo * c_coef_h * c_coef_i * RM * GB, 2)
+                    construccion += c_valor
 
         # TOTAL CATASTRAL
         total = round(suelo_urb + suelo_rust_no + suelo_rust_oc + construccion, 2)

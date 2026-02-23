@@ -42,7 +42,9 @@ export default function CalculadoraPage() {
         // Parámetros expertos (Ponencia)
         custom_mbc: 550,
         custom_mbr: 450,
+        custom_mbr_rustico: 37.8,
         custom_rm: 0.50,
+        custom_gb: 1.0,
         custom_tipo_urbano: 0.006,
         custom_tipo_rustico: 0.010,
         custom_anio_ponencia: 2010
@@ -224,18 +226,26 @@ export default function CalculadoraPage() {
                                                     <Landmark className="h-4 w-4" />
                                                     Parámetros Técnicos de la Ponencia
                                                 </h4>
-                                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                                                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
                                                     <div className="space-y-1">
                                                         <Label className="text-[10px]">MBC (€/m²)</Label>
                                                         <Input type="number" name="custom_mbc" value={formData.custom_mbc} onChange={handleInputChange} className="h-8 text-xs" />
                                                     </div>
                                                     <div className="space-y-1">
-                                                        <Label className="text-[10px]">MBR (€/m²)</Label>
+                                                        <Label className="text-[10px]">MBR Urbano</Label>
                                                         <Input type="number" name="custom_mbr" value={formData.custom_mbr} onChange={handleInputChange} className="h-8 text-xs" />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <Label className="text-[10px]">MBR Rústico</Label>
+                                                        <Input type="number" name="custom_mbr_rustico" value={formData.custom_mbr_rustico} onChange={handleInputChange} className="h-8 text-xs" />
                                                     </div>
                                                     <div className="space-y-1">
                                                         <Label className="text-[10px]">Coef. RM</Label>
                                                         <Input type="number" name="custom_rm" step="0.1" value={formData.custom_rm} onChange={handleInputChange} className="h-8 text-xs" />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <Label className="text-[10px]">Coef. G+B</Label>
+                                                        <Input type="number" name="custom_gb" step="0.1" value={formData.custom_gb} onChange={handleInputChange} className="h-8 text-xs" />
                                                     </div>
                                                     <div className="space-y-1">
                                                         <Label className="text-[10px]">Tipo Urbano</Label>
@@ -250,7 +260,7 @@ export default function CalculadoraPage() {
                                                         <Input type="number" name="custom_anio_ponencia" value={formData.custom_anio_ponencia} onChange={handleInputChange} className="h-8 text-xs" />
                                                     </div>
                                                 </div>
-                                                <p className="text-[9px] text-slate-500 italic">Nota: Los módulos MBC (Construcción) y MBR (Repercusión Suelo) se obtienen de la Ponencia de Valores local.</p>
+                                                <p className="text-[9px] text-slate-500 italic">Nota: Los módulos MBC (Construcción) y MBR (Repercusión Suelo) se obtienen de la Ponencia de Valores. G+B suele ser 1.00 hasta revisar la ponencia exacta.</p>
                                             </div>
                                         )}
 
@@ -282,6 +292,24 @@ export default function CalculadoraPage() {
                                                 <div className="space-y-2">
                                                     <Label>Tipo Evaluatorio (€/ha)</Label>
                                                     <Input type="number" name="tipo_eval" value={formData.tipo_eval} onChange={handleInputChange} />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label>Superficie Ocupada por Const. (m²)</Label>
+                                                    <Input type="number" name="sup_ocupada" value={formData.sup_ocupada} onChange={handleInputChange} />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label>Uso Bajo Const.</Label>
+                                                    <Select value={formData.uso_suelo_rust} onValueChange={(v: string) => handleSelectChange("uso_suelo_rust", v)}>
+                                                        <SelectTrigger>
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="residencial">Residencial</SelectItem>
+                                                            <SelectItem value="agricola">Agrícola</SelectItem>
+                                                            <SelectItem value="industrial">Industrial</SelectItem>
+                                                            <SelectItem value="varios">Varios</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
                                                 </div>
                                             </>
                                         )}
