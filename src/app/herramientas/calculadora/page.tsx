@@ -149,9 +149,17 @@ export default function CalculadoraPage() {
             const data = await response.json();
 
             if (data.encontrado) {
+                // Capitalize and clean municipality name
+                let muniName = "Personalizado";
+                if (data.municipio) {
+                    muniName = data.municipio.split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+                    // Add to dropdown if it doesn't exist
+                    setMunicipios(prev => prev.includes(muniName) ? prev : [...prev, muniName]);
+                }
+
                 setFormData(prev => ({
                     ...prev,
-                    municipio: data.municipio || prev.municipio,
+                    municipio: muniName,
                     clase: data.uso?.toLowerCase().includes("rústico") ? "rustico" : "urbano",
                     sup_parcela: data.superficie_parcela || prev.sup_parcela,
                     ha: data.uso?.toLowerCase().includes("rústico") ? (data.superficie_parcela / 10000 || prev.ha) : prev.ha,
