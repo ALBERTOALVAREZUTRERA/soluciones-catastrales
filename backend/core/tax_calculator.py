@@ -114,13 +114,98 @@ SEVILLA_DATA = {
     "zonas_valor": {}
 }
 
+ZARAGOZA_DATA = {
+    "municipio": "Zaragoza",
+    "provincia": "Zaragoza",
+    "anio_ponencia": 2013,
+    "mbc": 700.0,
+    "mbr": 1000.0,
+    "rm": 0.50,
+    "tipo_ibi": {"urbano": 0.00404, "rustico": 0.00404, "bice": 0.0080},
+    "coef_ibi_rustica": 1.00,
+    "poligonos": {},
+    "zonas_valor": {}
+}
+
+MALAGA_DATA = {
+    "municipio": "Málaga",
+    "provincia": "Málaga",
+    "anio_ponencia": 2016,
+    "mbc": 850.0,
+    "mbr": 1500.0,
+    "rm": 0.50,
+    "tipo_ibi": {"urbano": 0.00451, "rustico": 0.00451, "bice": 0.0080},
+    "coef_ibi_rustica": 1.00,
+    "poligonos": {},
+    "zonas_valor": {}
+}
+
+MURCIA_DATA = {
+    "municipio": "Murcia",
+    "provincia": "Murcia",
+    "anio_ponencia": 2015,
+    "mbc": 650.0,
+    "mbr": 950.0,
+    "rm": 0.50,
+    "tipo_ibi": {"urbano": 0.00511, "rustico": 0.00511, "bice": 0.0080},
+    "coef_ibi_rustica": 1.00,
+    "poligonos": {},
+    "zonas_valor": {}
+}
+
+PALMA_DATA = {
+    "municipio": "Palma de Mallorca",
+    "provincia": "Illes Balears",
+    "anio_ponencia": 2012,
+    "mbc": 1000.0,
+    "mbr": 1900.0,
+    "rm": 0.50,
+    "tipo_ibi": {"urbano": 0.00490, "rustico": 0.00490, "bice": 0.0080},
+    "coef_ibi_rustica": 1.00,
+    "poligonos": {},
+    "zonas_valor": {}
+}
+
+BILBAO_DATA = {
+    "municipio": "Bilbao",
+    "provincia": "Bizkaia",
+    "anio_ponencia": 2016,
+    "mbc": 1050.0,
+    "mbr": 2000.0,
+    "rm": 0.50,
+    "tipo_ibi": {"urbano": 0.00194, "rustico": 0.00194, "bice": 0.0080},
+    "coef_ibi_rustica": 1.00,
+    "poligonos": {},
+    "zonas_valor": {}
+}
+
+VALLADOLID_DATA = {
+    "municipio": "Valladolid",
+    "provincia": "Valladolid",
+    "anio_ponencia": 2017,
+    "mbc": 600.0,
+    "mbr": 850.0,
+    "rm": 0.50,
+    "tipo_ibi": {"urbano": 0.00613, "rustico": 0.00613, "bice": 0.0080},
+    "coef_ibi_rustica": 1.00,
+    "poligonos": {},
+    "zonas_valor": {}
+}
+
 MUNICIPALITIES = {
     "Andújar": ANDUJAR_DATA,
     "Fuencaliente": FUENCALIENTE_DATA,
     "Madrid": MADRID_DATA,
     "Barcelona": BARCELONA_DATA,
     "Valencia": VALENCIA_DATA,
-    "Sevilla": SEVILLA_DATA
+    "Sevilla": SEVILLA_DATA,
+    "Zaragoza": ZARAGOZA_DATA,
+    "Málaga": MALAGA_DATA,
+    "Murcia": MURCIA_DATA,
+    "Palma de Mallorca": PALMA_DATA,
+    "Palma": PALMA_DATA, # Alías común
+    "Bilbao": BILBAO_DATA,
+    "Valladolid": VALLADOLID_DATA
 }
 
 # =====================================================
