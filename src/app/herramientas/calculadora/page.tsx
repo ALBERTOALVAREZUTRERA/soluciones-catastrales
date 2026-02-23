@@ -9,11 +9,12 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Calculator, Search, Home, Building2, Map as MapIcon, Landmark, Info, ChevronRight, CalculatorIcon } from "lucide-react";
+import { Calculator, Search, Home, Building2, Map as MapIcon, Landmark, Info, ChevronRight, CalculatorIcon, FileText, FileDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { API_BASE_URL } from "@/lib/backend-api";
+import { generatePDFReport, generateWordReport, ReportData } from "@/lib/report-generator";
 
 export default function CalculadoraPage() {
     const { toast } = useToast();
@@ -58,6 +59,45 @@ export default function CalculadoraPage() {
 
     const handleSelectChange = (name: string, value: string) => {
         setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const getReportData = (): ReportData | null => {
+        if (!result) return null;
+        return {
+            referenciaCatastral: formData.rc,
+            municipio: formData.municipio,
+            clase: formData.clase,
+            uso: formData.uso_const,
+            superficie: formData.sup_const,
+            anioConstruccion: formData.anio_const,
+            mbc: formData.custom_mbc,
+            mbr: formData.custom_mbr,
+            rm: formData.custom_rm,
+            gb: formData.custom_gb,
+            valorSuelo: Number(result.suelo_urbano || result.suelo_rustico_no_ocupado + result.suelo_rustico_ocupado),
+            valorConstruccion: Number(result.construccion),
+            valorTotal: Number(result.valor_catastral_total)
+        };
+    };
+
+    const handleExportPDF = () => {
+        const data = getReportData();
+        if (data) generatePDFReport(data);
+    };
+
+    const handleExportWord = async () => {
+        const data = getReportData();
+        if (data) {
+            try {
+                await generateWordReport(data);
+            } catch (error) {
+                toast({
+                    variant: "destructive",
+                    title: "Error de Exportación",
+                    description: "No se pudo generar el documento Word.",
+                });
+            }
+        }
     };
 
     const calculate = async () => {
@@ -454,6 +494,17 @@ export default function CalculadoraPage() {
                                             <strong>⚠️ Aviso:</strong> Este cálculo es una estimación matemática automatizada basada en parámetros medios y normativas generales (RD 1020/1993). No tiene validez legal ni sustituye a la Certificación Oficial emitida por la Dirección General del Catastro.
                                         </p>
                                     </div>
+                                </div>
+
+                                <div className="flex flex-col sm:flex-row gap-4 mt-8 justify-end border-t pt-6 border-slate-200">
+                                    <Button onClick={handleExportPDF} variant="outline" className="flex items-center gap-2 border-primary text-primary hover:bg-primary/5">
+                                        <FileText className="h-4 w-4" />
+                                        Exportar Informe (PDF)
+                                    </Button>
+                                    <Button onClick={handleExportWord} variant="outline" className="flex items-center gap-2 border-blue-600 text-blue-600 hover:bg-blue-50">
+                                        <FileDown className="h-4 w-4" />
+                                        Exportar Informe (Word)
+                                    </Button>
                                 </div>
                             </div>
                         )}
