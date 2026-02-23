@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { Calculator, Search, Home, Building2, Map as MapIcon, Landmark, Info, ChevronRight, CalculatorIcon, FileText, FileDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { API_BASE_URL } from "@/lib/backend-api";
 import { generatePDFReport, generateWordReport, ReportData } from "@/lib/report-generator";
@@ -22,6 +23,7 @@ export default function CalculadoraPage() {
     const [municipios, setMunicipios] = useState(["Andújar", "Fuencaliente", "Personalizado"]);
     const [result, setResult] = useState<any>(null);
     const [searchStatus, setSearchStatus] = useState<{ type: 'success' | 'error' | 'info' | null, message: string }>({ type: null, message: "" });
+    const [advancedOpen, setAdvancedOpen] = useState(false);
 
     const [formData, setFormData] = useState({
         municipio: "Andújar",
@@ -211,241 +213,264 @@ export default function CalculadoraPage() {
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
 
                         {/* Formulario */}
-                        <div className="lg:col-span-12">
-                            <Card className="shadow-lg border-primary/10 overflow-hidden">
-                                <CardHeader className="bg-primary text-white">
-                                    <div className="flex justify-between items-center">
-                                        <div>
-                                            <CardTitle className="text-xl">Configuración del Inmueble</CardTitle>
-                                            <CardDescription className="text-slate-300">Completa los datos para obtener el cálculo exacto</CardDescription>
-                                        </div>
-                                        <Badge variant="outline" className="border-accent text-accent animate-pulse hover:animate-none hover:bg-accent hover:text-white transition-colors">
+                        <div className="lg:col-span-12 max-w-3xl mx-auto w-full">
+                            <Card className="shadow-2xl border-0 overflow-hidden rounded-2xl">
+                                <CardHeader className="bg-slate-900 text-white p-8 text-center">
+                                    <div className="flex flex-col items-center justify-center space-y-2">
+                                        <CardTitle className="text-2xl font-bold tracking-tight">Calculadora de Valor Catastral</CardTitle>
+                                        <CardDescription className="text-slate-400 font-medium">Estimación aproximada (Urbana / Rústica)</CardDescription>
+                                        <Badge variant="outline" className="mt-4 border-accent text-accent bg-accent/10 px-3 py-1 text-xs">
                                             {formData.municipio === "Personalizado" ? "Parámetros Manuales" : `${formData.municipio} Ponencia ${formData.municipio === "Andújar" ? "2010" : "1990"}`}
                                         </Badge>
                                     </div>
                                 </CardHeader>
-                                <CardContent className="p-6">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                <CardContent className="p-8 space-y-8 bg-white">
 
-                                        {/* Búsqueda RC */}
-                                        <div className="space-y-2 lg:col-span-3 pb-4 border-b">
-                                            <Label htmlFor="rc" className="text-primary font-bold">1. Referencia Catastral (Auto-completar)</Label>
-                                            <div className="flex gap-2">
-                                                <Input
-                                                    id="rc"
-                                                    name="rc"
-                                                    placeholder="Ej: 8409103VH0180N..."
-                                                    value={formData.rc}
-                                                    onChange={e => setFormData(prev => ({ ...prev, rc: e.target.value }))}
-                                                    className="font-mono"
-                                                />
-                                                <Button onClick={buscarRC} disabled={loading} variant="secondary">
-                                                    <Search className="h-4 w-4 mr-2" />
-                                                    Buscar
-                                                </Button>
-                                            </div>
-                                            {searchStatus.type && (
-                                                <div className={`mt-3 p-3 rounded-md text-sm font-medium border animate-in slide-in-from-top-2 ${searchStatus.type === 'success' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                                                    searchStatus.type === 'error' ? 'bg-red-50 text-red-700 border-red-200' :
-                                                        'bg-blue-50 text-blue-700 border-blue-200'
-                                                    }`}>
-                                                    <div className="flex items-center gap-2">
-                                                        {searchStatus.type === 'success' && <Info className="h-4 w-4 text-emerald-600" />}
-                                                        {searchStatus.type === 'info' && <Search className="h-4 w-4 text-blue-600 animate-pulse" />}
-                                                        {searchStatus.message}
-                                                    </div>
+                                    {/* Búsqueda RC (Destacada) */}
+                                    <div className="bg-slate-50 p-6 rounded-xl border border-slate-100 space-y-3">
+                                        <Label htmlFor="rc" className="text-slate-700 font-semibold flex items-center gap-2 text-base">
+                                            <Search className="h-5 w-5 text-primary" />
+                                            Buscar Inmueble por Referencia Catastral
+                                        </Label>
+                                        <div className="flex flex-col sm:flex-row gap-3">
+                                            <Input
+                                                id="rc"
+                                                name="rc"
+                                                placeholder="Ej: 8409103VH0180N0001HY"
+                                                value={formData.rc}
+                                                onChange={e => setFormData(prev => ({ ...prev, rc: e.target.value.toUpperCase() }))}
+                                                className="font-mono text-lg h-12 shadow-sm border-slate-300 focus-visible:ring-primary"
+                                            />
+                                            <Button onClick={buscarRC} disabled={loading} size="lg" className="h-12 px-8 bg-slate-800 hover:bg-slate-700 text-white shadow-md">
+                                                {loading ? "Buscando..." : "Autocompletar"}
+                                            </Button>
+                                        </div>
+                                        <p className="text-xs text-slate-500 ml-1">Para mayor precisión, utiliza siempre el buscador Catastral.</p>
+                                        {searchStatus.type && (
+                                            <div className={`mt-3 p-3 rounded-md text-sm font-medium border animate-in slide-in-from-top-2 ${searchStatus.type === 'success' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                                searchStatus.type === 'error' ? 'bg-red-50 text-red-700 border-red-200' :
+                                                    'bg-blue-50 text-blue-700 border-blue-200'
+                                                }`}>
+                                                <div className="flex items-center gap-2">
+                                                    {searchStatus.type === 'success' && <Info className="h-4 w-4 text-emerald-600" />}
+                                                    {searchStatus.type === 'info' && <Search className="h-4 w-4 text-blue-600 animate-pulse" />}
+                                                    {searchStatus.message}
                                                 </div>
-                                            )}
-                                        </div>
-
-                                        {/* Municipio y Clase */}
-                                        <div className="space-y-2">
-                                            <Label>Municipio</Label>
-                                            <Select value={formData.municipio} onValueChange={(v: string) => handleSelectChange("municipio", v)}>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Selecciona municipio" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {municipios.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <Label>Clase de Inmueble</Label>
-                                            <Select value={formData.clase} onValueChange={(v: string) => handleSelectChange("clase", v)}>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Urbano / Rústico" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="urbano">Urbano</SelectItem>
-                                                    <SelectItem value="rustico">Rústico</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-
-                                        {/* CONFIGURACIÓN EXPERTA (Solo si es Personalizado) */}
-                                        {formData.municipio === "Personalizado" && (
-                                            <div className="lg:col-span-3 p-4 bg-accent/5 border border-accent/20 rounded-xl space-y-4 animate-in fade-in duration-300">
-                                                <h4 className="font-bold text-primary flex items-center gap-2 text-sm uppercase">
-                                                    <Landmark className="h-4 w-4" />
-                                                    Parámetros Técnicos de la Ponencia
-                                                </h4>
-                                                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
-                                                    <div className="space-y-1">
-                                                        <Label className="text-[10px]">MBC (€/m²)</Label>
-                                                        <Input type="number" name="custom_mbc" value={formData.custom_mbc} onChange={handleInputChange} className="h-8 text-xs" />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <Label className="text-[10px]">MBR Urbano</Label>
-                                                        <Input type="number" name="custom_mbr" value={formData.custom_mbr} onChange={handleInputChange} className="h-8 text-xs" />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <Label className="text-[10px]">MBR Rústico</Label>
-                                                        <Input type="number" name="custom_mbr_rustico" value={formData.custom_mbr_rustico} onChange={handleInputChange} className="h-8 text-xs" />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <Label className="text-[10px]">Coef. RM</Label>
-                                                        <Input type="number" name="custom_rm" step="0.1" value={formData.custom_rm} onChange={handleInputChange} className="h-8 text-xs" />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <Label className="text-[10px]">Coef. G+B</Label>
-                                                        <Input type="number" name="custom_gb" step="0.1" value={formData.custom_gb} onChange={handleInputChange} className="h-8 text-xs" />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <Label className="text-[10px]">Tipo Urbano</Label>
-                                                        <Input type="number" name="custom_tipo_urbano" step="0.001" value={formData.custom_tipo_urbano} onChange={handleInputChange} className="h-8 text-xs" />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <Label className="text-[10px]">Tipo Rústico</Label>
-                                                        <Input type="number" name="custom_tipo_rustico" step="0.001" value={formData.custom_tipo_rustico} onChange={handleInputChange} className="h-8 text-xs" />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <Label className="text-[10px]">Año Ponencia</Label>
-                                                        <Input type="number" name="custom_anio_ponencia" value={formData.custom_anio_ponencia} onChange={handleInputChange} className="h-8 text-xs" />
-                                                    </div>
-                                                </div>
-                                                <p className="text-[9px] text-slate-500 italic">Nota: Los módulos MBC (Construcción) y MBR (Repercusión Suelo) se obtienen de la Ponencia de Valores. G+B suele ser 1.00 hasta revisar la ponencia exacta.</p>
                                             </div>
                                         )}
+                                    </div>
 
-                                        {/* URBANO */}
-                                        {formData.clase === "urbano" && (
-                                            <>
-                                                <div className="space-y-2">
-                                                    <Label>Superficie de Parcela (m²)</Label>
-                                                    <Input type="number" name="sup_parcela" value={formData.sup_parcela} onChange={handleInputChange} />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label>Valor Repercusión Suelo (€/m²)</Label>
-                                                    <Input type="number" name="valor_rep" value={formData.valor_rep} onChange={handleInputChange} />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label>Edificabilidad Max (m²)</Label>
-                                                    <Input type="number" name="edif_max" value={formData.edif_max} onChange={handleInputChange} />
-                                                </div>
-                                            </>
-                                        )}
+                                    <Separator className="bg-slate-100" />
 
-                                        {/* RUSTICO */}
-                                        {formData.clase === "rustico" && (
-                                            <>
-                                                <div className="space-y-2">
-                                                    <Label>Superficie (ha)</Label>
-                                                    <Input type="number" name="ha" value={formData.ha} onChange={handleInputChange} />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label>Tipo Evaluatorio (€/ha)</Label>
-                                                    <Input type="number" name="tipo_eval" value={formData.tipo_eval} onChange={handleInputChange} />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label>Superficie Ocupada por Const. (m²)</Label>
-                                                    <Input type="number" name="sup_ocupada" value={formData.sup_ocupada} onChange={handleInputChange} />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label>Uso Bajo Const.</Label>
-                                                    <Select value={formData.uso_suelo_rust} onValueChange={(v: string) => handleSelectChange("uso_suelo_rust", v)}>
-                                                        <SelectTrigger>
-                                                            <SelectValue />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="residencial">Residencial</SelectItem>
-                                                            <SelectItem value="agricola">Agrícola</SelectItem>
-                                                            <SelectItem value="industrial">Industrial</SelectItem>
-                                                            <SelectItem value="varios">Varios</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                            </>
-                                        )}
+                                    {/* DATOS PRINCIPALES (Obligatorios y Simples) */}
+                                    <div className="space-y-6">
+                                        <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
+                                            <Building2 className="h-5 w-5 text-primary" />
+                                            Datos Principales
+                                        </h3>
 
-                                        {/* CONSTRUCCIÓN */}
-                                        <div className="lg:col-span-3">
-                                            <Separator className="my-4" />
-                                            <h3 className="font-bold text-primary mb-4 flex items-center gap-2">
-                                                <Building2 className="h-4 w-4" />
-                                                Datos de la Edificación
-                                            </h3>
-                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                            <div className="space-y-2">
+                                                <Label className="text-slate-600 font-medium">Uso Principal</Label>
+                                                <Select value={formData.uso_const} onValueChange={(v: string) => handleSelectChange("uso_const", v)}>
+                                                    <SelectTrigger className="h-11 bg-slate-50 border-slate-200">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="vivienda">Piso / Vivienda en Bloque</SelectItem>
+                                                        <SelectItem value="vivienda">Casa Adosada</SelectItem>
+                                                        <SelectItem value="vivienda">Chalet Aislado</SelectItem>
+                                                        <SelectItem value="industrial">Nave Industrial / Almacén</SelectItem>
+                                                        <SelectItem value="oficinas">Oficina</SelectItem>
+                                                        <SelectItem value="comercial">Local Comercial</SelectItem>
+                                                        <SelectItem value="deportes">Deportes</SelectItem>
+                                                        <SelectItem value="hosteleria">Ocio y Hostelería</SelectItem>
+                                                        <SelectItem value="turismo">Turismo / Hoteles</SelectItem>
+                                                        <SelectItem value="sanidad">Sanidad y Beneficencia</SelectItem>
+                                                        <SelectItem value="espectaculos">Espectáculos</SelectItem>
+                                                        <SelectItem value="cultural">Cultural y Religioso</SelectItem>
+                                                        <SelectItem value="singular">Edificios Singulares</SelectItem>
+                                                        <SelectItem value="garajes">Garaje / Trastero</SelectItem>
+                                                        <SelectItem value="agricola">Agrícola y Ganadero</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
 
-                                        <div className="space-y-2">
-                                            <Label>Uso Principal</Label>
-                                            <Select value={formData.uso_const} onValueChange={(v: string) => handleSelectChange("uso_const", v)}>
-                                                <SelectTrigger>
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="vivienda">Residencial / Vivienda (1)</SelectItem>
-                                                    <SelectItem value="industrial">Industrial / Almacén (2)</SelectItem>
-                                                    <SelectItem value="oficinas">Oficinas (3)</SelectItem>
-                                                    <SelectItem value="comercial">Comercial (4)</SelectItem>
-                                                    <SelectItem value="deportes">Deportes (10)</SelectItem>
-                                                    <SelectItem value="hosteleria">Ocio y Hostelería (11)</SelectItem>
-                                                    <SelectItem value="turismo">Turismo / Hoteles (12)</SelectItem>
-                                                    <SelectItem value="sanidad">Sanidad y Beneficencia (13)</SelectItem>
-                                                    <SelectItem value="espectaculos">Espectáculos (14)</SelectItem>
-                                                    <SelectItem value="cultural">Cultural y Religioso (15)</SelectItem>
-                                                    <SelectItem value="singular">Edificios Singulares (16)</SelectItem>
-                                                    <SelectItem value="garajes">Garajes / Estacionamiento</SelectItem>
-                                                    <SelectItem value="agricola">Agrícola y Ganadero</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
+                                            <div className="space-y-2">
+                                                <Label className="text-slate-600 font-medium">Calidad Constructiva</Label>
+                                                <Select value={formData.categoria.toString()} onValueChange={(v: string) => handleSelectChange("categoria", v)}>
+                                                    <SelectTrigger className="h-11 bg-slate-50 border-slate-200">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="2">Categoría 2 (Max. Lujo)</SelectItem>
+                                                        <SelectItem value="3">Categoría 3 (Alta / Lujo)</SelectItem>
+                                                        <SelectItem value="4">Categoría 4 (Media)</SelectItem>
+                                                        <SelectItem value="5">Categoría 5 (Sencilla - Común)</SelectItem>
+                                                        <SelectItem value="6">Categoría 6 (Económica)</SelectItem>
+                                                        <SelectItem value="7">Categoría 7 (Baja)</SelectItem>
+                                                        <SelectItem value="8">Categoría 8 (Ínfima)</SelectItem>
+                                                        <SelectItem value="9">Categoría 9 (Ruina)</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
 
-                                        <div className="space-y-2">
-                                            <Label>Superficie Construida (m²)</Label>
-                                            <Input type="number" name="sup_const" value={formData.sup_const} onChange={handleInputChange} />
-                                        </div>
+                                            <div className="space-y-2">
+                                                <Label className="text-slate-600 font-medium">Superficie Construida (m²)</Label>
+                                                <Input type="number" name="sup_const" value={formData.sup_const} onChange={handleInputChange} className="h-11 bg-slate-50 border-slate-200 text-lg font-medium" />
+                                            </div>
 
-                                        <div className="space-y-2">
-                                            <Label>Categoría (1-9)</Label>
-                                            <Input type="number" name="categoria" min="1" max="9" value={formData.categoria} onChange={handleInputChange} />
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <Label>Año de Construcción</Label>
-                                            <Input type="number" name="anio_const" value={formData.anio_const} onChange={handleInputChange} />
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <Label>Estado de Conservación</Label>
-                                            <Select value={formData.estado} onValueChange={(v: string) => handleSelectChange("estado", v)}>
-                                                <SelectTrigger>
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="normal">Normal (1,00)</SelectItem>
-                                                    <SelectItem value="regular">Regular (0,85)</SelectItem>
-                                                    <SelectItem value="deficiente">Deficiente (0,50)</SelectItem>
-                                                    <SelectItem value="ruinoso">Ruinoso (0,00)</SelectItem>
-                                                </SelectContent>
-                                            </Select>
+                                            <div className="space-y-2">
+                                                <Label className="text-slate-600 font-medium">Año de Construcción</Label>
+                                                <Input type="number" name="anio_const" value={formData.anio_const} onChange={handleInputChange} className="h-11 bg-slate-50 border-slate-200 text-lg font-medium" />
+                                            </div>
                                         </div>
                                     </div>
+
+                                    {/* OPCIONES AVANZADAS (Ocultas por defecto) */}
+                                    <Accordion type="single" collapsible className="w-full border rounded-lg bg-slate-50 px-4">
+                                        <AccordionItem value="advanced" className="border-none">
+                                            <AccordionTrigger className="text-sm font-medium text-slate-500 hover:text-primary py-4 hover:no-underline">
+                                                <div className="flex items-center gap-2">
+                                                    <Landmark className="h-4 w-4" />
+                                                    Ver Parámetros Avanzados y de Suelo
+                                                </div>
+                                            </AccordionTrigger>
+                                            <AccordionContent className="pb-4 pt-2 border-t space-y-6">
+
+                                                {/* Municipio y Clase */}
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <div className="space-y-2">
+
+                                                        <Label>Municipio</Label>
+                                                        <Select value={formData.municipio} onValueChange={(v: string) => handleSelectChange("municipio", v)}>
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Selecciona municipio" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                {municipios.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+
+                                                    <div className="space-y-2">
+                                                        <Label>Clase de Inmueble</Label>
+                                                        <Select value={formData.clase} onValueChange={(v: string) => handleSelectChange("clase", v)}>
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Urbano / Rústico" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="urbano">Urbano</SelectItem>
+                                                                <SelectItem value="rustico">Rústico</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+
+                                                    {/* CONFIGURACIÓN EXPERTA (Solo si es Personalizado) */}
+                                                    {formData.municipio === "Personalizado" && (
+                                                        <div className="lg:col-span-3 p-4 bg-accent/5 border border-accent/20 rounded-xl space-y-4 animate-in fade-in duration-300">
+                                                            <h4 className="font-bold text-primary flex items-center gap-2 text-sm uppercase">
+                                                                <Landmark className="h-4 w-4" />
+                                                                Parámetros Técnicos de la Ponencia
+                                                            </h4>
+                                                            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+                                                                <div className="space-y-1">
+                                                                    <Label className="text-[10px]">MBC (€/m²)</Label>
+                                                                    <Input type="number" name="custom_mbc" value={formData.custom_mbc} onChange={handleInputChange} className="h-8 text-xs" />
+                                                                </div>
+                                                                <div className="space-y-1">
+                                                                    <Label className="text-[10px]">MBR Urbano</Label>
+                                                                    <Input type="number" name="custom_mbr" value={formData.custom_mbr} onChange={handleInputChange} className="h-8 text-xs" />
+                                                                </div>
+                                                                <div className="space-y-1">
+                                                                    <Label className="text-[10px]">MBR Rústico</Label>
+                                                                    <Input type="number" name="custom_mbr_rustico" value={formData.custom_mbr_rustico} onChange={handleInputChange} className="h-8 text-xs" />
+                                                                </div>
+                                                                <div className="space-y-1">
+                                                                    <Label className="text-[10px]">Coef. RM</Label>
+                                                                    <Input type="number" name="custom_rm" step="0.1" value={formData.custom_rm} onChange={handleInputChange} className="h-8 text-xs" />
+                                                                </div>
+                                                                <div className="space-y-1">
+                                                                    <Label className="text-[10px]">Coef. G+B</Label>
+                                                                    <Input type="number" name="custom_gb" step="0.1" value={formData.custom_gb} onChange={handleInputChange} className="h-8 text-xs" />
+                                                                </div>
+                                                                <div className="space-y-1">
+                                                                    <Label className="text-[10px]">Tipo Urbano</Label>
+                                                                    <Input type="number" name="custom_tipo_urbano" step="0.001" value={formData.custom_tipo_urbano} onChange={handleInputChange} className="h-8 text-xs" />
+                                                                </div>
+                                                                <div className="space-y-1">
+                                                                    <Label className="text-[10px]">Tipo Rústico</Label>
+                                                                    <Input type="number" name="custom_tipo_rustico" step="0.001" value={formData.custom_tipo_rustico} onChange={handleInputChange} className="h-8 text-xs" />
+                                                                </div>
+                                                                <div className="space-y-1">
+                                                                    <Label className="text-[10px]">Año Ponencia</Label>
+                                                                    <Input type="number" name="custom_anio_ponencia" value={formData.custom_anio_ponencia} onChange={handleInputChange} className="h-8 text-xs" />
+                                                                </div>
+                                                            </div>
+                                                            <p className="text-[9px] text-slate-500 italic">Nota: Los módulos MBC (Construcción) y MBR (Repercusión Suelo) se obtienen de la Ponencia de Valores. G+B suele ser 1.00 hasta revisar la ponencia exacta.</p>
+                                                        </div>
+                                                    )}
+
+                                                    {/* URBANO */}
+                                                    {formData.clase === "urbano" && (
+                                                        <>
+                                                            <div className="space-y-2">
+                                                                <Label>Superficie de Parcela (m²)</Label>
+                                                                <Input type="number" name="sup_parcela" value={formData.sup_parcela} onChange={handleInputChange} />
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <Label>Valor Repercusión Suelo (€/m²)</Label>
+                                                                <Input type="number" name="valor_rep" value={formData.valor_rep} onChange={handleInputChange} />
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <Label>Edificabilidad Max (m²)</Label>
+                                                                <Input type="number" name="edif_max" value={formData.edif_max} onChange={handleInputChange} />
+                                                            </div>
+                                                        </>
+                                                    )}
+
+                                                    {/* RUSTICO */}
+                                                    {formData.clase === "rustico" && (
+                                                        <>
+                                                            <div className="space-y-2">
+                                                                <Label>Superficie (ha)</Label>
+                                                                <Input type="number" name="ha" value={formData.ha} onChange={handleInputChange} />
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <Label>Tipo Evaluatorio (€/ha)</Label>
+                                                                <Input type="number" name="tipo_eval" value={formData.tipo_eval} onChange={handleInputChange} />
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <Label>Superficie Ocupada por Const. (m²)</Label>
+                                                                <Input type="number" name="sup_ocupada" value={formData.sup_ocupada} onChange={handleInputChange} />
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <Label>Uso Bajo Const.</Label>
+                                                                <Select value={formData.uso_suelo_rust} onValueChange={(v: string) => handleSelectChange("uso_suelo_rust", v)}>
+                                                                    <SelectTrigger>
+                                                                        <SelectValue />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        <SelectItem value="residencial">Residencial</SelectItem>
+                                                                        <SelectItem value="agricola">Agrícola</SelectItem>
+                                                                        <SelectItem value="industrial">Industrial</SelectItem>
+                                                                        <SelectItem value="varios">Varios</SelectItem>
+                                                                    </SelectContent>
+                                                                </Select>
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </div>
+
+                                            </AccordionContent>
+                                        </AccordionItem>
+                                    </Accordion>
+
                                 </CardContent>
-                                <CardFooter className="bg-slate-50 p-6 flex justify-end">
-                                    <Button size="lg" className="bg-accent hover:bg-accent/90 text-white px-8" onClick={calculate} disabled={loading}>
-                                        {loading ? "Calculando..." : "REALIZAR CÁLCULO"}
+                                <CardFooter className="bg-slate-50 p-8 border-t border-slate-100 flex flex-col items-center">
+                                    <Button size="lg" className="w-full max-w-sm h-14 text-lg font-bold bg-primary hover:bg-slate-800 text-white shadow-xl transition-all hover:scale-105" onClick={calculate} disabled={loading}>
+                                        {loading ? "Calculando..." : "Calcular Valor Aproximado"}
+
                                         <CalculatorIcon className="ml-2 h-5 w-5" />
                                     </Button>
                                 </CardFooter>
@@ -556,10 +581,10 @@ export default function CalculadoraPage() {
                     </div>
 
                 </div>
-            </div>
+            </div >
 
             <Footer />
-        </div>
+        </div >
     );
 }
 
