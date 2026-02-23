@@ -28,39 +28,60 @@ export function ProcessPortal() {
     message: ""
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!db) return;
     setLoading(true);
 
-    const docData = {
+    const emailData = {
       name: formData.name,
       email: formData.email,
       type: formData.type,
-      refCatastral: formData.ref,
+      ref: formData.ref,
       message: formData.message,
-      status: 'pendiente',
-      createdAt: serverTimestamp(),
     };
 
-    addDoc(collection(db, 'expedients'), docData)
-      .then(() => {
-        setLoading(false);
-        setSubmitted(true);
-        toast({
-          title: "Expediente registrado",
-          description: "Su documentación ha sido recibida correctamente.",
-        });
-      })
-      .catch(async (error) => {
-        setLoading(false);
-        const permissionError = new FirestorePermissionError({
-          path: 'expedients',
-          operation: 'create',
-          requestResourceData: docData,
-        });
-        errorEmitter.emit('permission-error', permissionError);
+    try {
+      // 1. Enviar Email vía API de Next.js
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(emailData),
       });
+
+      if (!res.ok) {
+        throw new Error('Server error: Failed to dispatch email');
+      }
+
+      // 2. Intentar guardar en historial (No bloqueante)
+      if (db) {
+        addDoc(collection(db, 'expedients'), {
+          ...emailData,
+          refCatastral: formData.ref,
+          status: 'pendiente',
+          createdAt: serverTimestamp(),
+        }).catch(err => {
+          console.warn("No se pudo guardar en Base de Datos por permisos/configuración. El email sí fue enviado.", err);
+        });
+      }
+
+      setSubmitted(true);
+      toast({
+        title: "¡Expediente Registrado y Notificado!",
+        description: "Su caso ha sido enviado correctamente al correo de Alberto.",
+      });
+
+    } catch (error) {
+      console.error("Submission failed:", error);
+      toast({
+        title: "Error de Envío",
+        description: "Ocurrió un error al enviar su solicitud. Por favor, contáctenos directamente al 665 890 608.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (submitted) {
