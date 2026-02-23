@@ -37,20 +37,16 @@ app = FastAPI(
 )
 
 # Configurar CORS para producción y desarrollo
-admitted_origins = os.getenv(
+admitted_origins_str = os.getenv(
     "ADMITTED_ORIGINS", 
-    "http://localhost:9002,http://localhost:3000,https://www.solucionescatastrales.app,https://solucionescatastrales.app,*"
-).split(",")
-
-# If empty string is in list, allow all temporarily
-if "*" in admitted_origins:
-    allow_origins = ["*"]
-else:
-    allow_origins = admitted_origins
+    "http://localhost:9002,http://localhost:3000,https://www.solucionescatastrales.app,https://solucionescatastrales.app"
+)
+allow_origins = [orig.strip() for orig in admitted_origins_str.split(",") if orig.strip() and orig.strip() != "*"]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allow_origins,
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
