@@ -20,6 +20,7 @@ export default function CalculadoraPage() {
     const [loading, setLoading] = useState(false);
     const [municipios, setMunicipios] = useState(["Andújar", "Fuencaliente", "Personalizado"]);
     const [result, setResult] = useState<any>(null);
+    const [searchStatus, setSearchStatus] = useState<{ type: 'success' | 'error' | 'info' | null, message: string }>({ type: null, message: "" });
 
     const [formData, setFormData] = useState({
         municipio: "Andújar",
@@ -87,6 +88,7 @@ export default function CalculadoraPage() {
 
     const buscarRC = async () => {
         if (!formData.rc || formData.rc.length < 14) {
+            setSearchStatus({ type: 'error', message: 'Referencia incompleta. Introduce al menos 14 caracteres.' });
             toast({
                 variant: "destructive",
                 title: "Referencia incompleta",
@@ -96,6 +98,7 @@ export default function CalculadoraPage() {
         }
 
         setLoading(true);
+        setSearchStatus({ type: 'info', message: 'Conectando con el Catastro... Buscando parcela.' });
         try {
             // Intentar buscar datos de la parcela
             const response = await fetch(`${API_BASE_URL}/catastro/buscar-rc`, {
@@ -120,11 +123,13 @@ export default function CalculadoraPage() {
                     edif_real: data.superficie_construida || prev.edif_real,
                     edif_max: prev.edif_max === 0 ? data.superficie_construida : prev.edif_max // Como inicializacion razonable
                 }));
+                setSearchStatus({ type: 'success', message: `¡Parcela Localizada! Ubicada en ${data.direccion}. Datos técnicos auto-completados.` });
                 toast({
                     title: "Inmueble encontrado y cargado",
                     description: `Ubicada en ${data.direccion}. Se han auto-completado los datos técnicos.`,
                 });
             } else {
+                setSearchStatus({ type: 'error', message: `Parcela NO Localizada: ${data.error || "No encontrada."}` });
                 toast({
                     variant: "destructive",
                     title: "No encontrado",
@@ -132,7 +137,7 @@ export default function CalculadoraPage() {
                 });
             }
         } catch (error) {
-            // Fallback or error
+            setSearchStatus({ type: 'error', message: 'Error de red al intentar conectar con el Catastro.' });
         } finally {
             setLoading(false);
         }
@@ -191,6 +196,18 @@ export default function CalculadoraPage() {
                                                     Buscar
                                                 </Button>
                                             </div>
+                                            {searchStatus.type && (
+                                                <div className={`mt-3 p-3 rounded-md text-sm font-medium border animate-in slide-in-from-top-2 ${searchStatus.type === 'success' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                                        searchStatus.type === 'error' ? 'bg-red-50 text-red-700 border-red-200' :
+                                                            'bg-blue-50 text-blue-700 border-blue-200'
+                                                    }`}>
+                                                    <div className="flex items-center gap-2">
+                                                        {searchStatus.type === 'success' && <Info className="h-4 w-4 text-emerald-600" />}
+                                                        {searchStatus.type === 'info' && <Search className="h-4 w-4 text-blue-600 animate-pulse" />}
+                                                        {searchStatus.message}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
 
                                         {/* Municipio y Clase */}
