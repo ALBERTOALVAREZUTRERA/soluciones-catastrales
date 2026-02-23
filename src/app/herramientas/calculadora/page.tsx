@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -200,13 +201,13 @@ export default function CalculadoraPage() {
             <div className="container mx-auto py-12 px-4">
                 <div className="max-w-5xl mx-auto space-y-8">
 
-                    <div className="text-center space-y-2">
-                        <h1 className="text-4xl font-bold text-primary font-headline flex items-center justify-center gap-3">
-                            <Calculator className="h-10 w-10 text-accent" />
-                            Valor Catastral e Impacto en IBI
+                    <div className="text-center space-y-3">
+                        <h1 className="text-4xl md:text-5xl font-bold text-primary font-headline flex flex-col items-center justify-center gap-4">
+                            <Calculator className="h-12 w-12 text-accent" />
+                            Calculadora de Valor Catastral Online
                         </h1>
-                        <p className="text-slate-600 max-w-2xl mx-auto">
-                            Herramienta técnica para el análisis del Valor Catastral y su repercusión directa en la cuota tributaria (IBI).
+                        <p className="text-slate-600 max-w-2xl mx-auto text-lg">
+                            Descubre al instante una estimación del valor de tu piso, casa o local comercial basándote en las normativas oficiales del Catastro. Rápido, gratis y sin registros.
                         </p>
                     </div>
 
@@ -469,7 +470,7 @@ export default function CalculadoraPage() {
                                 </CardContent>
                                 <CardFooter className="bg-slate-50 p-8 border-t border-slate-100 flex flex-col items-center">
                                     <Button size="lg" className="w-full max-w-sm h-14 text-lg font-bold bg-primary hover:bg-slate-800 text-white shadow-xl transition-all hover:scale-105" onClick={calculate} disabled={loading}>
-                                        {loading ? "Calculando..." : "Calcular Valor Aproximado"}
+                                        {loading ? "Calculando..." : "Calcular Valor Ahora"}
 
                                         <CalculatorIcon className="ml-2 h-5 w-5" />
                                     </Button>
@@ -553,6 +554,35 @@ export default function CalculadoraPage() {
                             </div>
                         )}
 
+                        {/* LEAD MAGNET - Subsanación de Discrepancias */}
+                        <div className="lg:col-span-12 mt-4 animate-in fade-in duration-700">
+                            <Card className="border-l-4 border-l-red-500 bg-red-50/50 shadow-md">
+                                <CardContent className="p-8 md:p-10 text-center space-y-6">
+                                    <h2 className="text-2xl font-bold text-slate-800">
+                                        ¿El resultado es muy alto? ¿Crees que pagas demasiado IBI?
+                                    </h2>
+                                    <p className="text-slate-600 text-lg max-w-3xl mx-auto">
+                                        El Catastro no siempre tiene la razón. Es muy común que existan errores en la superficie construida, la antigüedad o la calidad de los materiales que hacen que el valor catastral se dispare injustamente.
+                                    </p>
+                                    <div className="bg-white p-5 rounded-xl border border-red-100 shadow-sm max-w-2xl mx-auto flex flex-col md:flex-row items-center gap-4 text-left">
+                                        <div className="h-12 w-12 bg-red-100 rounded-full flex items-center justify-center shrink-0">
+                                            <span className="text-2xl">⚠️</span>
+                                        </div>
+                                        <p className="text-slate-700">
+                                            <strong>¿Necesitas ayuda profesional?</strong> Realizamos expedientes de Subsanación de Discrepancias para corregir errores catastrales y ayudarte a ahorrar miles de euros en tus impuestos a lo largo de los años.
+                                        </p>
+                                    </div>
+                                    <div className="pt-2">
+                                        <Link href="/servicios" passHref>
+                                            <Button size="lg" className="bg-red-600 hover:bg-red-700 text-white text-lg h-14 px-8 shadow-lg">
+                                                Solicitar Estudio Gratuito de mi Caso
+                                            </Button>
+                                        </Link>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+
                     </div>
 
                     {/* Información Adicional */}
@@ -579,6 +609,29 @@ export default function CalculadoraPage() {
                             <p className="text-slate-500 text-sm">Cumplimos estrictamente con la normativa de valoración catastral (RD 1020/1993) y las ponencias locales.</p>
                         </div>
                     </div>
+                    {/* CROSS-SELLING / ENLACES TÉCNICOS */}
+                    <div className="pt-16 pb-8 border-t border-slate-200 mt-12 text-center space-y-8">
+                        <div className="space-y-3">
+                            <h2 className="text-3xl font-bold text-primary">Descubre nuestras Herramientas Técnicas Avanzadas</h2>
+                            <p className="text-slate-600 max-w-2xl mx-auto text-lg">
+                                Si eres un profesional del sector, arquitecto o necesitas validar la cartografía de tu parcela, utiliza nuestros conversores especializados:
+                            </p>
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                            <Link href="/herramientas/conversor-gml" passHref>
+                                <Button variant="outline" size="lg" className="h-14 px-8 border-primary text-primary hover:bg-primary/5 text-lg w-full sm:w-auto">
+                                    <MapIcon className="mr-2 h-5 w-5" />
+                                    Generador GML de Parcela
+                                </Button>
+                            </Link>
+                            <Link href="/herramientas/conversor-edificio" passHref>
+                                <Button variant="outline" size="lg" className="h-14 px-8 border-accent text-accent hover:bg-accent/5 text-lg w-full sm:w-auto">
+                                    <Building2 className="mr-2 h-5 w-5" />
+                                    Conversor GML de Edificio
+                                </Button>
+                            </Link>
+                        </div>
+                    </div>
 
                 </div>
             </div >
@@ -587,4 +640,3 @@ export default function CalculadoraPage() {
         </div >
     );
 }
-
