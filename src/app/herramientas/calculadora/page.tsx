@@ -42,10 +42,10 @@ export default function CalculadoraPage() {
         sup_ocupada: 0,
         // Parámetros expertos (Ponencia)
         custom_mbc: 550,
-        custom_mbr: 450,
+        custom_mbr: 200,
         custom_mbr_rustico: 37.8,
         custom_rm: 0.50,
-        custom_gb: 1.0,
+        custom_gb: 1.40,
         custom_tipo_urbano: 0.006,
         custom_tipo_rustico: 0.010,
         custom_anio_ponencia: 2010
@@ -198,8 +198,8 @@ export default function CalculadoraPage() {
                                             </div>
                                             {searchStatus.type && (
                                                 <div className={`mt-3 p-3 rounded-md text-sm font-medium border animate-in slide-in-from-top-2 ${searchStatus.type === 'success' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                                                        searchStatus.type === 'error' ? 'bg-red-50 text-red-700 border-red-200' :
-                                                            'bg-blue-50 text-blue-700 border-blue-200'
+                                                    searchStatus.type === 'error' ? 'bg-red-50 text-red-700 border-red-200' :
+                                                        'bg-blue-50 text-blue-700 border-blue-200'
                                                     }`}>
                                                     <div className="flex items-center gap-2">
                                                         {searchStatus.type === 'success' && <Info className="h-4 w-4 text-emerald-600" />}
@@ -375,10 +375,10 @@ export default function CalculadoraPage() {
                                                     <SelectValue />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    <SelectItem value="bueno">Bueno</SelectItem>
-                                                    <SelectItem value="normal">Normal</SelectItem>
-                                                    <SelectItem value="deficiente">Deficiente</SelectItem>
-                                                    <SelectItem value="ruinoso">Ruinoso</SelectItem>
+                                                    <SelectItem value="normal">Normal (1,00)</SelectItem>
+                                                    <SelectItem value="regular">Regular (0,85)</SelectItem>
+                                                    <SelectItem value="deficiente">Deficiente (0,50)</SelectItem>
+                                                    <SelectItem value="ruinoso">Ruinoso (0,00)</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                         </div>
@@ -395,57 +395,63 @@ export default function CalculadoraPage() {
 
                         {/* Resultados - Si existen */}
                         {result && (
-                            <div className="lg:col-span-12 animate-in fade-in slide-in-from-bottom duration-500">
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div className="lg:col-span-12 animate-in fade-in slide-in-from-bottom duration-500 space-y-6">
+                                <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                                    <h3 className="text-xl font-bold text-primary mb-3">📄 Resumen de Datos Analizados</h3>
+                                    <p className="text-slate-600">
+                                        Se ha calculado el valor para una <strong>Superficie de {formData.sup_const} m²</strong>, con un uso <strong>{formData.uso_const === 'vivienda' ? 'Residencial' : 'Industrial'}</strong> y una <strong>Antigüedad estimada de {new Date().getFullYear() - formData.anio_const} años</strong>.
+                                    </p>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 
                                     <Card className="border-accent/30 bg-accent/5">
                                         <CardHeader className="p-4 pb-0">
-                                            <CardTitle className="text-sm font-medium text-slate-500 uppercase">Suelo</CardTitle>
+                                            <CardTitle className="text-sm font-medium text-slate-500 uppercase">Valor del Suelo (Vs)</CardTitle>
                                         </CardHeader>
                                         <CardContent className="p-4 pt-2">
                                             <p className="text-2xl font-bold text-primary">
-                                                {result.suelo_urbano || result.suelo_rustico_no_ocupado + result.suelo_rustico_ocupado} €
+                                                {Number(result.suelo_urbano || result.suelo_rustico_no_ocupado + result.suelo_rustico_ocupado).toLocaleString("es-ES")} €
                                             </p>
                                         </CardContent>
                                     </Card>
 
                                     <Card className="border-accent/30 bg-accent/5">
                                         <CardHeader className="p-4 pb-0">
-                                            <CardTitle className="text-sm font-medium text-slate-500 uppercase">Construcción</CardTitle>
+                                            <CardTitle className="text-sm font-medium text-slate-500 uppercase">Valor de Construcción (Vc)</CardTitle>
                                         </CardHeader>
                                         <CardContent className="p-4 pt-2">
-                                            <p className="text-2xl font-bold text-primary">{result.construccion} €</p>
+                                            <p className="text-2xl font-bold text-primary">{Number(result.construccion).toLocaleString("es-ES")} €</p>
                                         </CardContent>
                                     </Card>
 
-                                    <Card className="bg-primary text-white border-none shadow-xl scale-105 z-10 hover:scale-110 transition-transform duration-300">
+                                    <Card className="bg-primary text-white border-none shadow-xl scale-105 z-10 hover:scale-110 transition-transform duration-300 md:col-span-2 lg:col-span-1">
                                         <CardHeader className="p-4 pb-0">
-                                            <CardTitle className="text-sm font-medium text-slate-200 uppercase">Valor Catastral (Resultado Técnico)</CardTitle>
+                                            <CardTitle className="text-sm font-medium text-slate-200 uppercase">Valor Catastral Total (Vcat)</CardTitle>
                                         </CardHeader>
                                         <CardContent className="p-4 pt-2">
-                                            <p className="text-3xl font-bold text-accent">{result.valor_catastral_total} €</p>
+                                            <p className="text-3xl font-bold text-accent">{Number(result.valor_catastral_total).toLocaleString("es-ES")} €</p>
                                         </CardContent>
                                     </Card>
+                                </div>
 
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
                                     <Card className="border-accent/30 bg-accent/5">
                                         <CardHeader className="p-4 pb-0">
                                             <CardTitle className="text-sm font-medium text-slate-500 uppercase">Cuota Anual IBI</CardTitle>
                                         </CardHeader>
                                         <CardContent className="p-4 pt-2">
-                                            <p className="text-2xl font-bold text-primary">{result.cuota_ibi_anual} €</p>
+                                            <p className="text-2xl font-bold text-primary">{Number(result.cuota_ibi_anual).toLocaleString("es-ES")} €</p>
                                             <p className="text-xs text-slate-400">Tipo: {(result.tipo_aplicado * 100).toFixed(3)}%</p>
                                         </CardContent>
                                     </Card>
-
                                 </div>
 
-                                <div className="mt-8 bg-blue-50 border border-blue-100 p-6 rounded-lg flex gap-4 items-start">
-                                    <Info className="h-6 w-6 text-blue-500 shrink-0 mt-1" />
+                                <div className="mt-8 bg-slate-50 border border-slate-200 p-6 rounded-lg flex gap-4 items-start">
+                                    <Info className="h-6 w-6 text-slate-400 shrink-0 mt-1" />
                                     <div className="space-y-1">
-                                        <p className="font-bold text-blue-900">Nota sobre el cálculo:</p>
-                                        <p className="text-blue-800/80 text-sm">
-                                            Estos valores son estimativos basados en la Ponencia de Valores vigente para {result.municipio}.
-                                            Para una certificación oficial, debe solicitarse a la Sede Electrónica del Catastro o contactar con nuestra oficina.
+                                        <p className="text-slate-600 text-sm">
+                                            <strong>⚠️ Aviso:</strong> Este cálculo es una estimación matemática automatizada basada en parámetros medios y normativas generales (RD 1020/1993). No tiene validez legal ni sustituye a la Certificación Oficial emitida por la Dirección General del Catastro.
                                         </p>
                                     </div>
                                 </div>

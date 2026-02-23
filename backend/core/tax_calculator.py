@@ -70,19 +70,29 @@ MUNICIPALITIES = {
 # COEFFICIENTS RD 1020/1993
 # =====================================================
 
-def get_coef_antiguedad(anio_const, anio_ponencia):
-    edad = anio_ponencia - anio_const
-    if edad <= 5: return 1.00
-    elif edad <= 10: return 0.98
-    elif edad <= 20: return 0.92
-    elif edad <= 30: return 0.85
-    elif edad <= 40: return 0.78
-    else: return 0.70
+def get_coef_antiguedad(anio_const, uso_const="vivienda"):
+    import datetime
+    edad = datetime.datetime.now().year - anio_const
+    if edad < 0: return 1.00
+    if edad <= 4: coef = 1.00
+    elif edad <= 9: coef = 0.92
+    elif edad <= 14: coef = 0.85
+    elif edad <= 19: coef = 0.78
+    elif edad <= 24: coef = 0.72
+    elif edad <= 29: coef = 0.66
+    elif edad <= 39: coef = 0.61
+    elif edad <= 49: coef = 0.56
+    elif edad <= 74: coef = 0.45
+    else: coef = 0.30
+    
+    if uso_const == "industrial" and edad >= 10:
+        coef = max(0.0, coef - 0.05)
+    return round(coef, 2)
 
 COEF_CONSERVACION = {
-    "bueno": 1.00,
-    "normal": 0.92,
-    "deficiente": 0.85,
+    "normal": 1.00,
+    "regular": 0.85,
+    "deficiente": 0.50,
     "ruinoso": 0.00
 }
 
@@ -243,8 +253,8 @@ class TaxCalculator:
             estado = params.get("estado", "normal")
             
             coef_tipo = COEF_TIPOLOGIA.get(uso_const, COEF_TIPOLOGIA["vivienda"]).get(categoria, 1.0)
-            coef_h = get_coef_antiguedad(anio_const, data["anio_ponencia"])
-            coef_i = COEF_CONSERVACION.get(estado, 0.92)
+            coef_h = get_coef_antiguedad(anio_const, uso_const)
+            coef_i = COEF_CONSERVACION.get(estado, 1.00)
             
             construccion_base = round(sup_const * data["mbc"] * coef_tipo * coef_h * coef_i * RM * GB, 2)
             
@@ -260,8 +270,8 @@ class TaxCalculator:
                     c_sup = float(c.get("sup_const", 0))
                     
                     c_coef_tipo = COEF_TIPOLOGIA.get(c_uso, COEF_TIPOLOGIA["vivienda"]).get(c_cat, 1.0)
-                    c_coef_h = get_coef_antiguedad(c_anio, data["anio_ponencia"])
-                    c_coef_i = COEF_CONSERVACION.get(c_estado, 0.92)
+                    c_coef_h = get_coef_antiguedad(c_anio, c_uso)
+                    c_coef_i = COEF_CONSERVACION.get(c_estado, 1.00)
                     
                     c_valor = round(c_sup * data["mbc"] * c_coef_tipo * c_coef_h * c_coef_i * RM * GB, 2)
                     construccion += c_valor
