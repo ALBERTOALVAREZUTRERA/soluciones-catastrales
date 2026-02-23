@@ -61,9 +61,66 @@ FUENCALIENTE_DATA = {
     "zonas_valor": {}
 }
 
+# Major Municipalities (Estimations / Placeholders based on recent Ponencias)
+MADRID_DATA = {
+    "municipio": "Madrid",
+    "provincia": "Madrid",
+    "anio_ponencia": 2011,
+    "mbc": 950.0,
+    "mbr": 1800.0,
+    "rm": 0.50,
+    "tipo_ibi": {"urbano": 0.00428, "rustico": 0.00567, "bice": 0.0080},
+    "coef_ibi_rustica": 1.00,
+    "poligonos": {},
+    "zonas_valor": {}
+}
+
+BARCELONA_DATA = {
+    "municipio": "Barcelona",
+    "provincia": "Barcelona",
+    "anio_ponencia": 2017,
+    "mbc": 1100.0,
+    "mbr": 2100.0,
+    "rm": 0.50,
+    "tipo_ibi": {"urbano": 0.0066, "rustico": 0.0066, "bice": 0.0080},
+    "coef_ibi_rustica": 1.00,
+    "poligonos": {},
+    "zonas_valor": {}
+}
+
+VALENCIA_DATA = {
+    "municipio": "Valencia",
+    "provincia": "Valencia",
+    "anio_ponencia": 2021,
+    "mbc": 750.0,
+    "mbr": 1200.0,
+    "rm": 0.50,
+    "tipo_ibi": {"urbano": 0.00723, "rustico": 0.00723, "bice": 0.00723},
+    "coef_ibi_rustica": 1.00,
+    "poligonos": {},
+    "zonas_valor": {}
+}
+
+SEVILLA_DATA = {
+    "municipio": "Sevilla",
+    "provincia": "Sevilla",
+    "anio_ponencia": 2001,
+    "mbc": 600.0,
+    "mbr": 900.0,
+    "rm": 0.50,
+    "tipo_ibi": {"urbano": 0.00675, "rustico": 0.00675, "bice": 0.00675},
+    "coef_ibi_rustica": 1.00,
+    "poligonos": {},
+    "zonas_valor": {}
+}
+
 MUNICIPALITIES = {
     "Andújar": ANDUJAR_DATA,
-    "Fuencaliente": FUENCALIENTE_DATA
+    "Fuencaliente": FUENCALIENTE_DATA,
+    "Madrid": MADRID_DATA,
+    "Barcelona": BARCELONA_DATA,
+    "Valencia": VALENCIA_DATA,
+    "Sevilla": SEVILLA_DATA
 }
 
 # =====================================================
@@ -151,19 +208,26 @@ class TaxCalculator:
                 try: xml_data = raw_data.decode("utf-8")
                 except: xml_data = raw_data.decode("latin-1")
                 
-                # Buscar patrones como "Zona: Rxx" o "Polígono: Pxx"
+                # Intentar buscar referencias de valores (Zonas R, U...)
                 import re
-                zona_match = re.search(r'Zona:?\s*([R][0-9]{2}[A-Z]?)', xml_data, re.IGNORECASE)
-                if zona_match:
-                    return zona_match.group(1).upper()
                 
+                # Zonas genéricas (R47, U43, etc.)
+                zona_match = re.search(r'Zona:?\s*([A-Z][0-9]{2}[A-Z]?)', xml_data, re.IGNORECASE)
+                zona_encontrada = zona_match.group(1).upper() if zona_match else None
+                
+                # Polígonos de valoración específicos (P04, etc.)
                 poli_match = re.search(r'Pol[ií]gono:?\s*(P[0-9]{2})', xml_data, re.IGNORECASE)
+                
                 if poli_match:
                     poli = poli_match.group(1).upper()
                     print(f"DEBUG WMS: Polígono detectado={poli}")
                     if poli in ANDUJAR_DATA["poligonos"]:
                         return ANDUJAR_DATA["poligonos"][poli]["vrb"].replace("C", "")
-            
+                
+                # Fallback: devolver la Zona VBR encontrada
+                if zona_encontrada:
+                    return zona_encontrada
+                
             print(f"DEBUG WMS: No se encontró zona ni polígono en el XML. Texto completo: {xml_data}")
             return None
         except Exception as e:
@@ -172,9 +236,28 @@ class TaxCalculator:
 
     @staticmethod
     def get_zone_value(municipio: str, zona: str, uso: str = "vivienda") -> float:
-        data = MUNICIPALITIES.get(municipio, ANDUJAR_DATA)
+        # Encontrar el municipio ignorando mayúsculas y acentos
+        def normalize(text):
+            import unicodedata
+            return ''.join(c for c in unicodedata.normalize('NFD', text) if unicodedata.category(c) != 'Mn').lower()
+            
+        muni_key = "Andújar" # Default
+        target_norm = normalize(municipio)
+        for k in MUNICIPALITIES.keys():
+            if normalize(k) == target_norm:
+                muni_key = k
+                break
+
+        data = MUNICIPALITIES.get(muni_key, ANDUJAR_DATA)
+        
         if zona in data["zonas_valor"]:
             return data["zonas_valor"][zona].get(uso, 0.0)
+            
+        # Fallback for generic capital zones - simple heuristic based on MBR
+        # If it's a known city but we don't have the exact Euro/m2 table, we use the average MBR as a baseline.
+        if muni_key != "Andújar" and muni_key != "Fuencaliente":
+            return data["mbr"]
+            
         return 0.0
 
     @staticmethod
