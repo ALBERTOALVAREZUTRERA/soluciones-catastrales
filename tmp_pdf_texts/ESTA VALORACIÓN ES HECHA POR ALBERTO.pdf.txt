@@ -1,0 +1,58 @@
+HOJA INFORMATIVA DE VALORACIÓN
+CATASTRAL DESGRANADA
+ Documento basado en la Certificación Catastral y Ponencia de Valores de Andújar (2010).
+Nota: Este documento no tiene validez oficial.
+1. IDENTIFICACIÓN DEL BIEN INMUEBLE Y
+TITULAR
+Referencia Catastral: 7110106VH0171S0001HY
+Localización: CL ASTILLEROS 29, 23740 ANDUJAR [JAÉN]
+Titular Catastral: GRANADOS ORTEGA MARIA
+Clase / Uso Principal: URBANO / Residencial
+Superficie Construida Total: 558 m²
+Año de Construcción: 2000
+2. MÓDULOS BÁSICOS Y PARÁMETROS DE
+PONENCIA
+ Polígono de Ponencia: P02 - CENTRO HISTÓRICO
+ MBC (Módulo Básico de Construcción): 550,00 €/m²
+ MBR (Módulo Básico de Repercusión): 450,00 €/m²
+ Zona de Valor (Suelo): R43
+ Valor Unitario Vivienda (VUI): 262,00 €/m²
+ Valor Unitario Garajes (VUI): 39,30 €/m²
+Coeficientes de Corrección Finales Aplicados: RM (0,50) y G+B (1,30).
+3. DESGLOSE DE SUPERFICIES Y COEFICIENTES
+(Cálculo Inverso)
+ Destino
+Planta
+Superficie (m²)
+V. Rep. Suelo (€/m²)
+Coef. Constr. (Depreciación H)
+VIVIENDA
+1/00/01
+25
+262.0
+≈ 0,5205
+APARCAMIENTO
+1/00/02
+232
+39.3
+≈ 0,5205
+VIVIENDA
+1/01/01
+257
+262.0
+≈ 0,5205
+VIVIENDA
+1/02/01
+44
+262.0
+≈ 0,5205
+4. VALORES CATASTRALES OFICIALES
+Concepto
+Importe (€)
+Valor Catastral Suelo (Corregido)
+95,027.40 €
+Valor Catastral Construcción (Corregido)
+159,747.10 €
+VALOR CATASTRAL TOTAL [2025]
+254,774.50 €
+

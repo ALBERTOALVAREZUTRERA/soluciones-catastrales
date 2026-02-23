@@ -33,7 +33,7 @@ export default function CalculadoraPage() {
         valor_rep: 0,
         zona_valor: "",
         uso_const: "vivienda",
-        categoria: 3,
+        categoria: 5,
         sup_const: 0,
         anio_const: 2000,
         estado: "normal",
@@ -395,8 +395,19 @@ export default function CalculadoraPage() {
                                                     <SelectValue />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    <SelectItem value="vivienda">Residencial / Vivienda</SelectItem>
-                                                    <SelectItem value="industrial">Industrial / Almacén</SelectItem>
+                                                    <SelectItem value="vivienda">Residencial / Vivienda (1)</SelectItem>
+                                                    <SelectItem value="industrial">Industrial / Almacén (2)</SelectItem>
+                                                    <SelectItem value="oficinas">Oficinas (3)</SelectItem>
+                                                    <SelectItem value="comercial">Comercial (4)</SelectItem>
+                                                    <SelectItem value="deportes">Deportes (10)</SelectItem>
+                                                    <SelectItem value="hosteleria">Ocio y Hostelería (11)</SelectItem>
+                                                    <SelectItem value="turismo">Turismo / Hoteles (12)</SelectItem>
+                                                    <SelectItem value="sanidad">Sanidad y Beneficencia (13)</SelectItem>
+                                                    <SelectItem value="espectaculos">Espectáculos (14)</SelectItem>
+                                                    <SelectItem value="cultural">Cultural y Religioso (15)</SelectItem>
+                                                    <SelectItem value="singular">Edificios Singulares (16)</SelectItem>
+                                                    <SelectItem value="garajes">Garajes / Estacionamiento</SelectItem>
+                                                    <SelectItem value="agricola">Agrícola y Ganadero</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                         </div>

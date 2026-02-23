@@ -1,0 +1,6 @@
+olevba 0.60.2 on Python 3.13.0 - http://decalage.info/python/oletools
+===============================================================================
+FILE: D:\DATOS ALBERTO\DATOS\Cursos\2018\Master en Catastro y Urbanismo\GUIA DE MANUALES Y SUPUESTOS\SUPUESTOS VALORACION II.xls
+Type: OLE
+No VBA or XLM macros found.
+
