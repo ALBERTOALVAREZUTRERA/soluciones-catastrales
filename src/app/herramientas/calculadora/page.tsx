@@ -24,7 +24,24 @@ import { generatePDFReport, generateWordReport, ReportData } from "@/lib/report-
 export default function CalculadoraPage() {
     const { toast } = useToast();
     const [loading, setLoading] = useState(false);
-    const [municipios, setMunicipios] = useState(["Andújar", "Fuencaliente", "Personalizado"]);
+
+    // Base de Datos Simulada (JSON) de Municipios y Años de Ponencia
+    const mockPonencias: Record<string, number> = {
+        "Andújar (Jaén)": 2010,
+        "Madrid": 2012,
+        "Barcelona": 2017,
+        "Valencia": 2015,
+        "Sevilla": 2001,
+        "Zaragoza": 2013,
+        "Málaga": 2016,
+        "Murcia": 2015,
+        "Palma de Mallorca": 2012,
+        "Bilbao": 2016,
+        "Valladolid": 2017,
+        "Fuencaliente": 1990
+    };
+
+    const [municipios, setMunicipios] = useState(Object.keys(mockPonencias));
     const [result, setResult] = useState<any>(null);
     const [searchStatus, setSearchStatus] = useState<{ type: 'success' | 'error' | 'info' | null, message: string }>({ type: null, message: "" });
     const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -67,6 +84,13 @@ export default function CalculadoraPage() {
             // Auto-trigger search is omitted to let user review first
         }
     }, []);
+
+    // Actualizar el anio_ponencia en el formData cuando el usuario elige un municipio conocido
+    useEffect(() => {
+        if (formData.municipio && mockPonencias[formData.municipio]) {
+            setFormData(prev => ({ ...prev, custom_anio_ponencia: mockPonencias[formData.municipio] }));
+        }
+    }, [formData.municipio]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -230,7 +254,7 @@ export default function CalculadoraPage() {
                                         <CardTitle className="text-2xl font-bold tracking-tight">Calculadora de Valor Catastral</CardTitle>
                                         <CardDescription className="text-slate-400 font-medium">Estimación aproximada (Urbana / Rústica)</CardDescription>
                                         <Badge variant="outline" className="mt-4 border-accent text-accent bg-accent/10 px-3 py-1 text-xs">
-                                            {formData.municipio === "Personalizado" ? "Parámetros Manuales" : `${formData.municipio} Ponencia ${formData.municipio === "Andújar" ? "2010" : "1990"}`}
+                                            {mockPonencias[formData.municipio] ? `${formData.municipio} (Ponencia ${mockPonencias[formData.municipio]})` : "Municipio Personalizado / Sin Datos"}
                                         </Badge>
                                     </div>
                                 </CardHeader>

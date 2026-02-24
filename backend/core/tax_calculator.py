@@ -212,9 +212,8 @@ MUNICIPALITIES = {
 # COEFFICIENTS RD 1020/1993
 # =====================================================
 
-def get_coef_antiguedad(anio_const, uso_const="vivienda"):
-    import datetime
-    edad = datetime.datetime.now().year - anio_const
+def get_coef_antiguedad(anio_ponencia: int, anio_const: int, uso_const="vivienda"):
+    edad = anio_ponencia - anio_const
     if edad < 0: return 1.00
     if edad <= 4: coef = 1.00
     elif edad <= 9: coef = 0.92
@@ -445,7 +444,7 @@ class TaxCalculator:
             estado = params.get("estado", "normal")
             
             coef_tipo = COEF_TIPOLOGIA.get(uso_const, COEF_TIPOLOGIA["vivienda"]).get(categoria, 1.0)
-            coef_h = get_coef_antiguedad(anio_const, uso_const)
+            coef_h = get_coef_antiguedad(data.get("anio_ponencia", 2010), anio_const, uso_const)
             coef_i = COEF_CONSERVACION.get(estado, 1.00)
             
             construccion_base = round(sup_const * data["mbc"] * coef_tipo * coef_h * coef_i * RM * GB, 2)
