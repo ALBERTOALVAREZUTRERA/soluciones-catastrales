@@ -58,6 +58,16 @@ export default function CalculadoraPage() {
         custom_anio_ponencia: 2010
     });
 
+    // Leer Referencia Catastral de la URL si venimos del Visor Catastral
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const rcParam = params.get('rc');
+        if (rcParam) {
+            setFormData(prev => ({ ...prev, rc: rcParam }));
+            // Auto-trigger search is omitted to let user review first
+        }
+    }, []);
+
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: isNaN(Number(value)) ? value : Number(value) }));

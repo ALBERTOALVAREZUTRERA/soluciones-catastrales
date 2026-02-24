@@ -16,6 +16,15 @@ export function RusticCalculator() {
     const [municipioId, setMunicipioId] = useState(dbMunicipiosRustica[0].id_municipio)
     const [cultivoId, setCultivoId] = useState(dbCultivos[0].id)
     const [superficieTierra, setSuperficieTierra] = useState<number>(1)
+    const [rc, setRc] = useState<string>("")
+
+    React.useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const rcParam = params.get('rc');
+        if (rcParam) {
+            setRc(rcParam);
+        }
+    }, []);
 
     const [hasConstruccion, setHasConstruccion] = useState(false)
     const [superficieConstruccion, setSuperficieConstruccion] = useState<number>(100)
@@ -111,6 +120,18 @@ export function RusticCalculator() {
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2 md:col-span-2">
+                                    <label className="text-sm font-medium leading-none">Referencia Catastral (Opcional)</label>
+                                    <input
+                                        type="text"
+                                        maxLength={20}
+                                        placeholder="Ej: 23005A010090120000WF"
+                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background font-mono uppercase"
+                                        value={rc}
+                                        onChange={(e) => setRc(e.target.value)}
+                                    />
+                                </div>
+
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium leading-none">Municipio de Referencia</label>
                                     <select

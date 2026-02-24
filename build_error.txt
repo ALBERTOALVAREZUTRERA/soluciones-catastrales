@@ -1,0 +1,30 @@
+
+> nextn@0.1.0 build
+> next build
+
+   Ôû▓ Next.js 15.5.9
+   - Environments: .env
+
+   Creating an optimized production build ...
+Failed to compile.
+
+./src/app/herramientas/visor-catastral/page.tsx
+Error:   x `ssr: false` is not allowed with `next/dynamic` in Server Components. Please move it into a Client Component.
+    ,-[D:\WEB_CATASTRO_ALBERTO\src\app\herramientas\visor-catastral\page.tsx:11:1]
+  8 |     import { MapPin } from "lucide-react";
+  9 |     
+ 10 |     // Import Leaflet Map dynamically to prevent SSR issues related to the window object
+ 11 | ,-> const CatastroMap = dynamic(
+ 12 | |       () => import('@/components/tools/catastro-map').then(module => ({ default: module.CatastroMap })),
+ 13 | |       { ssr: false, loading: () => <div className="h-[600px] w-full rounded-xl bg-slate-100 animate-pulse border flex items-center justify-center text-slate-400">Cargando Cartograf├¡a Oficial...</div> }
+ 14 | `-> );
+ 15 |     
+ 16 |     export default function VisorCatastralPage() {
+ 16 |         return (
+    `----
+
+Import trace for requested module:
+./src/app/herramientas/visor-catastral/page.tsx
+
+
+> Build failed because of webpack errors

@@ -799,6 +799,65 @@ async def buscar_parcela_rustica(request: BuscarRusticaRequest):
         print(f"Error proxy catastro rústica: {e}")
         return {"encontrado": False, "error": f"Error: {str(e)}"}
 
+class BuscarCoordsRequest(BaseModel):
+    lat: float
+    lon: float
+
+@app.post("/catastro/buscar-por-coordenadas")
+async def buscar_por_coordenadas(request: BuscarCoordsRequest):
+    """
+    Proxy para buscar una Referencia Catastral dada una coordenada inversa (Reverse Geocoding).
+    Se le envía lat/lon y el servicio OVCCoordenadas.asmx/Consulta_RCCOOR extrae la RC.
+    """
+    try:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+
+        # 1. Llamar a la API Consulta_RCCOOR de Catastro (SRS=EPSG:4326 que es Lat/Lon)
+        # Ojo: la API requiere que SRS sea EPSG:4326 y Coordenada X=Lon, Y=Lat
+        url_coord = f"https://ovc.catastro.meh.es/ovcservweb/OVCSWLocalizacionRC/OVCCoordenadas.asmx/Consulta_RCCOOR?SRS=EPSG:4326&Coordenada_X={request.lon}&Coordenada_Y={request.lat}"
+        
+        req = urllib.request.Request(url_coord, headers={"User-Agent": "Mozilla/5.0"})
+        resp = urllib.request.urlopen(req, context=ctx, timeout=15)
+        xml_text = resp.read().decode("utf-8")
+        
+        # 2. Comprobar errores del Catastro usando la función compartida
+        error_catastro = _check_catastro_error(xml_text)
+        if error_catastro:
+            print(f"DEBUG buscar-coords: Error de catastro: {error_catastro}")
+            return {"encontrado": False, "error": f"Catastro: {error_catastro}"}
+
+        # 3. Extraer la parcela principal (pc1 y pc2 componen la primera parte de la RC)
+        import re
+        pc1_match = re.search(r'<[^>]*pc1[^>]*>([^<]+)</[^>]*>', xml_text, re.IGNORECASE)
+        pc2_match = re.search(r'<[^>]*pc2[^>]*>([^<]+)</[^>]*>', xml_text, re.IGNORECASE)
+        
+        if pc1_match and pc2_match:
+            # RC básica de 14 caracteres (lo necesario para hacer una búsqueda estándar posterior)
+            rc_base = pc1_match.group(1).strip() + pc2_match.group(1).strip()
+            
+            # Buscar dirección también si viene en ldt
+            ldt_match = re.search(r'<[^>]*ldt[^>]*>([^<]+)</[^>]*>', xml_text, re.IGNORECASE)
+            direccion = ldt_match.group(1).strip() if ldt_match else ""
+            
+            print(f"DEBUG buscar-coords: Detectada RC {rc_base} en {request.lat}, {request.lon}")
+            return {
+                "encontrado": True,
+                "rc": rc_base,
+                "direccion": direccion
+            }
+        else:
+            return {"encontrado": False, "error": "Las coordenadas proporcionadas no caen sobre ninguna parcela catastral válida (viales o dominio público)."}
+
+    except urllib.error.HTTPError as e:
+        return {"encontrado": False, "error": f"Error HTTP {e.code} del servicio del Catastro"}
+    except Exception as e:
+        print(f"Error reverse geocoding catastro: {e}")
+        return {"encontrado": False, "error": f"Error del servidor API: {str(e)}"}
+        print(f"Error proxy catastro rústica: {e}")
+        return {"encontrado": False, "error": f"Error: {str(e)}"}
+
 
 # ══════════════════════════════════════════════════════════════════════
 # CALCULADORA CATASTRAL E IBI

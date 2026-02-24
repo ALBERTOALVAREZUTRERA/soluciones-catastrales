@@ -51,6 +51,21 @@ const services = [
     }
   },
   {
+    title: "Visor Catastral Interactivo",
+    description: "Navega sobre la cartografía oficial (WMS) y obtén al instante Referencias Catastrales mediante geolocalización inversa haciendo clic en cualquier parcela de España.",
+    imgId: "visor-catastral",
+    detailedContent: {
+      subtitle: "Mapas interactivos sincronizados con la Base de Datos Oficial.",
+      points: [
+        "Cartografía en tiempo real (WMS de Catastro).",
+        "Ortofotografía aérea de alta resolución (PNOA).",
+        "Detección instantánea de Referencias Catastrales por coordenadas.",
+        "Sincronización directa con calculadoras de Valor e IBI."
+      ],
+      technicalNote: "Ideal para realizar prospecciones inmobiliarias rápidas y obtener datos precisos sin salir de la misma pantalla."
+    }
+  },
+  {
     title: "Cambio de Titularidad",
     description: "Tramitación completa para actualizar el titular catastral tras herencias o compraventas. Aseguramos que la base de datos de Hacienda sea correcta.",
     imgId: "titularidad",

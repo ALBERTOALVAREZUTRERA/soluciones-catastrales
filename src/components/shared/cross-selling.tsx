@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Calculator, Map as MapIcon, Building2 } from "lucide-react";
 
 interface CrossSellingProps {
-    currentTool: "calculadora" | "gml-parcela" | "gml-edificio";
+    currentTool: "calculadora" | "gml-parcela" | "gml-edificio" | "visor";
 }
 
 export function CrossSelling({ currentTool }: CrossSellingProps) {

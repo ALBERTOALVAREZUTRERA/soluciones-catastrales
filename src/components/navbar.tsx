@@ -12,6 +12,7 @@ const navLinks = [
   { name: "GML Edificio", href: "/herramientas/conversor-edificio" },
   { name: "Valor Catastral / IBI (Urbano)", href: "/herramientas/calculadora" },
   { name: "Valor Catastral Rústico", href: "/herramientas/calculadora-rustica" },
+  { name: "Mapa Interactivo", href: "/herramientas/visor-catastral" },
   { name: "Trámites", href: "/#tramites" },
 ];
 
