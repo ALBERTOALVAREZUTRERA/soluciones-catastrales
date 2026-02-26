@@ -383,8 +383,7 @@ async def generate_kml(request: GenerateGMLRequest):
         kml_path = os.path.join(temp_dir, "parcelas.kml")
         
         # Generar KML
-        kml_file = generate_kml_from_gml_features(features, kml_path)
-        
+        kml_file = generate_kml_from_gml_features(features, kml_path, epsg=request.epsg)        
         # Devolver archivo como descarga
         def file_iterator():
             with open(kml_file, 'rb') as f:

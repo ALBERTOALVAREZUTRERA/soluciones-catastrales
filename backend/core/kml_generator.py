@@ -124,7 +124,8 @@ def generate_kml(
 
 def generate_kml_from_gml_features(
     features: List[dict],
-    output_path: str
+    output_path: str,
+    epsg: str = "25830"
 ) -> str:
     """
     Versión simplificada que recibe features del formato GmlFeature.
@@ -132,13 +133,14 @@ def generate_kml_from_gml_features(
     Args:
         features: Lista de features con estructura GmlFeature
         output_path: Ruta de salida
+        epsg: Sistema de coordenadas de origen
         
     Returns:
         Ruta al archivo generado
     """
     try:
         # Importar transformador de coordenadas
-        from core.coordinate_transformer import transform_coords
+        from core.coordinate_transformer import CoordinateTransformer
         
         # Convertir features a formato parcels_data
         parcels_data = []

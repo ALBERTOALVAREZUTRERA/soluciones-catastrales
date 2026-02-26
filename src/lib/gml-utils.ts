@@ -58,7 +58,7 @@ export async function processFile(file: File, format: string, targetCrs: string)
             features = parseDxf(text, baseName);
         } else if (format === 'shp') {
             const buffer = await file.arrayBuffer();
-            features = await parseShp(buffer, baseName);
+            features = await parseShp(buffer, baseName, targetCrs);
         } else if (format === 'gml') {
             const text = await file.text();
             features = parseGml(text, baseName);
@@ -407,7 +407,7 @@ export function parseDxf(text: string, baseName: string = 'PARCELA_DXF'): GmlFea
     return finalFeatures;
 }
 
-async function parseShp(buffer: ArrayBuffer, baseName: string = 'PARCELA_SHP'): Promise<GmlFeature[]> {
+async function parseShp(buffer: ArrayBuffer, baseName: string = 'PARCELA_SHP', targetCrs: string = "EPSG:25830"): Promise<GmlFeature[]> {
     let geojson;
     try {
         geojson = await shp.parseZip(buffer);
@@ -448,10 +448,23 @@ async function parseShp(buffer: ArrayBuffer, baseName: string = 'PARCELA_SHP'): 
                             const tPoly = turf.polygon(polyCoords);
                             const rewound = turf.rewind(tPoly, { reverse: false }) as Feature<Polygon>;
 
+                            let coords = (rewound.geometry as Polygon).coordinates as number[][][];
+
+                            // Detect if the coordinates are in WGS84 (lon, lat) due to shpjs reprojection
+                            if (coords.length > 0 && coords[0].length > 0) {
+                                const pt = coords[0][0];
+                                if (Math.abs(pt[0]) <= 180 && Math.abs(pt[1]) <= 90) {
+                                    // Reproject back from WGS84 to targetCrs
+                                    coords = coords.map(ring =>
+                                        ring.map(p => proj4("EPSG:4326", targetCrs, [p[0], p[1]]))
+                                    );
+                                }
+                            }
+
                             features.push({
                                 id,
-                                geometry: (rewound.geometry as Polygon).coordinates, // Typecast coordinates
-                                area: calculatePlanarArea(rewound.geometry)
+                                geometry: coords,
+                                area: calculatePlanarArea(turf.polygon(coords).geometry)
                             });
                         } catch (err) {
                             console.warn("Geometría SHP inválida ignorada", err);
