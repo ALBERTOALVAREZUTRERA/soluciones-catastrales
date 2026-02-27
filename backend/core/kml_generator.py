@@ -155,15 +155,12 @@ def generate_kml_from_gml_features(
             coords_latlon = []
             
             for ring in geometry:
-                # transform_coords espera lista de tuplas [(x,y), ...]
+                # CoordinateTransformer.utm_to_latlon espera lista de tuplas [(x,y), ...]
                 coords_utm = [(coord[0], coord[1]) for coord in ring]
-                coords_wgs84 = transform_coords(
-                    coords_utm,
-                    source_epsg="EPSG:25830",  # UTM 30N por defecto
-                    target_epsg="EPSG:4326"     # WGS84
-                )
-                # Convertir a formato [lon, lat]
-                coords_latlon.append([[lon, lat] for lat, lon in coords_wgs84])
+                # Devuelve lista de tuplas (lon, lat) porque always_xy=True
+                coords_wgs84 = CoordinateTransformer.utm_to_latlon(coords_utm, epsg)
+                # coords_wgs84 ya está en formato (lon, lat), convertir a lista [lon, lat]
+                coords_latlon.append([[lon, lat] for lon, lat in coords_wgs84])
             
             parcel_data = {
                 'id': feature.get('id', 'Sin ID'),
