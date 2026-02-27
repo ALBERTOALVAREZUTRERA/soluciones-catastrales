@@ -15,6 +15,7 @@ import { API_BASE_URL } from '@/lib/backend-api';
  */
 
 const WMS_URL = 'https://ovc.catastro.meh.es/Cartografia/WMS/ServidorWMS.aspx';
+const WMS_VALORES_URL = 'https://ovc.catastro.meh.es/cartografia/INSPIRE/spadgcwms.aspx';
 const CURRENT_YEAR = new Date().getFullYear();
 const MIN_YEAR = 2002;
 
@@ -24,6 +25,7 @@ export default function CatastroTimeViewer() {
     const markerRef = useRef<L.Marker | null>(null);
     const catastroLayerRef = useRef<L.TileLayer.WMS | null>(null);
     const historicLayerRef = useRef<L.TileLayer.WMS | null>(null);
+    const valoresLayerRef = useRef<L.TileLayer.WMS | null>(null);
 
     // Búsqueda
     const [searchMode, setSearchMode] = useState<'ref' | 'rustica'>('ref');
@@ -36,6 +38,8 @@ export default function CatastroTimeViewer() {
     // Capas
     const [showCatastro, setShowCatastro] = useState(true);
     const [catastroOpacity, setCatastroOpacity] = useState(0.7);
+    const [showValores, setShowValores] = useState(false);
+    const [valoresOpacity, setValoresOpacity] = useState(0.7);
 
     // Máquina del Tiempo
     const [timeEnabled, setTimeEnabled] = useState(false);
@@ -96,6 +100,36 @@ export default function CatastroTimeViewer() {
         if (showCatastro) catastroLayerRef.current.addTo(mapRef.current);
         else mapRef.current.removeLayer(catastroLayerRef.current);
     }, [showCatastro]);
+
+    // ─── Toggle Mapa de Valores ───
+    useEffect(() => {
+        if (!mapRef.current) return;
+        if (showValores) {
+            if (!valoresLayerRef.current) {
+                valoresLayerRef.current = L.tileLayer.wms(WMS_VALORES_URL, {
+                    layers: 'MV',
+                    format: 'image/png',
+                    transparent: true,
+                    version: '1.3.0',
+                    crs: L.CRS.EPSG3857,
+                    attribution: '© DG Catastro - Mapa de Valores',
+                    maxZoom: 22,
+                    opacity: valoresOpacity,
+                } as any);
+            }
+            valoresLayerRef.current.addTo(mapRef.current);
+        } else {
+            if (valoresLayerRef.current) {
+                mapRef.current.removeLayer(valoresLayerRef.current);
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [showValores]);
+
+    // ─── Opacidad Mapa de Valores ───
+    useEffect(() => {
+        valoresLayerRef.current?.setOpacity(valoresOpacity);
+    }, [valoresOpacity]);
 
     // ─── Máquina del Tiempo: activar/desactivar ───
     useEffect(() => {
@@ -204,6 +238,8 @@ export default function CatastroTimeViewer() {
                 if (data.municipio) parts.push(`📍 ${data.municipio} (${data.provincia})`);
                 parts.push(`📐 Lat: ${data.lat.toFixed(6)}, Lon: ${data.lon.toFixed(6)}`);
                 flyToAndHighlight(data.lat, data.lon, parts.join('<br/>'));
+                // Auto-activar Mapa de Valores al localizar una parcela
+                setShowValores(true);
             } else {
                 setSearchError(data.error || 'Referencia catastral no encontrada.');
             }
@@ -305,8 +341,9 @@ export default function CatastroTimeViewer() {
 
                             <div className="hidden lg:block w-px h-8 bg-slate-600"></div>
 
-                            {/* Controles capa */}
-                            <div className="flex items-center gap-3 shrink-0">
+                            {/* Controles capas */}
+                            <div className="flex items-center gap-4 shrink-0 flex-wrap">
+                                {/* Catastro */}
                                 <label className="flex items-center gap-1.5 cursor-pointer">
                                     <input type="checkbox" checked={showCatastro} onChange={(e) => setShowCatastro(e.target.checked)} className="w-3.5 h-3.5 accent-amber-400" />
                                     <span className="text-xs text-slate-300">Catastro</span>
@@ -314,8 +351,23 @@ export default function CatastroTimeViewer() {
                                 <input type="range" min={0} max={100} value={catastroOpacity * 100}
                                     onChange={(e) => setCatastroOpacity(parseInt(e.target.value) / 100)}
                                     className="w-14 h-1.5 rounded-full appearance-none cursor-pointer accent-amber-400"
-                                    title={`Opacidad: ${Math.round(catastroOpacity * 100)}%`}
+                                    title={`Opacidad catastro: ${Math.round(catastroOpacity * 100)}%`}
                                     style={{ background: `linear-gradient(to right, #f59e0b 0%, #f59e0b ${catastroOpacity * 100}%, #475569 ${catastroOpacity * 100}%, #475569 100%)` }} />
+
+                                <div className="w-px h-5 bg-slate-600" />
+
+                                {/* Mapa de Valores */}
+                                <label className="flex items-center gap-1.5 cursor-pointer">
+                                    <input type="checkbox" checked={showValores} onChange={(e) => setShowValores(e.target.checked)} className="w-3.5 h-3.5 accent-emerald-400" />
+                                    <span className="text-xs text-slate-300">💰 Valores</span>
+                                </label>
+                                {showValores && (
+                                    <input type="range" min={0} max={100} value={valoresOpacity * 100}
+                                        onChange={(e) => setValoresOpacity(parseInt(e.target.value) / 100)}
+                                        className="w-14 h-1.5 rounded-full appearance-none cursor-pointer accent-emerald-400"
+                                        title={`Opacidad valores: ${Math.round(valoresOpacity * 100)}%`}
+                                        style={{ background: `linear-gradient(to right, #34d399 0%, #34d399 ${valoresOpacity * 100}%, #475569 ${valoresOpacity * 100}%, #475569 100%)` }} />
+                                )}
                             </div>
                         </form>
                     </div>
@@ -409,7 +461,7 @@ export default function CatastroTimeViewer() {
 
                     {/* ── Pie ── */}
                     <div className="bg-slate-50 px-4 py-2 flex flex-wrap items-center justify-between text-[11px] text-slate-400 border-t gap-2">
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-4 flex-wrap">
                             <div className="flex items-center gap-1.5">
                                 <div className="w-3 h-2 border border-slate-400 bg-slate-200 rounded-sm"></div>
                                 <span>Catastro Actual</span>
@@ -418,6 +470,12 @@ export default function CatastroTimeViewer() {
                                 <div className="flex items-center gap-1.5">
                                     <div className="w-3 h-2 border border-amber-400 bg-amber-100 rounded-sm"></div>
                                     <span>Histórico ({selectedYear})</span>
+                                </div>
+                            )}
+                            {showValores && (
+                                <div className="flex items-center gap-1.5">
+                                    <div className="w-3 h-2 border border-emerald-400 bg-emerald-100 rounded-sm"></div>
+                                    <span>Mapa de Valores (DG Catastro)</span>
                                 </div>
                             )}
                         </div>
