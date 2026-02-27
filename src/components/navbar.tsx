@@ -14,6 +14,7 @@ const navLinks = [
   { name: "Valor Catastral Rústico", href: "/herramientas/calculadora-rustica" },
   { name: "Mapa Interactivo", href: "/herramientas/visor-catastral" },
   { name: "Trámites Registrales", href: "/tramites-registrales" },
+  { name: "Trámites Catastrales", href: "/tramites-catastrales" },
 ];
 
 export function Navbar() {
