@@ -13,7 +13,7 @@ const navLinks = [
   { name: "Valor Catastral / IBI (Urbano)", href: "/herramientas/calculadora" },
   { name: "Valor Catastral Rústico", href: "/herramientas/calculadora-rustica" },
   { name: "Mapa Interactivo", href: "/herramientas/visor-catastral" },
-  { name: "Trámites", href: "/#tramites" },
+  { name: "Trámites Registrales", href: "/tramites-registrales" },
 ];
 
 export function Navbar() {
