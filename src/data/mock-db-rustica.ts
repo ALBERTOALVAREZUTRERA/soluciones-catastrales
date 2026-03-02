@@ -260,9 +260,13 @@ export interface CoefUsoSueloOcupado {
 }
 
 export const dbCoefUsoSueloOcupado: CoefUsoSueloOcupado[] = [
+    // Fuente: PVCR Cuadro marco de valores, columna MBR 4 (Andújar)
+    { id: "residencial_1_2", nombre: "Residencial (categorías 1-2)", coeficiente: 0.187, mbr_tipo: "urbano" },
     { id: "residencial", nombre: "Residencial (categorías 3-9)", coeficiente: 0.070, mbr_tipo: "urbano" },
+    { id: "terciario", nombre: "Terciario, dotacional y equipamientos", coeficiente: 0.070, mbr_tipo: "urbano" },
+    { id: "industrial", nombre: "Industrial y almacén no agrario", coeficiente: 0.047, mbr_tipo: "urbano" },
+    { id: "deportivo", nombre: "Deportivo", coeficiente: 0.023, mbr_tipo: "urbano" },
     { id: "agricola", nombre: "Agrícola, ganadero, forestal", coeficiente: 0.100, mbr_tipo: "rustico" },
-    { id: "industrial", nombre: "Industrial / Almacenaje", coeficiente: 0.060, mbr_tipo: "urbano" },
 ];
 
 // =====================================================
@@ -280,33 +284,46 @@ export interface TipologiaConstructiva {
 }
 
 export const dbTipologiasRusticas: TipologiaConstructiva[] = [
+    // Fuente: RD 1020/1993, Cuadro de Coeficientes del Valor de las Construcciones
     {
-        id: "V", nombre: "Vivienda rural", clase: "01215",
-        categorias: { 1: 1.40, 2: 1.25, 3: 1.15, 4: 1.10, 5: 1.00, 6: 0.90, 7: 0.80, 8: 0.70, 9: 0.60 }
+        // 1.2.1 EDIFICACIÓN AISLADA O PAREADA (Vivienda unifamiliar)
+        id: "V", nombre: "Vivienda unifamiliar aislada", clase: "01215",
+        categorias: { 1: 2.15, 2: 1.80, 3: 1.45, 4: 1.25, 5: 1.10, 6: 1.00, 7: 0.90, 8: 0.80, 9: 0.70 }
     },
     {
-        id: "AAL", nombre: "Almacén agrícola / logístico", clase: "01236",
-        categorias: { 1: 0.80, 2: 0.75, 3: 0.70, 4: 0.60, 5: 0.55, 6: 0.50, 7: 0.45, 8: 0.40, 9: 0.35 }
+        // 1.3.1 USO EXCLUSIVO DE VIVIENDA (Edificación rural)
+        id: "VR", nombre: "Vivienda rural (uso exclusivo)", clase: "01310",
+        categorias: { 1: 1.35, 2: 1.20, 3: 1.05, 4: 0.90, 5: 0.80, 6: 0.70, 7: 0.60, 8: 0.50, 9: 0.40 }
     },
     {
-        id: "BIG", nombre: "Nave / cobertizo / granero", clase: "02138",
-        categorias: { 1: 0.50, 2: 0.45, 3: 0.40, 4: 0.25, 5: 0.22, 6: 0.20, 7: 0.18, 8: 0.15, 9: 0.12 }
+        // 1.3.2 ANEXOS
+        id: "ANX", nombre: "Anexos a vivienda rural", clase: "01320",
+        categorias: { 1: 0.70, 2: 0.60, 3: 0.50, 4: 0.45, 5: 0.35, 6: 0.30, 7: 0.25, 8: 0.20, 9: 0.15 }
     },
     {
-        id: "KPS", nombre: "Piscina / instalación deportiva", clase: "05224",
-        categorias: { 1: 0.90, 2: 0.85, 3: 0.75, 4: 0.60, 5: 0.55, 6: 0.50, 7: 0.45, 8: 0.40, 9: 0.35 }
+        // 2.1.3 ALMACENAMIENTO
+        id: "AAL", nombre: "Almacén / almacenamiento", clase: "02135",
+        categorias: { 1: 0.85, 2: 0.70, 3: 0.60, 4: 0.45, 5: 0.35, 6: 0.30, 7: 0.25, 8: 0.20, 9: 0.20 }
     },
     {
-        id: "GAR", nombre: "Garaje / aparcamiento", clase: "03115",
-        categorias: { 1: 0.75, 2: 0.70, 3: 0.65, 4: 0.50, 5: 0.45, 6: 0.40, 7: 0.35, 8: 0.30, 9: 0.25 }
+        // 2.1.1 FABRICACIÓN EN UNA PLANTA (Nave)
+        id: "BIG", nombre: "Nave / cobertizo / granero", clase: "02110",
+        categorias: { 1: 1.05, 2: 0.90, 3: 0.75, 4: 0.60, 5: 0.50, 6: 0.45, 7: 0.40, 8: 0.37, 9: 0.35 }
     },
     {
+        // 2.2.1 GARAJES
+        id: "GAR", nombre: "Garaje / aparcamiento", clase: "02210",
+        categorias: { 1: 1.15, 2: 1.00, 3: 0.85, 4: 0.70, 5: 0.60, 6: 0.50, 7: 0.40, 8: 0.30, 9: 0.20 }
+    },
+    {
+        // 2.2.2 APARCAMIENTOS (descubiertos)
+        id: "KPS", nombre: "Piscina / deportivo / descubierto", clase: "05224",
+        categorias: { 1: 0.60, 2: 0.50, 3: 0.45, 4: 0.40, 5: 0.35, 6: 0.30, 7: 0.20, 8: 0.10, 9: 0.05 }
+    },
+    {
+        // Estimación: corrales/establos similares a almacenamiento bajo
         id: "COR", nombre: "Corral / establo ganadero", clase: "02215",
-        categorias: { 1: 0.55, 2: 0.50, 3: 0.45, 4: 0.30, 5: 0.25, 6: 0.22, 7: 0.20, 8: 0.18, 9: 0.15 }
-    },
-    {
-        id: "INV", nombre: "Invernadero", clase: "02310",
-        categorias: { 1: 0.65, 2: 0.60, 3: 0.55, 4: 0.40, 5: 0.35, 6: 0.30, 7: 0.25, 8: 0.22, 9: 0.20 }
+        categorias: { 1: 0.85, 2: 0.70, 3: 0.60, 4: 0.45, 5: 0.35, 6: 0.30, 7: 0.25, 8: 0.20, 9: 0.20 }
     },
 ];
 
