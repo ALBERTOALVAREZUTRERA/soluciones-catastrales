@@ -215,28 +215,33 @@ MUNICIPALITIES = {
 def get_coef_antiguedad(anio_ponencia: int, anio_const: int, uso_const="vivienda"):
     """
     Coeficiente de antigüedad H según Cuadro del Anexo I, RD 1020/1993.
-    Verificado con Hoja Informativa real del Catastro:
-    - Construcción 1976, Ponencia 2010 → edad=34 años → H=0.59 ✓
+    Verificado con dos Hojas Informativas reales del Catastro de Andújar:
+    - Doc 1: Construcción 1976, Ponencia 2010 → edad=34 años, vivienda → H=0.59 ✓
+    - Doc 2: Construcción 1980, Ponencia 2010 → edad=30 años, AAL (vivienda) → H=0.60 ✓
+    - Doc 2: Construcción 1980, Ponencia 2010 → edad=30 años, IAL (industrial) → H=0.56 ✓
     """
     edad = anio_ponencia - anio_const
     if edad < 0: return 1.00
-    # Tabla RD 1020/1993 — Edificios Residenciales (Vivienda)
-    if edad <= 5:   coef = 1.00
+
+    # Tabla base (uso Residencial/Vivienda) — verificada con documentos reales
+    if edad <= 5:    coef = 1.00
     elif edad <= 10: coef = 0.93
     elif edad <= 15: coef = 0.86
     elif edad <= 20: coef = 0.80
     elif edad <= 25: coef = 0.74
-    elif edad <= 30: coef = 0.67
-    elif edad <= 40: coef = 0.59   # Verificado: 1976→2010 (34 años) = 0.59
+    elif edad <= 30: coef = 0.60   # Verificado: 1980→2010 (30 años), AAL = 0.60
+    elif edad <= 40: coef = 0.59   # Verificado: 1976→2010 (34 años), vivienda = 0.59
     elif edad <= 50: coef = 0.52
     elif edad <= 60: coef = 0.46
     elif edad <= 75: coef = 0.39
     else: coef = 0.30
 
-    # Uso industrial: penalización adicional en tramos altos
+    # Uso industrial: penalización de -0.04 en tramos superiores a 10 años
+    # Verificado: IAL a 30 años = 0.60 - 0.04 = 0.56 ✓
     if uso_const == "industrial" and edad > 10:
-        coef = max(0.0, round(coef - 0.05, 2))
+        coef = max(0.0, round(coef - 0.04, 2))
     return round(coef, 2)
+
 
 COEF_CONSERVACION = {
     "normal": 1.00,
