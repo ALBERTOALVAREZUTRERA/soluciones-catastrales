@@ -8,9 +8,38 @@
 // Pesetas → Euros: dividir por 166,386
 const PTS_TO_EUR = 166.386;
 
-// Coef. actualización acumulado desde ejercicio 1989 → 2021
-// (producto de coefs anuales publicados en Presupuestos Generales del Estado)
-export const COEF_ACTUALIZACION_DEFAULT = 2.408;
+// ── COEFICIENTES DE ACTUALIZACIÓN ANUALES ──
+// Fuente: Presupuestos Generales del Estado + Excel verificado del usuario
+// Acumulado = producto de todos los coefs desde 1990 hasta el año actual
+// Valor_actualizado = Superficie(Ha) × Tipo(€/Ha) × Coef_Acumulado
+export const COEFS_ACTUALIZACION_ANUALES: { anio: number; coef: number; acumulado: number }[] = [
+    { anio: 1990, coef: 17.500, acumulado: 17.500 },
+    { anio: 1991, coef: 1.500, acumulado: 26.250 },
+    { anio: 1992, coef: 1.050, acumulado: 27.5625 },
+    { anio: 1993, coef: 1.050, acumulado: 28.940625 },
+    { anio: 1994, coef: 1.035, acumulado: 29.953547 },
+    { anio: 1995, coef: 1.035, acumulado: 31.001921 },
+    { anio: 1996, coef: 1.035, acumulado: 32.066988 },
+    { anio: 1997, coef: 1.026, acumulado: 32.92125 },
+    { anio: 1998, coef: 1.021, acumulado: 33.612546 },
+    { anio: 1999, coef: 1.018, acumulado: 34.217023 },
+    { anio: 2000, coef: 1.020, acumulado: 34.901975 },
+    { anio: 2001, coef: 1.020, acumulado: 35.600015 },
+    { anio: 2002, coef: 1.020, acumulado: 36.312015 },
+    { anio: 2003, coef: 1.020, acumulado: 37.038255 },
+    { anio: 2004, coef: 1.020, acumulado: 37.779021 },
+    { anio: 2005, coef: 1.020, acumulado: 38.534601 },
+    { anio: 2006, coef: 1.020, acumulado: 39.305293 },
+    { anio: 2007, coef: 1.020, acumulado: 40.091399 },
+    { anio: 2008, coef: 1.020, acumulado: 40.893227 },
+    { anio: 2009, coef: 1.020, acumulado: 41.711091 },
+    { anio: 2010, coef: 1.010, acumulado: 42.128202 },
+    { anio: 2011, coef: 1.000, acumulado: 42.128202 },
+    { anio: 2012, coef: 1.000, acumulado: 42.128202 },
+];
+
+// Coef. acumulado actual (último disponible — desde 2010 sin cambios)
+export const COEF_ACTUALIZACION_DEFAULT = 42.128;
 
 // ----- TIPOS EVALUATORIOS (en pesetas/Ha) -----
 // Cada cultivo tiene intensidades productivas (1ª = mejor, progresivamente menor)

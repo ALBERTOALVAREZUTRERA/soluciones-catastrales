@@ -12,6 +12,7 @@ import {
     coeficientesAntiguedad,
     coeficientesConservacion,
     COEF_ACTUALIZACION_DEFAULT,
+    COEFS_ACTUALIZACION_ANUALES,
     type CultivoTipo,
 } from "@/data/mock-db-rustica"
 
