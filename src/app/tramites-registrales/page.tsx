@@ -323,7 +323,7 @@ export default function TramitesRegistralesPage() {
                     </p>
                     <div className="flex flex-col sm:flex-row gap-4 justify-center">
                         <a
-                            href="https://wa.me/34XXXXXXXXX?text=Hola,%20necesito%20información%20sobre%20un%20trámite%20registral"
+                            href="https://wa.me/34665890608?text=Hola,%20necesito%20información%20sobre%20un%20trámite%20registral"
                             target="_blank"
                             rel="noopener noreferrer"
                         >
