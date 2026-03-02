@@ -236,8 +236,11 @@ export default function CalculadoraPage() {
                     ...prev,
                     municipio: muniName,
                     clase: data.uso?.toLowerCase().includes("rústico") ? "rustico" : "urbano",
-                    // Para pisos en bloque valorados por repercusión (VRC), el suelo = sup_const
-                    sup_parcela: (data.superficie_parcela > (data.superficie_construida * 1.5)) ? data.superficie_construida : (data.superficie_parcela || prev.sup_parcela),
+                    // Para pisos en bloque valorados por repercusión (VRC):
+                    // Si sup_parcela es 0 (divisiones horizontales) o muy grande (>1.5× sup_const), usar sup_const
+                    sup_parcela: (!data.superficie_parcela || data.superficie_parcela > (data.superficie_construida * 1.5))
+                        ? (data.superficie_construida || prev.sup_parcela)
+                        : (data.superficie_parcela || prev.sup_parcela),
                     ha: data.uso?.toLowerCase().includes("rústico") ? (data.superficie_parcela / 10000 || prev.ha) : prev.ha,
                     anio_const: data.anio_const || prev.anio_const,
                     uso_const: data.uso?.toLowerCase().includes("industrial") ? "industrial" : "vivienda",
@@ -245,7 +248,7 @@ export default function CalculadoraPage() {
                     zona_valor: data.zona_valor || prev.zona_valor,
                     valor_rep: data.valor_rep || prev.valor_rep,
                     edif_real: data.superficie_construida || prev.edif_real,
-                    edif_max: prev.edif_max === 0 ? data.superficie_construida : prev.edif_max // Como inicializacion razonable
+                    edif_max: data.superficie_construida || prev.edif_max
                 }));
                 const vrcMsg = data.valor_rep > 0 && data.zona_info
                     ? ` Valor repercusión auto-detectado: ${data.zona_info}.`
