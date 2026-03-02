@@ -15,6 +15,7 @@ ANDUJAR_DATA = {
     "mbc": 550.00,
     "mbr": 450.00,
     "rm": 0.50,
+    "gb": 1.30,   # CT=1.30 verificado en 2 Hojas Informativas reales de Andújar
     "tipo_ibi": {
         "urbano": 0.00593,
         "rustico": 0.01068,
@@ -448,7 +449,8 @@ class TaxCalculator:
 
         data = base_data
         RM = data["rm"]
-        GB = float(params.get("custom_gb", 1.0))
+        # GB: usa el valor del municipio (ej. Andújar CT=1.30) o el del usuario, o 1.0 por defecto
+        GB = float(params.get("custom_gb") or data.get("gb", 1.0))
         clase = params.get("clase", "urbano")
         
         # 1. VALOR SUELO URBANO
