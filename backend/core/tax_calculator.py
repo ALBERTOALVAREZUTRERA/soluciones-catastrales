@@ -296,7 +296,7 @@ COEF_CONSERVACION = {
 
 COEF_TIPOLOGIA = {
     # 1. Residencial (Vivienda)
-    "vivienda": {1:1.10, 2:1.05, 3:1.00, 4:0.95, 5:0.90, 6:0.85, 7:0.80, 8:0.75, 9:0.70},
+    "vivienda": {1:1.20, 2:1.15, 3:1.10, 4:1.05, 5:1.00, 6:0.95, 7:0.90, 8:0.85, 9:0.80},
     # 2. Industrial / Almacén (Usando la tabla I del Anexo como referencia estandarizada)
     "industrial": {1:1.00, 2:0.95, 3:0.90, 4:0.85, 5:0.80, 6:0.75, 7:0.70, 8:0.65, 9:0.60},
     # 3. Oficinas

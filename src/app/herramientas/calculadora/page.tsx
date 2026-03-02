@@ -213,7 +213,8 @@ export default function CalculadoraPage() {
                     ...prev,
                     municipio: muniName,
                     clase: data.uso?.toLowerCase().includes("rústico") ? "rustico" : "urbano",
-                    sup_parcela: data.superficie_parcela || prev.sup_parcela,
+                    // Para pisos en bloque valorados por repercusión (VRC), el suelo = sup_const
+                    sup_parcela: (data.superficie_parcela > (data.superficie_construida * 1.5)) ? data.superficie_construida : (data.superficie_parcela || prev.sup_parcela),
                     ha: data.uso?.toLowerCase().includes("rústico") ? (data.superficie_parcela / 10000 || prev.ha) : prev.ha,
                     anio_const: data.anio_const || prev.anio_const,
                     uso_const: data.uso?.toLowerCase().includes("industrial") ? "industrial" : "vivienda",
