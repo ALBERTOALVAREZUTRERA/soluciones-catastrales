@@ -1,8 +1,8 @@
 "use client"
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Calculator, Sprout, Home, Euro, Info, Plus, Trash2, Building2 } from "lucide-react"
+import { Calculator, Sprout, Home, Euro, Info, Plus, Trash2, Building2, Search, Loader2 } from "lucide-react"
 
 import {
     dbMunicipiosRustica,
@@ -49,13 +49,93 @@ export function RusticCalculator() {
     const [municipioId, setMunicipioId] = useState(dbMunicipiosRustica[0].id_municipio)
     const [rc, setRc] = useState<string>("")
     const [coefActualizacion, setCoefActualizacion] = useState<number>(COEF_ACTUALIZACION_DEFAULT)
+    const [buscando, setBuscando] = useState(false)
+    const [msgBusqueda, setMsgBusqueda] = useState<string>("")
 
     // Referencia catastral desde URL
     React.useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const rcParam = params.get('rc');
-        if (rcParam) setRc(rcParam);
+        if (rcParam) {
+            setRc(rcParam);
+            // Auto-consultar si viene de URL
+            setTimeout(() => buscarRC(rcParam), 500);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    // ── AUTO-RELLENO DESDE CATASTRO API ──
+    const buscarRC = useCallback(async (refCatastral?: string) => {
+        const rcToSearch = (refCatastral || rc).trim().toUpperCase()
+        if (rcToSearch.length < 14) {
+            setMsgBusqueda("La RC debe tener al menos 14 caracteres")
+            return
+        }
+        setBuscando(true)
+        setMsgBusqueda("")
+        try {
+            const res = await fetch(`/api/catastro-rustica?rc=${rcToSearch}`)
+            const data = await res.json()
+            if (!res.ok || data.error) {
+                setMsgBusqueda(data.error || 'Error al consultar')
+                return
+            }
+
+            // Auto-rellenar subparcelas si hay datos
+            if (data.subparcelas && data.subparcelas.length > 0) {
+                const nuevasSubparcelas: SubparcelaCultivo[] = data.subparcelas.map((sp: { clave: string; intensidad: string; superficieHa: number }) => {
+                    // Mapear clave del API a nuestros cultivos
+                    const cultivoMatch = dbTiposEvaluatorios.find(c => c.clave === sp.clave)
+                    const clave = cultivoMatch?.clave || 'O-'
+                    // Mapear intensidad
+                    const intNum = parseInt(sp.intensidad) || 1
+                    const cultivoData = dbTiposEvaluatorios.find(c => c.clave === clave)
+                    const intMatch = cultivoData?.intensidades.find(i => i.intensidad === intNum)
+                    const intensidad = intMatch ? intNum : (cultivoData?.intensidades[0]?.intensidad || 1)
+                    return {
+                        id: subparcelaCounter++,
+                        cultivoClave: clave,
+                        intensidad,
+                        superficieHa: sp.superficieHa || 0.5
+                    }
+                })
+                if (nuevasSubparcelas.length > 0) setSubparcelas(nuevasSubparcelas)
+            }
+
+            // Auto-rellenar construcciones si hay datos
+            if (data.construcciones && data.construcciones.length > 0) {
+                const nuevasConstrucciones: UnidadConstructiva[] = data.construcciones.map((c: { tipologia: string; superficieM2: number; anioConstruccion: number }) => {
+                    // Intentar mapear tipología del API a nuestras tipologías
+                    const tipoStr = (c.tipologia || '').toUpperCase()
+                    let tipologiaId = 'AAL' // default
+                    if (tipoStr.includes('VIVIENDA') || tipoStr.includes('RESID')) tipologiaId = 'V'
+                    else if (tipoStr.includes('NAVE') || tipoStr.includes('COBERTIZO')) tipologiaId = 'BIG'
+                    else if (tipoStr.includes('GARAJE')) tipologiaId = 'GAR'
+                    else if (tipoStr.includes('PISCINA') || tipoStr.includes('DEPORT')) tipologiaId = 'KPS'
+                    else if (tipoStr.includes('CORRAL') || tipoStr.includes('ESTABLO')) tipologiaId = 'COR'
+                    return {
+                        id: unidadCounter++,
+                        tipologiaId,
+                        categoria: 4,
+                        superficieM2: c.superficieM2 || 100,
+                        anioConstruccion: c.anioConstruccion || 2000,
+                        conservacion: 'N'
+                    }
+                })
+                if (nuevasConstrucciones.length > 0) setConstrucciones(nuevasConstrucciones)
+            }
+
+            const numSp = data.subparcelas?.length || 0
+            const numConst = data.construcciones?.length || 0
+            setMsgBusqueda(`✅ ${data.municipio || 'Encontrado'}: ${numSp} subparcela(s)${numConst > 0 ? `, ${numConst} construcción(es)` : ''}`)
+
+        } catch (err) {
+            setMsgBusqueda('Error de conexión con el Catastro')
+        } finally {
+            setBuscando(false)
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [rc])
 
     // ── SUBPARCELAS DE CULTIVO ──
     const [subparcelas, setSubparcelas] = useState<SubparcelaCultivo[]>([
@@ -218,9 +298,25 @@ export function RusticCalculator() {
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">Referencia Catastral</label>
-                                    <input type="text" maxLength={20} placeholder="Ej: 23005A010090120000WF"
-                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono uppercase"
-                                        value={rc} onChange={(e) => setRc(e.target.value)} />
+                                    <div className="flex gap-2">
+                                        <input type="text" maxLength={20} placeholder="Ej: 23005A010090120000WF"
+                                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono uppercase"
+                                            value={rc}
+                                            onChange={(e) => setRc(e.target.value)}
+                                            onKeyDown={(e) => e.key === 'Enter' && buscarRC()} />
+                                        <button
+                                            onClick={() => buscarRC()}
+                                            disabled={buscando || rc.length < 14}
+                                            className="flex items-center justify-center h-10 w-10 rounded-md bg-primary text-white hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0"
+                                            title="Consultar Catastro">
+                                            {buscando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                                        </button>
+                                    </div>
+                                    {msgBusqueda && (
+                                        <p className={`text-xs ${msgBusqueda.startsWith('✅') ? 'text-emerald-600' : 'text-red-500'}`}>
+                                            {msgBusqueda}
+                                        </p>
+                                    )}
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">Municipio</label>
