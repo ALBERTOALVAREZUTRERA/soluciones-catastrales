@@ -223,10 +223,15 @@ export default function CalculadoraPage() {
                     edif_real: data.superficie_construida || prev.edif_real,
                     edif_max: prev.edif_max === 0 ? data.superficie_construida : prev.edif_max // Como inicializacion razonable
                 }));
-                setSearchStatus({ type: 'success', message: `¡Parcela Localizada! Ubicada en ${data.direccion}. Datos técnicos auto-completados.` });
+                const vrcMsg = data.valor_rep > 0 && data.zona_info
+                    ? ` Valor repercusión auto-detectado: ${data.zona_info}.`
+                    : " Valor de repercusión de suelo no detectado automáticamente — introdúcelo manualmente.";
+                setSearchStatus({ type: 'success', message: `¡Parcela Localizada! ${data.direccion}.${vrcMsg}` });
                 toast({
-                    title: "Inmueble encontrado y cargado",
-                    description: `Ubicada en ${data.direccion}. Se han auto-completado los datos técnicos.`,
+                    title: data.valor_rep > 0 ? "✅ Inmueble encontrado — Zona detectada" : "Inmueble encontrado",
+                    description: data.valor_rep > 0
+                        ? `${data.direccion} | ${data.zona_info}`
+                        : `${data.direccion}. Introduce el valor de repercusión de suelo manualmente.`,
                 });
             } else {
                 setSearchStatus({ type: 'error', message: `Parcela NO Localizada: ${data.error || "No encontrada."}` });

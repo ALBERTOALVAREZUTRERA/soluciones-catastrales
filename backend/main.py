@@ -702,19 +702,63 @@ async def buscar_por_referencia_catastral(request: BuscarRCRequest):
         # Consolidar superficies (usando las variables locales recién extraídas)
         # superficie_parcela y superficie_construida ya están calculadas arriba
         
-        # 4. Detectar zona de valoración vía WMS
+        # 4. Detectar zona de valoración vía WMS + fallback por distancia al centro
         zona_detectada = TaxCalculator.get_valuation_zone(lat, lon)
-        print(f"DEBUG buscar-rc: RC={rc}, Lat={lat}, Lon={lon}, Zona detectada={zona_detectada}")
-        
+        print(f"DEBUG buscar-rc: RC={rc}, Lat={lat}, Lon={lon}, Zona WMS={zona_detectada}")
+
+        # Normalizar nombre municipio para buscar en MUNICIPALITIES
+        import unicodedata
+        def norm(t): return ''.join(c for c in unicodedata.normalize('NFD', t) if unicodedata.category(c) != 'Mn').lower()
+        muni_norm = norm(municipio_result)
+        muni_key = next((k for k in MUNICIPALITIES if norm(k) == muni_norm), None)
+
+        # Si WMS no detectó zona, intentar fallback geográfico para Andújar
+        if not zona_detectada and muni_key == "Andújar":
+            # Distancias aproximadas al centro de Andújar (Plaza de España: 38.0438, -4.0484)
+            # R37/R37C: < 200m  |  R40: < 450m  |  R43: < 900m  |  R47: < 1800m  |  R50+: resto
+            import math
+            def haversine_m(lat1, lon1, lat2, lon2):
+                R = 6371000
+                φ1, φ2 = math.radians(lat1), math.radians(lat2)
+                dφ = math.radians(lat2 - lat1)
+                dλ = math.radians(lon2 - lon1)
+                a = math.sin(dφ/2)**2 + math.cos(φ1)*math.cos(φ2)*math.sin(dλ/2)**2
+                return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+            dist = haversine_m(lat, lon, 38.0438, -4.0484)
+            if dist < 200:
+                zona_detectada = "R37C"
+            elif dist < 450:
+                zona_detectada = "R40"
+            elif dist < 900:
+                zona_detectada = "R43"
+            elif dist < 1800:
+                zona_detectada = "R47"
+            elif dist < 3000:
+                zona_detectada = "R50"
+            else:
+                zona_detectada = "R55"
+            print(f"DEBUG buscar-rc: Fallback geográfico Andújar → dist={dist:.0f}m → Zona={zona_detectada}")
+
         valor_rep = 0.0
-        if zona_detectada and municipio_result.upper() == "ANDUJAR":
-            # Intentar mapear uso a los de la ponencia
+        zona_info = ""
+        if zona_detectada and muni_key:
+            # Mapear uso catastral al key de zonas_valor
             uso_map = "vivienda"
-            if "industrial" in uso.lower() or "almacén" in uso.lower(): uso_map = "industri"
-            elif "oficina" in uso.lower(): uso_map = "oficinas"
-            elif "comercio" in uso.lower(): uso_map = "comercial"
-            
-            valor_rep = TaxCalculator.get_zone_value("Andújar", zona_detectada, uso_map)
+            uso_lower = uso.lower()
+            if "industrial" in uso_lower or "almacén" in uso_lower or "almacen" in uso_lower:
+                uso_map = "industri"
+            elif "oficina" in uso_lower:
+                uso_map = "oficinas"
+            elif "comercio" in uso_lower or "local" in uso_lower:
+                uso_map = "comercial"
+            elif "garaje" in uso_lower or "aparcamiento" in uso_lower:
+                uso_map = "garajes"
+
+            valor_rep = TaxCalculator.get_zone_value(muni_key, zona_detectada, uso_map)
+            if valor_rep > 0:
+                zona_info = f"Zona {zona_detectada} — {valor_rep:.2f} €/m² ({uso_map})"
+                print(f"DEBUG buscar-rc: VRC auto-detectado = {valor_rep} €/m² (zona={zona_detectada}, uso={uso_map})")
 
         return {
             "encontrado": True,
@@ -729,7 +773,8 @@ async def buscar_por_referencia_catastral(request: BuscarRCRequest):
             "superficie_construida": superficie_construida,
             "anio_const": anio_const,
             "zona_valor": zona_detectada,
-            "valor_rep": valor_rep
+            "valor_rep": valor_rep,
+            "zona_info": zona_info
         }
 
     except urllib.error.HTTPError as e:
