@@ -106,7 +106,30 @@ export default function CalculadoraPage() {
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: isNaN(Number(value)) ? value : Number(value) }));
+        // Allow empty string to clear the field
+        if (value === '') {
+            setFormData(prev => ({ ...prev, [name]: '' }));
+            return;
+        }
+
+        // Allow entering decimals (e.g. "1.")
+        if (value.endsWith('.') || value.endsWith(',')) {
+            setFormData(prev => ({ ...prev, [name]: value.replace(',', '.') }));
+            return;
+        }
+
+        // Prevent leading zeros unless it's a decimal "0."
+        let cleanedValue = value;
+        if (cleanedValue.length > 1 && cleanedValue.startsWith('0') && !cleanedValue.startsWith('0.')) {
+            // Strip leading zeros
+            cleanedValue = cleanedValue.replace(/^0+/, '');
+            // If it became empty, make it "0"
+            if (cleanedValue === '') cleanedValue = '0';
+        }
+
+        // Try to parse to number if possible
+        const parsed = Number(cleanedValue);
+        setFormData(prev => ({ ...prev, [name]: isNaN(parsed) ? cleanedValue : parsed }));
     };
 
     const handleSelectChange = (name: string, value: string) => {
