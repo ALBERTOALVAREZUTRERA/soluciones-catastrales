@@ -41,6 +41,12 @@ export default function CalculadoraPage() {
         "Fuencaliente": 1990
     };
 
+    // CT/GB (Coeficiente de Gastos y Beneficio) por municipio
+    // Verificado en Hojas Informativas reales: Andújar CT=1.30
+    const mockGB: Record<string, number> = {
+        "Andújar (Jaén)": 1.30,
+    };
+
     const [municipios, setMunicipios] = useState(Object.keys(mockPonencias));
     const [result, setResult] = useState<any>(null);
     const [searchStatus, setSearchStatus] = useState<{ type: 'success' | 'error' | 'info' | null, message: string }>({ type: null, message: "" });
@@ -69,7 +75,7 @@ export default function CalculadoraPage() {
         custom_mbr: 200,
         custom_mbr_rustico: 37.8,
         custom_rm: 0.50,
-        custom_gb: 1.40,
+        custom_gb: 1.30,   // CT/GB Andújar verificado = 1.30
         custom_tipo_urbano: 0.006,
         custom_tipo_rustico: 0.010,
         custom_anio_ponencia: 2010
@@ -81,14 +87,20 @@ export default function CalculadoraPage() {
         const rcParam = params.get('rc');
         if (rcParam) {
             setFormData(prev => ({ ...prev, rc: rcParam }));
-            // Auto-trigger search is omitted to let user review first
         }
     }, []);
 
-    // Actualizar el anio_ponencia en el formData cuando el usuario elige un municipio conocido
+    // Actualizar ponencia Y CT/GB cuando el usuario elige un municipio conocido
     useEffect(() => {
+        const updates: Record<string, number> = {};
         if (formData.municipio && mockPonencias[formData.municipio]) {
-            setFormData(prev => ({ ...prev, custom_anio_ponencia: mockPonencias[formData.municipio] }));
+            updates.custom_anio_ponencia = mockPonencias[formData.municipio];
+        }
+        if (formData.municipio && mockGB[formData.municipio]) {
+            updates.custom_gb = mockGB[formData.municipio];
+        }
+        if (Object.keys(updates).length > 0) {
+            setFormData(prev => ({ ...prev, ...updates }));
         }
     }, [formData.municipio]);
 
@@ -398,6 +410,28 @@ export default function CalculadoraPage() {
                                                                 <SelectItem value="rustico">Rústico</SelectItem>
                                                             </SelectContent>
                                                         </Select>
+                                                    </div>
+
+                                                    {/* CT/GB — visible siempre, pre-cargado del municipio */}
+                                                    <div className="space-y-2 lg:col-span-2">
+                                                        <Label className="flex items-center gap-1">
+                                                            Coef. CT / G+B
+                                                            <span className="text-[10px] text-slate-400 font-normal ml-1">(opcional — de la Ponencia)</span>
+                                                        </Label>
+                                                        <Input
+                                                            type="number"
+                                                            name="custom_gb"
+                                                            step="0.01"
+                                                            value={formData.custom_gb}
+                                                            onChange={handleInputChange}
+                                                            className="h-10 bg-slate-50 border-slate-200"
+                                                            placeholder="Ej: 1.30"
+                                                        />
+                                                        <p className="text-[10px] text-slate-400">
+                                                            {mockGB[formData.municipio]
+                                                                ? `✓ Verificado ${formData.municipio}: ${mockGB[formData.municipio]}`
+                                                                : "Déjalo en 1.00 si no lo conoces"}
+                                                        </p>
                                                     </div>
 
                                                     {/* CONFIGURACIÓN EXPERTA (Solo si es Personalizado) */}
