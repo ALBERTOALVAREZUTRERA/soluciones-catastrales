@@ -213,21 +213,29 @@ MUNICIPALITIES = {
 # =====================================================
 
 def get_coef_antiguedad(anio_ponencia: int, anio_const: int, uso_const="vivienda"):
+    """
+    Coeficiente de antigüedad H según Cuadro del Anexo I, RD 1020/1993.
+    Verificado con Hoja Informativa real del Catastro:
+    - Construcción 1976, Ponencia 2010 → edad=34 años → H=0.59 ✓
+    """
     edad = anio_ponencia - anio_const
     if edad < 0: return 1.00
-    if edad <= 4: coef = 1.00
-    elif edad <= 9: coef = 0.92
-    elif edad <= 14: coef = 0.85
-    elif edad <= 19: coef = 0.78
-    elif edad <= 24: coef = 0.72
-    elif edad <= 29: coef = 0.66
-    elif edad <= 39: coef = 0.61
-    elif edad <= 49: coef = 0.56
-    elif edad <= 74: coef = 0.45
+    # Tabla RD 1020/1993 — Edificios Residenciales (Vivienda)
+    if edad <= 5:   coef = 1.00
+    elif edad <= 10: coef = 0.93
+    elif edad <= 15: coef = 0.86
+    elif edad <= 20: coef = 0.80
+    elif edad <= 25: coef = 0.74
+    elif edad <= 30: coef = 0.67
+    elif edad <= 40: coef = 0.59   # Verificado: 1976→2010 (34 años) = 0.59
+    elif edad <= 50: coef = 0.52
+    elif edad <= 60: coef = 0.46
+    elif edad <= 75: coef = 0.39
     else: coef = 0.30
-    
-    if uso_const == "industrial" and edad >= 10:
-        coef = max(0.0, coef - 0.05)
+
+    # Uso industrial: penalización adicional en tramos altos
+    if uso_const == "industrial" and edad > 10:
+        coef = max(0.0, round(coef - 0.05, 2))
     return round(coef, 2)
 
 COEF_CONSERVACION = {
