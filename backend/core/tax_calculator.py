@@ -209,38 +209,81 @@ MUNICIPALITIES = {
 }
 
 # =====================================================
-# COEFFICIENTS RD 1020/1993
+# COEFICIENTE H — TABLA OFICIAL RD 1020/1993, NORMA 13
+# Cuadro de la Norma 20 (Cuadro de Tipos Constructivos)
+#
+# T = años completos desde construcción hasta el 1 de enero
+#     del año SIGUIENTE al de aprobación de la Ponencia.
+#
+# Verificado con Hojas Informativas reales de Andújar (Ponencia 2010):
+#   · Vivienda 1976 → T=35, Uso1°, Cat 3-4-5-6 → H=0.59 ✓
+#   · AAL 1980     → T=31, Uso2°, Cat 3-4-5-6 → H=0.60 ✓
+#   · IAL 1980     → T=31, Uso3°, Cat 3-4-5-6 → H=0.56 ✓
 # =====================================================
 
-def get_coef_antiguedad(anio_ponencia: int, anio_const: int, uso_const="vivienda"):
-    """
-    Coeficiente de antigüedad H según Cuadro del Anexo I, RD 1020/1993.
-    Verificado con dos Hojas Informativas reales del Catastro de Andújar:
-    - Doc 1: Construcción 1976, Ponencia 2010 → edad=34 años, vivienda → H=0.59 ✓
-    - Doc 2: Construcción 1980, Ponencia 2010 → edad=30 años, AAL (vivienda) → H=0.60 ✓
-    - Doc 2: Construcción 1980, Ponencia 2010 → edad=30 años, IAL (industrial) → H=0.56 ✓
-    """
-    edad = anio_ponencia - anio_const
-    if edad < 0: return 1.00
+# Grupos de uso según RD 1020/1993:
+#   Uso 1°: Residencial, oficinas y edificios singulares
+#   Uso 2°: Industrial no fabril, comercial, deportivo, hostelería,
+#            turístico, sanitario/beneficencia, cultural/religioso
+#   Uso 3°: Fábricas y espectáculos (incluso deportivos)
 
-    # Tabla base (uso Residencial/Vivienda) — verificada con documentos reales
-    if edad <= 5:    coef = 1.00
-    elif edad <= 10: coef = 0.93
-    elif edad <= 15: coef = 0.86
-    elif edad <= 20: coef = 0.80
-    elif edad <= 25: coef = 0.74
-    elif edad <= 30: coef = 0.60   # Verificado: 1980→2010 (30 años), AAL = 0.60
-    elif edad <= 40: coef = 0.59   # Verificado: 1976→2010 (34 años), vivienda = 0.59
-    elif edad <= 50: coef = 0.52
-    elif edad <= 60: coef = 0.46
-    elif edad <= 75: coef = 0.39
-    else: coef = 0.30
+USO_TO_GRUPO = {
+    "vivienda":   "uso1",
+    "oficinas":   "uso1",
+    "singular":   "uso1",
+    "industrial": "uso3",   # IAL = Almacén industrial / Fábrica → Uso 3°
+    "comercial":  "uso2",
+    "deportes":   "uso2",
+    "hosteleria": "uso2",
+    "turismo":    "uso2",
+    "sanidad":    "uso2",
+    "cultural":   "uso2",
+    "espectaculos":"uso2",
+    "garajes":    "uso2",
+    "agricola":   "uso2",
+}
 
-    # Uso industrial: penalización de -0.04 en tramos superiores a 10 años
-    # Verificado: IAL a 30 años = 0.60 - 0.04 = 0.56 ✓
-    if uso_const == "industrial" and edad > 10:
-        coef = max(0.0, round(coef - 0.04, 2))
-    return round(coef, 2)
+def _get_cat_grupo(categoria: int) -> str:
+    if categoria <= 2: return "cat12"
+    if categoria <= 6: return "cat3456"
+    return "cat789"
+
+# Tabla H: lista de (T_max, coef) — se busca el primer T_max >= T
+# (5-year bands, all values transcribed from official RD 1020/1993 table)
+_H_TABLE = {
+    "uso1": {
+        "cat12":   [(4,1.00),(9,0.93),(14,0.87),(19,0.82),(24,0.77),(29,0.72),(34,0.68),(39,0.64),(44,0.61),(49,0.58),(54,0.55),(59,0.52),(64,0.50),(69,0.47),(74,0.45),(79,0.43),(84,0.41),(89,0.40),(999,0.39)],
+        "cat3456": [(4,1.00),(9,0.92),(14,0.86),(19,0.79),(24,0.73),(29,0.68),(34,0.63),(39,0.59),(44,0.55),(49,0.52),(54,0.49),(59,0.46),(64,0.43),(69,0.41),(74,0.39),(79,0.37),(84,0.35),(89,0.33),(999,0.32)],
+        "cat789":  [(4,1.00),(9,0.90),(14,0.82),(19,0.74),(24,0.68),(29,0.61),(34,0.56),(39,0.51),(44,0.47),(49,0.43),(54,0.40),(59,0.38),(64,0.34),(69,0.32),(74,0.30),(79,0.28),(84,0.26),(89,0.25),(999,0.24)],
+    },
+    "uso2": {
+        "cat12":   [(4,1.00),(9,0.93),(14,0.86),(19,0.80),(24,0.75),(29,0.70),(34,0.65),(39,0.61),(44,0.57),(49,0.54),(54,0.51),(59,0.48),(64,0.45),(69,0.43),(74,0.41),(79,0.39),(84,0.37),(89,0.36),(999,0.35)],
+        "cat3456": [(4,1.00),(9,0.91),(14,0.84),(19,0.77),(24,0.70),(29,0.65),(34,0.60),(39,0.56),(44,0.52),(49,0.48),(54,0.45),(59,0.42),(64,0.39),(69,0.37),(74,0.35),(79,0.33),(84,0.31),(89,0.29),(999,0.28)],
+        "cat789":  [(4,1.00),(9,0.89),(14,0.80),(19,0.72),(24,0.65),(29,0.58),(34,0.53),(39,0.48),(44,0.44),(49,0.40),(54,0.37),(59,0.34),(64,0.31),(69,0.30),(74,0.27),(79,0.25),(84,0.23),(89,0.21),(999,0.20)],
+    },
+    "uso3": {
+        "cat12":   [(4,1.00),(9,0.92),(14,0.84),(19,0.78),(24,0.72),(29,0.67),(34,0.62),(39,0.58),(44,0.54),(49,0.50),(54,0.47),(59,0.44),(64,0.41),(69,0.37),(74,0.35),(79,0.35),(84,0.33),(89,0.31),(999,0.30)],
+        "cat3456": [(4,1.00),(9,0.90),(14,0.82),(19,0.74),(24,0.68),(29,0.61),(34,0.56),(39,0.51),(44,0.47),(49,0.43),(54,0.40),(59,0.37),(64,0.34),(69,0.30),(74,0.28),(79,0.28),(84,0.25),(89,0.25),(999,0.24)],
+        "cat789":  [(4,1.00),(9,0.88),(14,0.78),(19,0.69),(24,0.61),(29,0.54),(34,0.49),(39,0.44),(44,0.39),(49,0.35),(54,0.32),(59,0.29),(64,0.26),(69,0.22),(74,0.22),(79,0.20),(84,0.19),(89,0.18),(999,0.17)],
+    },
+}
+
+def get_coef_antiguedad(anio_ponencia: int, anio_const: int, uso_const: str = "vivienda", categoria: int = 4) -> float:
+    """
+    Coeficiente de antigüedad H según Norma 13 del RD 1020/1993.
+
+    T = años completos desde la construcción hasta el 1 de enero
+        del año siguiente al de aprobación de la Ponencia de valores.
+    """
+    T = (anio_ponencia + 1) - anio_const
+    if T < 0:
+        return 1.00
+    grupo_uso = USO_TO_GRUPO.get(uso_const, "uso1")
+    grupo_cat = _get_cat_grupo(int(categoria))
+    for t_max, coef in _H_TABLE[grupo_uso][grupo_cat]:
+        if T <= t_max:
+            return round(coef, 2)
+    return 0.17  # antigüedad máxima
 
 
 COEF_CONSERVACION = {
@@ -457,7 +500,7 @@ class TaxCalculator:
             estado = params.get("estado", "normal")
             
             coef_tipo = COEF_TIPOLOGIA.get(uso_const, COEF_TIPOLOGIA["vivienda"]).get(categoria, 1.0)
-            coef_h = get_coef_antiguedad(data.get("anio_ponencia", 2010), anio_const, uso_const)
+            coef_h = get_coef_antiguedad(int(data.get("anio_ponencia", 2010)), anio_const, uso_const, categoria)
             coef_i = COEF_CONSERVACION.get(estado, 1.00)
             
             construccion_base = round(sup_const * data["mbc"] * coef_tipo * coef_h * coef_i * RM * GB, 2)
@@ -474,7 +517,7 @@ class TaxCalculator:
                     c_sup = float(c.get("sup_const", 0))
                     
                     c_coef_tipo = COEF_TIPOLOGIA.get(c_uso, COEF_TIPOLOGIA["vivienda"]).get(c_cat, 1.0)
-                    c_coef_h = get_coef_antiguedad(c_anio, c_uso)
+                    c_coef_h = get_coef_antiguedad(int(data.get("anio_ponencia", 2010)), c_anio, c_uso, c_cat)
                     c_coef_i = COEF_CONSERVACION.get(c_estado, 1.00)
                     
                     c_valor = round(c_sup * data["mbc"] * c_coef_tipo * c_coef_h * c_coef_i * RM * GB, 2)
