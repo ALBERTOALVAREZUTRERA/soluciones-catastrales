@@ -274,18 +274,40 @@ export const dbCoefUsoSueloOcupado: CoefUsoSueloOcupado[] = [
 export interface TipologiaConstructiva {
     id: string;
     nombre: string;
-    clase: string;       // código de clase (ej. "01215")
-    coeficiente: number; // coef. de tipología
+    clase: string;       // código de clase base (ej. "01215")
+    // Coeficientes por categoría (1=lujo → 9=básico) — RD 1020/1993
+    categorias: Record<number, number>;
 }
 
 export const dbTipologiasRusticas: TipologiaConstructiva[] = [
-    { id: "V", nombre: "Vivienda rural", clase: "01215", coeficiente: 1.10 },
-    { id: "AAL", nombre: "Almacén agrícola / logístico", clase: "01236", coeficiente: 0.55 },
-    { id: "BIG", nombre: "Nave / cobertizo / granero", clase: "02138", coeficiente: 0.25 },
-    { id: "KPS", nombre: "Piscina / instalación deportiva", clase: "05224", coeficiente: 0.60 },
-    { id: "GAR", nombre: "Garaje / aparcamiento", clase: "03115", coeficiente: 0.50 },
-    { id: "COR", nombre: "Corral / establo ganadero", clase: "02215", coeficiente: 0.30 },
-    { id: "INV", nombre: "Invernadero", clase: "02310", coeficiente: 0.40 },
+    {
+        id: "V", nombre: "Vivienda rural", clase: "01215",
+        categorias: { 1: 1.40, 2: 1.25, 3: 1.15, 4: 1.10, 5: 1.00, 6: 0.90, 7: 0.80, 8: 0.70, 9: 0.60 }
+    },
+    {
+        id: "AAL", nombre: "Almacén agrícola / logístico", clase: "01236",
+        categorias: { 1: 0.80, 2: 0.75, 3: 0.70, 4: 0.60, 5: 0.55, 6: 0.50, 7: 0.45, 8: 0.40, 9: 0.35 }
+    },
+    {
+        id: "BIG", nombre: "Nave / cobertizo / granero", clase: "02138",
+        categorias: { 1: 0.50, 2: 0.45, 3: 0.40, 4: 0.25, 5: 0.22, 6: 0.20, 7: 0.18, 8: 0.15, 9: 0.12 }
+    },
+    {
+        id: "KPS", nombre: "Piscina / instalación deportiva", clase: "05224",
+        categorias: { 1: 0.90, 2: 0.85, 3: 0.75, 4: 0.60, 5: 0.55, 6: 0.50, 7: 0.45, 8: 0.40, 9: 0.35 }
+    },
+    {
+        id: "GAR", nombre: "Garaje / aparcamiento", clase: "03115",
+        categorias: { 1: 0.75, 2: 0.70, 3: 0.65, 4: 0.50, 5: 0.45, 6: 0.40, 7: 0.35, 8: 0.30, 9: 0.25 }
+    },
+    {
+        id: "COR", nombre: "Corral / establo ganadero", clase: "02215",
+        categorias: { 1: 0.55, 2: 0.50, 3: 0.45, 4: 0.30, 5: 0.25, 6: 0.22, 7: 0.20, 8: 0.18, 9: 0.15 }
+    },
+    {
+        id: "INV", nombre: "Invernadero", clase: "02310",
+        categorias: { 1: 0.65, 2: 0.60, 3: 0.55, 4: 0.40, 5: 0.35, 6: 0.30, 7: 0.25, 8: 0.22, 9: 0.20 }
+    },
 ];
 
 // =====================================================

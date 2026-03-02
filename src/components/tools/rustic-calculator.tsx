@@ -28,6 +28,7 @@ interface SubparcelaCultivo {
 interface UnidadConstructiva {
     id: number;
     tipologiaId: string;
+    categoria: number;    // 1=lujo → 9=básico
     superficieM2: number;
     anioConstruccion: number;
     conservacion: string;
@@ -99,6 +100,7 @@ export function RusticCalculator() {
         setConstrucciones(prev => [...prev, {
             id: unidadCounter++,
             tipologiaId: "V",
+            categoria: 4,
             superficieM2: 100,
             anioConstruccion: 2000,
             conservacion: "N"
@@ -155,7 +157,7 @@ export function RusticCalculator() {
         let valorConstruccion = 0
         const detallesConstrucciones = construcciones.map(uc => {
             const tipologia = dbTipologiasRusticas.find(t => t.id === uc.tipologiaId)
-            const coefTipo = tipologia?.coeficiente ?? 1.0
+            const coefTipo = tipologia?.categorias[uc.categoria] ?? 1.0
             const aniosDesdeConst = (municipio.id_municipio === "23005" ? 2010 : 2010) + 1 - uc.anioConstruccion
             const coefH = coeficientesAntiguedad.find(c => aniosDesdeConst <= c.maxAge)?.coef ?? 0.39
             const coefI = coeficientesConservacion.find(c => c.value === uc.conservacion)?.coef ?? 1.0
@@ -402,13 +404,23 @@ export function RusticCalculator() {
                                 {construcciones.map(uc => (
                                     <div key={uc.id} className="p-3 rounded-lg bg-amber-50/50 border border-amber-100 space-y-2">
                                         <div className="grid grid-cols-12 gap-2 items-end">
-                                            <div className="col-span-5 space-y-1">
+                                            <div className="col-span-4 space-y-1">
                                                 <label className="text-xs font-medium text-amber-800">Tipología</label>
                                                 <select className="flex h-9 w-full rounded-md border border-amber-200 bg-white px-2 py-1 text-sm"
                                                     value={uc.tipologiaId}
                                                     onChange={(e) => updateConstruccion(uc.id, 'tipologiaId', e.target.value)}>
                                                     {dbTipologiasRusticas.map(t => (
-                                                        <option key={t.id} value={t.id}>{t.nombre} (×{t.coeficiente})</option>
+                                                        <option key={t.id} value={t.id}>{t.nombre}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="col-span-1 space-y-1">
+                                                <label className="text-xs font-medium text-amber-800">Cat.</label>
+                                                <select className="flex h-9 w-full rounded-md border border-amber-200 bg-white px-2 py-1 text-sm"
+                                                    value={uc.categoria}
+                                                    onChange={(e) => updateConstruccion(uc.id, 'categoria', Number(e.target.value))}>
+                                                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(c => (
+                                                        <option key={c} value={c}>{c}ª</option>
                                                     ))}
                                                 </select>
                                             </div>
@@ -445,7 +457,7 @@ export function RusticCalculator() {
                                         </div>
                                         <div className="flex justify-between items-center px-1">
                                             <span className="text-xs text-amber-600">
-                                                {municipio.MBC}€/m² × {dbTipologiasRusticas.find(t => t.id === uc.tipologiaId)?.coeficiente ?? "?"} × H({calc.detallesConstrucciones.find(d => d.id === uc.id)?.coefH ?? "?"}) × I({calc.detallesConstrucciones.find(d => d.id === uc.id)?.coefI ?? "?"}) × RM({municipio.RM})
+                                                {municipio.MBC}€/m² × Tipo({calc.detallesConstrucciones.find(d => d.id === uc.id)?.coefTipo ?? "?"}) × H({calc.detallesConstrucciones.find(d => d.id === uc.id)?.coefH ?? "?"}) × I({calc.detallesConstrucciones.find(d => d.id === uc.id)?.coefI ?? "?"}) × RM({municipio.RM})
                                             </span>
                                             <span className="text-sm font-bold text-amber-700">
                                                 {formatEuros(calc.detallesConstrucciones.find(d => d.id === uc.id)?.valor ?? 0)}
