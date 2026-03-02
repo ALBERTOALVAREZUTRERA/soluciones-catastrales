@@ -39,7 +39,7 @@ app = FastAPI(
 # Configurar CORS para producción y desarrollo
 admitted_origins_str = os.getenv(
     "ADMITTED_ORIGINS", 
-    "http://localhost:9002,http://localhost:3000,https://www.solucionescatastrales.app,https://solucionescatastrales.app,https://soluciones-catastrales-git-main-albertos-projects-5a599afd.vercel.app,https://soluciones-catastrales-1cjfcpwy2-albertos-projects-5a599afd.vercel.app"
+    "http://localhost:9002,http://localhost:3000,https://www.solucionescatastrales.app,https://solucionescatastrales.app,https://soluciones-catastrales-git-main-albertos-projects-5a599afd.vercel.app,https://soluciones-catastrales-1cjfcpwy2-albertos-projects-5a599afd.vercel.app,https://soluciones-catastrales.vercel.app"
 )
 allow_origins = [orig.strip() for orig in admitted_origins_str.split(",") if orig.strip() and orig.strip() != "*"]
 
