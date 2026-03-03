@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, Home, Download, Loader2, FileCode, CheckCircle2, Map as MapIcon } from "lucide-react";
+import { Upload, Home, Download, Loader2, FileCode, CheckCircle2, Map as MapIcon, Zap, Sparkles, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { analyzeWithBackend, generateBuildingGMLWithBackend } from "@/lib/backend-api";
 import { GmlFeature } from "@/lib/gml-utils";
@@ -106,29 +106,45 @@ export function BuildingConverter() {
     return (
         <div className="max-w-4xl mx-auto p-4 md:p-8">
 
-            {/* Instrucciones Específicas */}
-            <div className="grid md:grid-cols-2 gap-4 mb-8">
-                <div className="bg-white p-5 rounded-xl border border-blue-100 shadow-sm flex gap-4">
-                    <div className="bg-blue-100 p-3 rounded-lg h-fit">
-                        <FileCode className="h-6 w-6 text-blue-600" />
+            {/* Instrucciones 3 Pasos (Estilo Calculadoras) */}
+            <div className="grid md:grid-cols-3 gap-6 mb-8">
+                <div className="bg-emerald-50 rounded-2xl p-6 border border-emerald-100 relative overflow-hidden group hover:shadow-md transition-shadow">
+                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <Zap className="w-16 h-16 text-emerald-600" />
                     </div>
-                    <div>
-                        <h3 className="font-bold text-slate-800 mb-1">Detección Inteligente</h3>
-                        <p className="text-sm text-muted-foreground">
-                            El sistema detecta automáticamente capas de edificios como <code>EDIFICIO</code>, <code>CONSTRU</code> o <code>MASA</code>.
-                        </p>
+                    <div className="flex items-center gap-3 mb-3 relative z-10">
+                        <div className="bg-emerald-100 text-emerald-700 w-8 h-8 rounded-full flex items-center justify-center font-bold">1</div>
+                        <h3 className="font-bold text-emerald-900">Sube la Huella</h3>
                     </div>
+                    <p className="text-sm text-emerald-800/80 relative z-10">
+                        Dibuja la huella exacta de tu edificio en AutoCAD (línea cerrada) y sube el DXF.
+                    </p>
                 </div>
-                <div className="bg-white p-5 rounded-xl border border-blue-100 shadow-sm flex gap-4">
-                    <div className="bg-green-100 p-3 rounded-lg h-fit">
-                        <CheckCircle2 className="h-6 w-6 text-green-600" />
+
+                <div className="bg-blue-50 rounded-2xl p-6 border border-blue-100 relative overflow-hidden group hover:shadow-md transition-shadow">
+                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <Sparkles className="w-16 h-16 text-blue-600" />
                     </div>
-                    <div>
-                        <h3 className="font-bold text-slate-800 mb-1">Formato Validado</h3>
-                        <p className="text-sm text-muted-foreground">
-                            GML resultante alineado estrictamente con la normativa <strong>INSPIRE</strong> y admitido por la SEC.
-                        </p>
+                    <div className="flex items-center gap-3 mb-3 relative z-10">
+                        <div className="bg-blue-100 text-blue-700 w-8 h-8 rounded-full flex items-center justify-center font-bold">2</div>
+                        <h3 className="font-bold text-blue-900">Detección IA</h3>
                     </div>
+                    <p className="text-sm text-blue-800/80 relative z-10">
+                        El sistema detecta automáticamente tu dibujo y lo transforma en geometría analítica georreferenciada.
+                    </p>
+                </div>
+
+                <div className="bg-purple-50 rounded-2xl p-6 border border-purple-100 relative overflow-hidden group hover:shadow-md transition-shadow">
+                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <ShieldCheck className="w-16 h-16 text-purple-600" />
+                    </div>
+                    <div className="flex items-center gap-3 mb-3 relative z-10">
+                        <div className="bg-purple-100 text-purple-700 w-8 h-8 rounded-full flex items-center justify-center font-bold">3</div>
+                        <h3 className="font-bold text-purple-900">Validado SEC</h3>
+                    </div>
+                    <p className="text-sm text-purple-800/80 relative z-10">
+                        Descarga el archivo estructurado bajo la normativa INSPIRE, listo para aportarse a Obra Nueva en Notaría.
+                    </p>
                 </div>
             </div>
 

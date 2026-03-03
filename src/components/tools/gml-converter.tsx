@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, FileCode, Download, Loader2, AlertCircle, CheckCircle2, Map as MapIcon } from "lucide-react";
+import { Upload, FileCode, Download, Loader2, AlertCircle, CheckCircle2, Map as MapIcon, Zap, Sparkles, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 // Placeholder for conversion logic (to be implemented)
@@ -143,28 +143,45 @@ export function GmlConverter() {
     return (
         <div className="max-w-4xl mx-auto p-4 md:p-8">
 
-            {/* Guía de Uso Rápida */}
-            <div className="grid md:grid-cols-3 gap-4 mb-8">
-                <div className="bg-white p-4 rounded-xl border-l-4 border-accent shadow-sm">
-                    <h3 className="font-bold text-primary mb-1 flex items-center gap-2">
-                        <span className="bg-accent text-white w-5 h-5 rounded-full flex items-center justify-center text-xs">1</span>
-                        Carga de Datos
-                    </h3>
-                    <p className="text-sm text-muted-foreground">Sube tus archivos DXF, Shapefiles (en ZIP) o CSV de coordenadas.</p>
+            {/* Guía de Uso Rápida (Estilo Calculadoras) */}
+            <div className="grid md:grid-cols-3 gap-6 mb-8">
+                <div className="bg-emerald-50 rounded-2xl p-6 border border-emerald-100 relative overflow-hidden group hover:shadow-md transition-shadow">
+                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <Zap className="w-16 h-16 text-emerald-600" />
+                    </div>
+                    <div className="flex items-center gap-3 mb-3 relative z-10">
+                        <div className="bg-emerald-100 text-emerald-700 w-8 h-8 rounded-full flex items-center justify-center font-bold">1</div>
+                        <h3 className="font-bold text-emerald-900">Sube tus Planos</h3>
+                    </div>
+                    <p className="text-sm text-emerald-800/80 relative z-10">
+                        Arrastra tus archivos DXF, Shapefiles (en ZIP) o CSV de coordenadas. Puedes procesar múltiples geometrías a la vez.
+                    </p>
                 </div>
-                <div className="bg-white p-4 rounded-xl border-l-4 border-accent shadow-sm">
-                    <h3 className="font-bold text-primary mb-1 flex items-center gap-2">
-                        <span className="bg-accent text-white w-5 h-5 rounded-full flex items-center justify-center text-xs">2</span>
-                        Huso y Sistema
-                    </h3>
-                    <p className="text-sm text-muted-foreground">Asegúrate de elegir el Huso correcto (ej: 30N para Jaén/Península).</p>
+
+                <div className="bg-blue-50 rounded-2xl p-6 border border-blue-100 relative overflow-hidden group hover:shadow-md transition-shadow">
+                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <Sparkles className="w-16 h-16 text-blue-600" />
+                    </div>
+                    <div className="flex items-center gap-3 mb-3 relative z-10">
+                        <div className="bg-blue-100 text-blue-700 w-8 h-8 rounded-full flex items-center justify-center font-bold">2</div>
+                        <h3 className="font-bold text-blue-900">Configura el Huso</h3>
+                    </div>
+                    <p className="text-sm text-blue-800/80 relative z-10">
+                        Selecciona el sistema de coordenadas de tu levantamiento (ej. UTM 30N para gran parte de la Península).
+                    </p>
                 </div>
-                <div className="bg-white p-4 rounded-xl border-l-4 border-accent shadow-sm">
-                    <h3 className="font-bold text-primary mb-1 flex items-center gap-2">
-                        <span className="bg-accent text-white w-5 h-5 rounded-full flex items-center justify-center text-xs">3</span>
-                        Generar y Descargar
-                    </h3>
-                    <p className="text-sm text-muted-foreground">Valida en el mapa y descarga tu GML validado para Catastro/Registro.</p>
+
+                <div className="bg-purple-50 rounded-2xl p-6 border border-purple-100 relative overflow-hidden group hover:shadow-md transition-shadow">
+                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <ShieldCheck className="w-16 h-16 text-purple-600" />
+                    </div>
+                    <div className="flex items-center gap-3 mb-3 relative z-10">
+                        <div className="bg-purple-100 text-purple-700 w-8 h-8 rounded-full flex items-center justify-center font-bold">3</div>
+                        <h3 className="font-bold text-purple-900">Valida y Genera</h3>
+                    </div>
+                    <p className="text-sm text-purple-800/80 relative z-10">
+                        El sistema validará la topología (solapes) automáticamente. Si todo está correcto, descarga tu GML listo para registro.
+                    </p>
                 </div>
             </div>
 

@@ -136,6 +136,11 @@ export default function CatastroTimeViewer() {
         if (!mapRef.current) return;
 
         if (timeEnabled) {
+            // Mitigar superposición: Ocultamos parcialmente la capa de catastro actual
+            if (catastroLayerRef.current) {
+                catastroLayerRef.current.setOpacity(0.1); // Solo un rastro muy tenue
+            }
+
             // Crear capa histórica
             const historic = L.tileLayer.wms(WMS_URL, {
                 layers: 'PARCELA',
@@ -150,6 +155,11 @@ export default function CatastroTimeViewer() {
             historic.addTo(mapRef.current);
             historicLayerRef.current = historic;
         } else {
+            // Restaurar opacidad original de catastro actual
+            if (catastroLayerRef.current) {
+                catastroLayerRef.current.setOpacity(catastroOpacity);
+            }
+
             // Eliminar capa histórica
             if (historicLayerRef.current) {
                 mapRef.current.removeLayer(historicLayerRef.current);
@@ -293,7 +303,7 @@ export default function CatastroTimeViewer() {
                         Visor de Localización Técnica
                     </h2>
                     <p className="text-muted-foreground max-w-2xl mx-auto text-sm">
-                        Localice cualquier parcela catastral de España. Active la <strong>Máquina del Tiempo</strong> para comparar el parcelario histórico.
+                        Localice cualquier parcela catastral de España. Active la <strong>Máquina del Tiempo</strong> para ver cómo era su parcela hace 25 años y descubrir cómo ha ido evolucionando en el tiempo.
                     </p>
                 </div>
 

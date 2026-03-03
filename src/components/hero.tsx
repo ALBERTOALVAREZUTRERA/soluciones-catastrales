@@ -3,7 +3,7 @@
 
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { ChevronRight, FileCode, Loader2 } from "lucide-react";
+import { ChevronRight, FileCode, Loader2, MessageCircle } from "lucide-react";
 import { PlaceHolderImages } from "@/app/lib/placeholder-images";
 import {
   Dialog,
@@ -89,7 +89,7 @@ export function Hero() {
             Soluciones <span className="text-accent">Catastrales</span> a Nivel Nacional
           </h1>
           <p className="text-lg md:text-2xl text-gray-200 mb-10 max-w-2xl leading-relaxed">
-            Generación profesional de archivos **GML GRATUITOS** para parcelas y edificios. Ingeniería avanzada para técnicos y propietarios en toda España.
+            Generación profesional de archivos <strong>GML GRATUITOS</strong> para parcelas y edificios. Ingeniería avanzada para técnicos y propietarios en toda España.
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
             <Button size="lg" className="bg-accent text-white hover:bg-accent/90 text-lg h-14 px-10" asChild>
@@ -98,8 +98,8 @@ export function Hero() {
 
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
-                <Button size="lg" className="bg-white text-black hover:bg-gray-200 text-lg h-14 px-10 border-none">
-                  Consulta Gratuita <ChevronRight className="ml-2 h-5 w-5" />
+                <Button size="lg" className="bg-white text-primary hover:bg-gray-100 hover:text-accent hover:scale-105 transition-all duration-300 text-lg h-14 px-10 border-none shadow-lg rounded-full">
+                  Consulta Gratuita <MessageCircle className="ml-2 h-5 w-5" />
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[425px]">
