@@ -142,7 +142,7 @@ export default function CatastroTimeViewer() {
             }
 
             const historic = L.tileLayer.wms(WMS_URL, {
-                layers: 'PARCELA', // PARCELA trae la malla
+                layers: 'CATASTRO', // Usando la capa general en lugar de PARCELA
                 format: 'image/png',
                 transparent: true,
                 version: '1.1.1',
