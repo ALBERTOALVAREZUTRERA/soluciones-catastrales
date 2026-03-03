@@ -141,9 +141,8 @@ export default function CatastroTimeViewer() {
                 catastroLayerRef.current.setOpacity(0.1); // Solo un rastro muy tenue
             }
 
-            // Crear capa histórica
             const historic = L.tileLayer.wms(WMS_URL, {
-                layers: 'PARCELA',
+                layers: 'PARCELA', // PARCELA trae la malla
                 format: 'image/png',
                 transparent: true,
                 version: '1.1.1',
@@ -151,6 +150,9 @@ export default function CatastroTimeViewer() {
                 maxZoom: 22,
                 opacity: historicOpacity,
                 TIME: `${selectedYear}-01-01`,
+                styles: 'default',
+                // Este parámetro extra fuerza al WMS a omitir las marcas de agua de fecha si el servidor lo soporta
+                env: 'texto:oculto',
             } as any);
             historic.addTo(mapRef.current);
             historicLayerRef.current = historic;
