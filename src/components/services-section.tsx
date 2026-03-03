@@ -6,6 +6,21 @@ import { PlaceHolderImages } from "@/app/lib/placeholder-images";
 
 const services = [
   {
+    title: "Reclamación de Ingresos Indebidos (IBI)",
+    description: "Analizamos si tu Ayuntamiento te ha cobrado de más por un Valor Catastral mal calculado. Tramitamos la devolución de tus impuestos con carácter retroactivo (hasta 4 años).",
+    imgId: "revision-ibi", // Reusing the IBI image
+    detailedContent: {
+      subtitle: "Recupera tu dinero si el Catastro tasó tu inmueble por encima de su valor real.",
+      points: [
+        "Estudio técnico completo de la ponencia de valores.",
+        "Diferenciación precisa entre superficie útil y construida.",
+        "Análisis de coeficientes de depreciación (Antigüedad y Estado).",
+        "Redacción y presentación jurídica del recurso de reposición."
+      ],
+      technicalNote: "Un error catastral no detectado te hace perder dinero cada año. Revisamos tu recibo y exigimos la devolución retroactiva del exceso cobrado."
+    }
+  },
+  {
     title: "GML de Parcela Catastral",
     description: "Generación técnica de archivos GML de parcelas bajo la Ley 13/2015. Definimos con precisión geométrica los linderos para segregaciones o rectificaciones de cabida.",
     imgId: "gml-parcela",
