@@ -150,7 +150,7 @@ export function RusticCalculator() {
                     nuevasConstrucciones.push({
                         id: unidadCounter++,
                         tipologiaId,
-                        categoria: 4, // Categoría media por defecto
+                        categoria: 5, // Categoría más habitual según la experiencia del usuario
                         superficieM2: sup,
                         anioConstruccion: c.anioConstruccion || new Date().getFullYear(),
                         conservacion: 'N' // Normal por defecto
