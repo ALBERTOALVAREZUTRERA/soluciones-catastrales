@@ -174,6 +174,7 @@ export async function GET(request: Request) {
             tipologia: string;
             superficieM2: number;
             anioConstruccion: number;
+            planta: string;
         }[] = [];
 
         const lcons = birc.lcons?.cons || root.bico?.lcons?.cons || root.lcons?.cons || [];
@@ -185,9 +186,10 @@ export async function GET(request: Request) {
             const rawSup = cons.stl || cons.sup || dfcons.stl || dfcons.sup;
             const supM2 = parseFloat(rawSup?.toString().replace(',', '.') || '0');
             const anio = parseInt(cons.aco?.toString() || dfcons.aco?.toString() || '0') || 0;
+            const planta = cons.dt?.lourb?.loint?.pt?.toString() || cons.dt?.lourb?.loint?.es?.toString() || '';
 
             if (supM2 > 0 || lcd) {
-                construcciones.push({ uso, tipologia: lcd, superficieM2: supM2, anioConstruccion: anio });
+                construcciones.push({ uso, tipologia: lcd, superficieM2: supM2, anioConstruccion: anio, planta });
             }
         }
 

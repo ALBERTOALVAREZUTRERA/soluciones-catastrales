@@ -115,7 +115,7 @@ export function RusticCalculator() {
                 const nuevasConstrucciones: UnidadConstructiva[] = []
                 const nuevosSuelos: SueloOcupado[] = []
 
-                data.construcciones.forEach((c: { tipologia: string; uso: string; superficieM2: number; anioConstruccion: number }) => {
+                data.construcciones.forEach((c: { tipologia: string; uso: string; superficieM2: number; anioConstruccion: number; planta?: string }) => {
                     // Intentar mapear tipología del API a nuestras tipologías
                     const tipoStr = (c.tipologia || '').toUpperCase() + " " + (c.uso || '').toUpperCase()
 
@@ -156,11 +156,17 @@ export function RusticCalculator() {
                         conservacion: 'N' // Normal por defecto
                     })
 
-                    nuevosSuelos.push({
-                        id: sueloOcupadoCounter++,
-                        superficieM2: sup,
-                        usoId: usoIdSuelo
-                    })
+                    // Filtrar Plantas Altas para el Suelo Ocupado
+                    // Si la planta es > 0 (ej. 1, 2, 3), es una planta superior y no ocupa nuevo suelo.
+                    const isUpperFloor = c.planta ? parseInt(c.planta) > 0 : false;
+
+                    if (!isUpperFloor) {
+                        nuevosSuelos.push({
+                            id: sueloOcupadoCounter++,
+                            superficieM2: sup,
+                            usoId: usoIdSuelo
+                        })
+                    }
                 })
 
                 setConstrucciones(nuevasConstrucciones)
