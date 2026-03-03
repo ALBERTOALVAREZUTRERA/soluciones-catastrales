@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalculatorIcon } from "lucide-react";
+import { CalculatorIcon, FileText, Sparkles, ShieldCheck } from "lucide-react";
 import { dbTipologiasUrbanas, coeficientesAntiguedadUrbana, coeficientesConservacionUrbana } from "@/data/mock-db-urbana";
 
 export interface UrbanCalculatorProps {
@@ -95,6 +95,43 @@ export function UrbanCalculator({ formData, setFormData, onCalculate, loading }:
 
     return (
         <div className="space-y-6">
+            {/* ── INSTRUCCIONES RÁPIDAS (BANNERS MODERNOS) ── */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
+                <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900 rounded-xl p-4 flex gap-3 text-left shadow-sm">
+                    <div className="bg-emerald-100 dark:bg-emerald-900 text-emerald-600 dark:text-emerald-400 p-2 rounded-lg shrink-0 h-fit">
+                        <FileText className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <h4 className="font-semibold text-emerald-900 dark:text-emerald-300 text-sm mb-1">1. Datos del Recibo</h4>
+                        <p className="text-emerald-700 dark:text-emerald-400/80 text-xs leading-relaxed">
+                            Copia directamente de tu recibo del IBI o ponencia de valores los datos principales: Año de construcción y Superficies medidas en m².
+                        </p>
+                    </div>
+                </div>
+                <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900 rounded-xl p-4 flex gap-3 text-left shadow-sm">
+                    <div className="bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 p-2 rounded-lg shrink-0 h-fit">
+                        <Sparkles className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <h4 className="font-semibold text-blue-900 dark:text-blue-300 text-sm mb-1">2. Tipología y Calidad</h4>
+                        <p className="text-blue-700 dark:text-blue-400/80 text-xs leading-relaxed">
+                            Ajusta el uso (ej. Vivienda) y el nivel de calidad (Categoría 1-9). La herramienta buscará los coeficientes oficiales para esa gama.
+                        </p>
+                    </div>
+                </div>
+                <div className="bg-purple-50 dark:bg-purple-950/30 border border-purple-100 dark:border-purple-900 rounded-xl p-4 flex gap-3 text-left shadow-sm">
+                    <div className="bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-400 p-2 rounded-lg shrink-0 h-fit">
+                        <ShieldCheck className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <h4 className="font-semibold text-purple-900 dark:text-purple-300 text-sm mb-1">3. Valor Matemático</h4>
+                        <p className="text-purple-700 dark:text-purple-400/80 text-xs leading-relaxed">
+                            Al calcular, el sistema sumará el Suelo y la Construcción aplicando la depreciación por antigüedad (CoefH) devolviendo un Valor Catastral exacto.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="space-y-2">
                     <Label className="text-slate-600 font-medium">Uso / Tipología Urbana</Label>
