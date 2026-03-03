@@ -10,7 +10,7 @@ import { Footer } from "@/components/footer";
 import { WhatsAppButton } from "@/components/whatsapp-button";
 import { Toaster } from "@/components/ui/toaster";
 import Link from "next/link";
-import { Scale, Landmark, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Scale, Landmark, ArrowRight, CheckCircle2, Calculator, Map, TrendingDown } from "lucide-react";
 
 export default function Home() {
   return (
@@ -18,6 +18,55 @@ export default function Home() {
       <Navbar />
       <Hero />
       <ServicesSection />
+
+      {/* ── Sección Calculadoras y GML (Destacados) ── */}
+      <section className="py-16 bg-white relative z-20 -mt-10">
+        <div className="container mx-auto px-4 md:px-8">
+          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            {/* Calculadora Rústica */}
+            <Link href="/herramientas/calculadora-rustica" className="group">
+              <div className="bg-emerald-50 border-2 border-emerald-100 hover:border-emerald-500 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all h-full flex flex-col items-center text-center">
+                <div className="bg-emerald-500 text-white p-4 rounded-full mb-4 group-hover:scale-110 transition-transform shadow-md">
+                  <TrendingDown className="h-8 w-8" />
+                </div>
+                <h3 className="text-xl font-bold text-emerald-950 mb-2">Calculadora Rústica</h3>
+                <p className="text-emerald-800/80 text-sm mb-4">Descubre si estás pagando de más en el IBI de tus fincas u olivos en la provincia de Jaén.</p>
+                <div className="mt-auto text-emerald-600 font-bold text-sm flex items-center gap-2">
+                  Calcular Ahorro <ArrowRight className="h-4 w-4" />
+                </div>
+              </div>
+            </Link>
+
+            {/* Calculadora Urbana */}
+            <Link href="/herramientas/calculadora" className="group">
+              <div className="bg-blue-50 border-2 border-blue-100 hover:border-blue-500 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all h-full flex flex-col items-center text-center">
+                <div className="bg-blue-500 text-white p-4 rounded-full mb-4 group-hover:scale-110 transition-transform shadow-md">
+                  <Calculator className="h-8 w-8" />
+                </div>
+                <h3 className="text-xl font-bold text-blue-950 mb-2">Calculadora Urbana</h3>
+                <p className="text-blue-800/80 text-sm mb-4">Simulador oficial del RD 1020/1993 para calcular el valor exacto de pisos, solares y naves.</p>
+                <div className="mt-auto text-blue-600 font-bold text-sm flex items-center gap-2">
+                  Simular Valor <ArrowRight className="h-4 w-4" />
+                </div>
+              </div>
+            </Link>
+
+            {/* Conversor GML */}
+            <Link href="/herramientas/conversor-gml" className="group">
+              <div className="bg-purple-50 border-2 border-purple-100 hover:border-purple-500 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all h-full flex flex-col items-center text-center">
+                <div className="bg-purple-500 text-white p-4 rounded-full mb-4 group-hover:scale-110 transition-transform shadow-md">
+                  <Map className="h-8 w-8" />
+                </div>
+                <h3 className="text-xl font-bold text-purple-950 mb-2">GML Catastral Gratis</h3>
+                <p className="text-purple-800/80 text-sm mb-4">Motor de conversión instantánea. Transforma KML, DXF y SHP al formato oficial del Catastro.</p>
+                <div className="mt-auto text-purple-600 font-bold text-sm flex items-center gap-2">
+                  Crear GML <ArrowRight className="h-4 w-4" />
+                </div>
+              </div>
+            </Link>
+          </div>
+        </div>
+      </section>
 
       {/* ── Sección Trámites ── */}
       <section id="tramites" className="py-20 bg-slate-50">

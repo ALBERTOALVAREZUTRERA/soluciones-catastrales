@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Calculator, Sprout, Home, Euro, Info, Plus, Trash2, Building2, Search, Loader2, Zap, Sparkles, ShieldCheck } from "lucide-react"
+import { Calculator, Sprout, Home, Euro, Info, Plus, Trash2, Building2, Search, Loader2, Zap, Sparkles, ShieldCheck, AlertTriangle } from "lucide-react"
 
 import {
     dbMunicipiosRustica,
@@ -51,6 +51,7 @@ export function RusticCalculator() {
     const [coefActualizacion, setCoefActualizacion] = useState<number>(COEF_ACTUALIZACION_DEFAULT)
     const [buscando, setBuscando] = useState(false)
     const [msgBusqueda, setMsgBusqueda] = useState<string>("")
+    const [esFueraDeJaen, setEsFueraDeJaen] = useState<boolean>(false)
 
     // Referencia catastral desde URL
     React.useEffect(() => {
@@ -182,8 +183,13 @@ export function RusticCalculator() {
 
             // Auto-seleccionar el municipio si existe en nuestra BD (usando los primeros 5 dígitos de la RC)
             const idMunicipioRC = rcToSearch.substring(0, 5)
-            if (dbMunicipiosRustica.some(m => m.id_municipio === idMunicipioRC)) {
+            const municipioEncontrado = dbMunicipiosRustica.some(m => m.id_municipio === idMunicipioRC)
+
+            if (municipioEncontrado) {
                 setMunicipioId(idMunicipioRC)
+                setEsFueraDeJaen(false)
+            } else {
+                setEsFueraDeJaen(true)
             }
 
         } catch (err) {
@@ -432,6 +438,17 @@ export function RusticCalculator() {
                                         onChange={(e) => setCoefActualizacion(Number(e.target.value) || 1)} />
                                 </div>
                             </div>
+
+                            {esFueraDeJaen && (
+                                <div className="mt-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-4 flex gap-3 text-sm animate-in fade-in">
+                                    <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+                                    <div>
+                                        <p className="font-semibold mb-1">Referencia fuera de la provincia de Jaén detectada</p>
+                                        <p>Por defecto, la herramienta ha obtenido tu huella constructiva y tus cultivos correctamente. Sin embargo, no dispone del <strong>Valor de Repercusión (RM)</strong> exacto de tu municipio.</p>
+                                        <p className="mt-1">Selecciona en el desplegable superior el municipio de Jaén que valores que pueda tener unas características urbanísticas (RM y MBC) parecidas al tuyo para obtener una estimación aproximada.</p>
+                                    </div>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
 
