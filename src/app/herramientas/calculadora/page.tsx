@@ -20,6 +20,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Badge } from "@/components/ui/badge";
 import { API_BASE_URL } from "@/lib/backend-api";
 import { generatePDFReport, generateWordReport, ReportData } from "@/lib/report-generator";
+import { UrbanCalculator } from "@/components/tools/urban-calculator";
 
 export default function CalculadoraPage() {
     const { toast } = useToast();
@@ -177,28 +178,8 @@ export default function CalculadoraPage() {
 
     const calculate = async () => {
         setLoading(true);
-        try {
-            const response = await fetch(`${API_BASE_URL}/catastro/calcular-ibi`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(formData)
-            });
-            if (!response.ok) throw new Error("Error en el cálculo");
-            const data = await response.json();
-            setResult(data);
-            toast({
-                title: "Cálculo completado",
-                description: "Se han actualizado los valores catastrales e IBI.",
-            });
-        } catch (error) {
-            toast({
-                variant: "destructive",
-                title: "Error",
-                description: "No se pudo conectar con el servidor de cálculo.",
-            });
-        } finally {
-            setLoading(false);
-        }
+        // We now rely on client side calculation
+        setLoading(false);
     };
 
     const buscarRC = async () => {
@@ -340,70 +321,25 @@ export default function CalculadoraPage() {
 
                                     <Separator className="bg-slate-100" />
 
-                                    {/* DATOS PRINCIPALES (Obligatorios y Simples) */}
-                                    <div className="space-y-6">
-                                        <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
-                                            <Building2 className="h-5 w-5 text-primary" />
-                                            Datos Principales
-                                        </h3>
-
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                            <div className="space-y-2">
-                                                <Label className="text-slate-600 font-medium">Uso Principal</Label>
-                                                <Select value={formData.uso_const} onValueChange={(v: string) => handleSelectChange("uso_const", v)}>
-                                                    <SelectTrigger className="h-11 bg-slate-50 border-slate-200">
-                                                        <SelectValue />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="vivienda">Piso / Vivienda en Bloque</SelectItem>
-                                                        <SelectItem value="vivienda">Casa Adosada</SelectItem>
-                                                        <SelectItem value="vivienda">Chalet Aislado</SelectItem>
-                                                        <SelectItem value="industrial">Nave Industrial / Almacén</SelectItem>
-                                                        <SelectItem value="oficinas">Oficina</SelectItem>
-                                                        <SelectItem value="comercial">Local Comercial</SelectItem>
-                                                        <SelectItem value="deportes">Deportes</SelectItem>
-                                                        <SelectItem value="hosteleria">Ocio y Hostelería</SelectItem>
-                                                        <SelectItem value="turismo">Turismo / Hoteles</SelectItem>
-                                                        <SelectItem value="sanidad">Sanidad y Beneficencia</SelectItem>
-                                                        <SelectItem value="espectaculos">Espectáculos</SelectItem>
-                                                        <SelectItem value="cultural">Cultural y Religioso</SelectItem>
-                                                        <SelectItem value="singular">Edificios Singulares</SelectItem>
-                                                        <SelectItem value="garajes">Garaje / Trastero</SelectItem>
-                                                        <SelectItem value="agricola">Agrícola y Ganadero</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-
-                                            <div className="space-y-2">
-                                                <Label className="text-slate-600 font-medium">Calidad Constructiva</Label>
-                                                <Select value={formData.categoria.toString()} onValueChange={(v: string) => handleSelectChange("categoria", v)}>
-                                                    <SelectTrigger className="h-11 bg-slate-50 border-slate-200">
-                                                        <SelectValue />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="2">Categoría 2 (Max. Lujo)</SelectItem>
-                                                        <SelectItem value="3">Categoría 3 (Alta / Lujo)</SelectItem>
-                                                        <SelectItem value="4">Categoría 4 (Media)</SelectItem>
-                                                        <SelectItem value="5">Categoría 5 (Sencilla - Común)</SelectItem>
-                                                        <SelectItem value="6">Categoría 6 (Económica)</SelectItem>
-                                                        <SelectItem value="7">Categoría 7 (Baja)</SelectItem>
-                                                        <SelectItem value="8">Categoría 8 (Ínfima)</SelectItem>
-                                                        <SelectItem value="9">Categoría 9 (Ruina)</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-
-                                            <div className="space-y-2">
-                                                <Label className="text-slate-600 font-medium">Superficie Construida (m²)</Label>
-                                                <Input type="number" name="sup_const" value={formData.sup_const} onChange={handleInputChange} className="h-11 bg-slate-50 border-slate-200 text-lg font-medium" />
-                                            </div>
-
-                                            <div className="space-y-2">
-                                                <Label className="text-slate-600 font-medium">Año de Construcción</Label>
-                                                <Input type="number" name="anio_const" value={formData.anio_const} onChange={handleInputChange} className="h-11 bg-slate-50 border-slate-200 text-lg font-medium" />
-                                            </div>
+                                    {/* URBANO / RUSTICO SWITCH */}
+                                    {formData.clase === "urbano" ? (
+                                        <UrbanCalculator
+                                            formData={formData}
+                                            setFormData={setFormData}
+                                            onCalculate={setResult}
+                                            loading={loading}
+                                        />
+                                    ) : (
+                                        // A draft placeholder for rustic which already has its standalone page (/herramientas/calculadora-rustica)
+                                        // or could be migrated here too. For now we just tell them to use the other page.
+                                        <div className="p-8 text-center bg-green-50 rounded-lg border border-green-200">
+                                            <h3 className="text-green-800 font-bold text-lg mb-2">Calculadora Rústica Integrada</h3>
+                                            <p className="text-green-700 mb-4">La calculadora rústica ha sido optimizada en su propia página especializada.</p>
+                                            <Link href="/herramientas/calculadora-rustica">
+                                                <Button className="bg-green-600 hover:bg-green-700 text-white">Ir a Calculadora Rústica</Button>
+                                            </Link>
                                         </div>
-                                    </div>
+                                    )}
 
                                     {/* OPCIONES AVANZADAS (Ocultas por defecto) */}
                                     <Accordion type="single" collapsible className="w-full border rounded-lg bg-slate-50 px-4">
@@ -567,13 +503,7 @@ export default function CalculadoraPage() {
                                     </Accordion>
 
                                 </CardContent>
-                                <CardFooter className="bg-slate-50 p-8 border-t border-slate-100 flex flex-col items-center">
-                                    <Button size="lg" className="w-full max-w-sm h-14 text-lg font-bold bg-primary hover:bg-slate-800 text-white shadow-xl transition-all hover:scale-105" onClick={calculate} disabled={loading}>
-                                        {loading ? "Calculando..." : "Calcular Valor Ahora"}
-
-                                        <CalculatorIcon className="ml-2 h-5 w-5" />
-                                    </Button>
-                                </CardFooter>
+                                {/* Footer se quita pues Calculate se llama desde el hijo UrbanCalculator */}
                             </Card>
                         </div>
 
@@ -684,11 +614,10 @@ export default function CalculadoraPage() {
                     </div>
                     {/* CROSS-SELLING / ENLACES TÉCNICOS */}
                     <CrossSelling currentTool="calculadora" />
-
                 </div>
-            </div >
+            </div>
 
             <Footer />
-        </div >
+        </div>
     );
 }

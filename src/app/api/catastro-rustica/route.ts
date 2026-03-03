@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { XMLParser } from 'fast-xml-parser'
 
 // ── API Route: Consultar datos de parcela rústica del Catastro ──
 // Proxy server-side al servicio DNPRC del Catastro
@@ -34,145 +35,163 @@ export async function GET(request: Request) {
 
         const xmlText = await response.text()
 
-        // 2. Comprobar errores del Catastro
-        const errorMatch = xmlText.match(/<des[^>]*>(.*?)<\/[^>]*des>/i)
-        const codMatch = xmlText.match(/<cod[^>]*>(.*?)<\/[^>]*cod>/i)
-        if (codMatch && errorMatch && codMatch[1].trim() !== '0') {
+        // 2. Parsear XML de Forma Segura usando fast-xml-parser
+        const parser = new XMLParser({
+            ignoreAttributes: false,
+            parseAttributeValue: true,
+            trimValues: true,
+            isArray: (name) => {
+                // Forzar que estas etiquetas siempre sean Array para evitar lógica condicional
+                return ['ssp', 'cons', 'rcdnp'].includes(name);
+            }
+        });
+
+        let jsonObj;
+        try {
+            jsonObj = parser.parse(xmlText);
+        } catch (e) {
             return NextResponse.json(
-                { error: `Catastro: ${errorMatch[1].trim()}` },
+                { error: `Catastro XML Malformed` },
+                { status: 502 }
+            )
+        }
+
+        const root = jsonObj?.consulta_dnp || jsonObj?.['rcdnp'];
+
+        if (!root) {
+            return NextResponse.json({ error: `Formato de respuesta desconocido de Catastro` }, { status: 502 })
+        }
+
+        // 3. Comprobar errores del Catastro
+        const control = root.control;
+        if (control?.cuerr && control.cuerr !== 0) {
+            const errName = root.lerr?.err?.des || 'Error en Catastro';
+            return NextResponse.json(
+                { error: `Catastro: ${errName}` },
                 { status: 404 }
             )
         }
 
-        // 3. Detectar si es rústica
-        const claseMatch = xmlText.match(/<cn[^>]*>(.*?)<\/[^>]*cn>/i)
-        const clase = claseMatch?.[1]?.trim() || ''
+        const birc = root.birc || root.bico?.bi || root;
+        const dt = birc.dt || root.bico?.bi?.dt || root.dt;
+
+        // 4. Extraer info básica de forma robusta
+        const municipio = dt?.nm || '';
+        const provincia = dt?.np || '';
+        const direccion = birc.ldt || dt?.ldt || root.bico?.bi?.ldt || '';
+
+        // Determinar Rústica
+        const clase = birc.idbi?.cn || birc.cn || '';
         const esRustica = clase.toUpperCase() === 'RU' ||
             xmlText.toLowerCase().includes('rústico') ||
             xmlText.toLowerCase().includes('rustico') ||
-            /\d{5}[A-Z]\d{3}/.test(rc14)
+            /\d{5}[A-Z]\d{3}/.test(rc14);
 
-        // Helper: extract ALL matches of a tag
-        function extractAll(tag: string, text: string): string[] {
-            const regex = new RegExp(`<${tag}[^>]*>(.*?)<\\/[^>]*?${tag}>`, 'gis')
-            const results: string[] = []
-            let m
-            while ((m = regex.exec(text)) !== null) {
-                results.push(m[1].trim())
-            }
-            return results
+        // Suelo
+        const luso = birc.debi?.luso || birc.luso || '';
+        const lsuelo = birc.debi?.sfc || birc.lsuelo || root.lsuelo || {};
+        let superficieParcela = 0;
+        if (typeof lsuelo === 'number' || typeof lsuelo === 'string') {
+            superficieParcela = parseFloat(lsuelo.toString().replace(',', '.'));
+        } else {
+            superficieParcela = parseFloat(lsuelo.spt?.toString().replace(',', '.') || lsuelo.supf?.toString().replace(',', '.') || '0');
         }
 
-        // Helper: extract first match of a tag
-        function extractFirst(tag: string, text: string): string {
-            const regex = new RegExp(`<${tag}[^>]*>(.*?)<\\/[^>]*?${tag}>`, 'is')
-            const m = text.match(regex)
-            return m?.[1]?.trim() || ''
-        }
-
-        // 4. Extraer info básica
-        const municipio = extractFirst('nm', xmlText)
-        const provincia = extractFirst('np', xmlText)
-        const direccion = extractFirst('ldt', xmlText)
-        const uso = extractFirst('luso', xmlText) || extractFirst('tuso', xmlText)
-        const sptStr = extractFirst('spt', xmlText) || extractFirst('supf', xmlText)
-        const superficieParcela = parseFloat(sptStr.replace(',', '.')) || 0
-
-        // 5. Extraer SUBPARCELAS (cultivos) — tags <ssp> dentro de <lssp>
+        // 5. Extraer SUBPARCELAS (cultivos)
         const subparcelas: {
-            clave: string;         // ej: "O-", "C-", "CR"
-            descripcion: string;   // ej: "OLIVAR / Secano"
-            intensidad: string;    // ej: "01", "16"
-            superficieHa: number;  // ej: 1.0588
-        }[] = []
+            clave: string;
+            descripcion: string;
+            intensidad: string;
+            superficieHa: number;
+        }[] = [];
 
-        // Los bloques de subparcela vienen como <ssp>...</ssp>
-        const sspBlocks = extractAll('ssp', xmlText)
-        for (const block of sspBlocks) {
-            const cspr = extractFirst('cspr', block)  // código cultivo: "O-", "C-", etc.
-            const dspr = extractFirst('dspr', block)  // descripción: "OLIVAR / Secano"
-            const ip = extractFirst('ip', block)      // intensidad productiva
-            const ssp_sup = extractFirst('ssp', block) // superficie en Ha (puede venir aquí)
-            const ccc = extractFirst('ccc', block)    // clase cultivo
+        // Buscar subparcelas en lssp (lista de subparcelas normal) o lspr (otra variante)
+        const lssp = birc.lssp?.ssp || root.lssp?.ssp || root.bico?.lspr?.spr || [];
+        const sspArray = Array.isArray(lssp) ? lssp : [lssp];
 
-            // Superficie: puede venir como atributo o como tag separado
-            let supHa = 0
-            const supMatch = block.match(/(\d+[.,]\d+)/g)
-            if (supMatch) {
-                // La superficie en Ha suele ser el número más grande
-                const nums = supMatch.map(s => parseFloat(s.replace(',', '.')))
-                supHa = Math.max(...nums.filter(n => n < 1000)) // filtrar números que no son superficies
+        for (const ssp of sspArray) {
+            if (!ssp) continue;
+
+            // La información a veces viene directamente o metida dentro de dspr
+            const dataObj = ssp.dspr && typeof ssp.dspr === 'object' ? ssp.dspr : ssp;
+
+            const clave = dataObj.cspr || dataObj.ccc || ssp.cspr || '';
+            const desc = dataObj.dspr || dataObj.dcc || '';
+            const intensidad = dataObj.ip?.toString() || '0';
+
+            // Buscar superficie (puede venir en m2 o Ha dependiendo de la etiqueta)
+            let supHa = 0;
+            const rawSup = dataObj.ssp || dataObj.sup || ssp.ssp || ssp.sup;
+            if (rawSup !== undefined) {
+                // Catastro rustica (OVC) a veces devuelve metros cuadrados (ssp) o Has (sup)
+                const val = parseFloat(rawSup.toString().replace(',', '.'));
+                // Si es > 1000 y se llama ssp probablemente sean m2
+                if (val > 1000 && Object.keys(dataObj).includes('ssp')) {
+                    supHa = val / 10000;
+                } else {
+                    supHa = val;
+                }
+            } else if (typeof ssp === 'string') {
+                const numMatch = ssp.match(/(\d+[.,]\d+)/);
+                if (numMatch) supHa = parseFloat(numMatch[1].replace(',', '.'));
             }
 
-            if (cspr || dspr) {
-                subparcelas.push({
-                    clave: cspr || ccc || '',
-                    descripcion: dspr || '',
-                    intensidad: ip || '0',
-                    superficieHa: supHa || 0
-                })
+            if (clave || desc) {
+                subparcelas.push({ clave, descripcion: desc, intensidad, superficieHa: supHa });
             }
         }
 
-        // 6. Alternativa: buscar subparcelas en formato rcdnp con cultivos
-        // El XML del Catastro para rústica a veces usa <rcdnp> con <dt><locs><lors>
-        // y cada subparcela viene como un bloque separado
-        if (subparcelas.length === 0) {
-            // Intentar extraer de bloques rcdnp
-            const rcdnpBlocks = extractAll('rcdnp', xmlText)
-            for (const block of rcdnpBlocks) {
-                const cult = extractFirst('ccc', block)  // código cultivo
-                const desc = extractFirst('dcc', block)  // descripción cultivo
-                const intens = extractFirst('ip', block)  // intensidad
-
-                // Buscar superficie
-                let sup = 0
-                const supTag = extractFirst('ssp', block) || extractFirst('sup', block)
-                if (supTag) {
-                    sup = parseFloat(supTag.replace(',', '.')) || 0
-                }
-
-                if (cult || desc) {
-                    subparcelas.push({
-                        clave: cult || '',
-                        descripcion: desc || '',
-                        intensidad: intens || '0',
-                        superficieHa: sup
-                    })
+        // Si no hay, buscar en rcdnp (formato alternativo rústico)
+        if (subparcelas.length === 0 && Array.isArray(root.rcdnp)) {
+            for (const item of root.rcdnp) {
+                const ssp = item.lssp?.ssp || item;
+                if (Array.isArray(ssp)) {
+                    // Anidación extraída por si acaso
+                    for (const subItem of ssp) {
+                        const clave = subItem.ccc || subItem.cspr || '';
+                        const desc = subItem.dcc || subItem.dspr || '';
+                        const intensidad = subItem.ip?.toString() || '0';
+                        const supHa = parseFloat(subItem.ssp?.toString().replace(',', '.') || subItem.sup?.toString().replace(',', '.') || '0');
+                        if (clave || desc) {
+                            subparcelas.push({ clave, descripcion: desc, intensidad, superficieHa: supHa });
+                        }
+                    }
+                } else {
+                    const clave = ssp.ccc || ssp.cspr || '';
+                    const desc = ssp.dcc || ssp.dspr || '';
+                    const intensidad = ssp.ip?.toString() || '0';
+                    const supHa = parseFloat(ssp.ssp?.toString().replace(',', '.') || ssp.sup?.toString().replace(',', '.') || '0');
+                    if (clave || desc) {
+                        subparcelas.push({ clave, descripcion: desc, intensidad, superficieHa: supHa });
+                    }
                 }
             }
         }
 
-        // 7. Extraer construcciones — tags <cons> o <lcons>
+        // 6. Extraer construcciones (cons)
         const construcciones: {
             uso: string;
             tipologia: string;
             superficieM2: number;
             anioConstruccion: number;
-        }[] = []
+        }[] = [];
 
-        const consBlocks = extractAll('cons', xmlText)
-        for (const block of consBlocks) {
-            const lcd = extractFirst('lcd', block)   // descripción local
-            const dt_uso = extractFirst('uso', block) || extractFirst('tuso', block)
-            const stl = extractFirst('stl', block)   // superficie total local
-            const aco = extractFirst('aco', block)   // año construcción
-            const dfcons = extractFirst('dfcons', block) // descripción
+        const lcons = birc.lcons?.cons || root.lcons?.cons || [];
+        for (const cons of lcons) {
+            const lcd = cons.lcd || cons.dfcons || '';
+            const uso = cons.uso || cons.tuso || lcd || '';
+            const supM2 = parseFloat(cons.stl?.toString().replace(',', '.') || cons.sup?.toString().replace(',', '.') || '0');
+            const anio = parseInt(cons.aco?.toString() || '0') || 0;
 
-            const supM2 = parseFloat((stl || '0').replace(',', '.')) || 0
-            const anio = parseInt(aco || '0') || 0
-
-            if (supM2 > 0 || lcd || dfcons) {
-                construcciones.push({
-                    uso: dt_uso || lcd || dfcons || '',
-                    tipologia: lcd || dfcons || '',
-                    superficieM2: supM2,
-                    anioConstruccion: anio
-                })
+            if (supM2 > 0 || lcd) {
+                construcciones.push({ uso, tipologia: lcd, superficieM2: supM2, anioConstruccion: anio });
             }
         }
 
-        // 8. Devolver datos estructurados
+        // 7. Devolver datos con CACHE (revalidar cada 7 días)
+        const headers = new Headers();
+        headers.set('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=604800');
+
         return NextResponse.json({
             encontrado: true,
             rc: rc14,
@@ -180,11 +199,13 @@ export async function GET(request: Request) {
             municipio,
             provincia,
             direccion,
-            uso,
+            uso: luso || (construcciones.length > 0 ? construcciones[0].uso : ''),
             superficieParcela,
             subparcelas,
-            construcciones,
-            xmlRaw: xmlText  // para debug — quitar en producción
+            construcciones
+        }, {
+            status: 200,
+            headers: headers
         })
 
     } catch (err: unknown) {

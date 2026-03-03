@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
+import FacebookPixel from '@/components/facebook-pixel';
 
 export const metadata: Metadata = {
   title: 'SOLUCIONES CATASTRALES | Alberto Álvarez',
@@ -46,6 +47,7 @@ export default function RootLayout({
       <body className="font-body antialiased">
         <FirebaseClientProvider>
           {children}
+          <FacebookPixel />
         </FirebaseClientProvider>
       </body>
     </html>

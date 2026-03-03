@@ -267,6 +267,7 @@ export const dbCoefUsoSueloOcupado: CoefUsoSueloOcupado[] = [
     { id: "industrial", nombre: "Industrial y almacén no agrario", coeficiente: 0.047, mbr_tipo: "urbano" },
     { id: "deportivo", nombre: "Deportivo", coeficiente: 0.023, mbr_tipo: "urbano" },
     { id: "agricola", nombre: "Agrícola, ganadero, forestal", coeficiente: 0.100, mbr_tipo: "rustico" },
+    { id: "extensiva", nombre: "Extensiva", coeficiente: 0.015, mbr_tipo: "rustico" },
 ];
 
 // =====================================================
@@ -303,7 +304,7 @@ export const dbTipologiasRusticas: TipologiaConstructiva[] = [
     {
         // 2.1.3 ALMACENAMIENTO
         id: "AAL", nombre: "Almacén / almacenamiento", clase: "02135",
-        categorias: { 1: 0.85, 2: 0.70, 3: 0.60, 4: 0.45, 5: 0.35, 6: 0.30, 7: 0.25, 8: 0.20, 9: 0.20 }
+        categorias: { 1: 0.85, 2: 0.70, 3: 0.60, 4: 0.45, 5: 0.35, 6: 0.30, 7: 0.25, 8: 0.25, 9: 0.20 }
     },
     {
         // 2.1.1 FABRICACIÓN EN UNA PLANTA (Nave)
@@ -318,13 +319,18 @@ export const dbTipologiasRusticas: TipologiaConstructiva[] = [
     {
         // 2.2.2 APARCAMIENTOS (descubiertos)
         id: "KPS", nombre: "Piscina / deportivo / descubierto", clase: "05224",
-        categorias: { 1: 0.60, 2: 0.50, 3: 0.45, 4: 0.40, 5: 0.35, 6: 0.30, 7: 0.20, 8: 0.10, 9: 0.05 }
+        categorias: { 1: 0.60, 2: 0.50, 3: 0.45, 4: 0.40, 5: 0.50, 6: 0.30, 7: 0.20, 8: 0.10, 9: 0.05 }
     },
     {
         // Estimación: corrales/establos similares a almacenamiento bajo
         id: "COR", nombre: "Corral / establo ganadero", clase: "02215",
         categorias: { 1: 0.85, 2: 0.70, 3: 0.60, 4: 0.45, 5: 0.35, 6: 0.30, 7: 0.25, 8: 0.20, 9: 0.20 }
     },
+    {
+        // 3. Obras de urbanización y jardinería (Balsa, etc)
+        id: "BAL", nombre: "Balsa / Obra de urbanización", clase: "10328",
+        categorias: { 1: 0.80, 2: 0.60, 3: 0.50, 4: 0.30, 5: 0.20, 6: 0.10, 7: 0.05, 8: 0.04, 9: 0.02 }
+    }
 ];
 
 // =====================================================
@@ -333,16 +339,105 @@ export const dbTipologiasRusticas: TipologiaConstructiva[] = [
 // =====================================================
 
 export const dbMunicipiosRustica = [
+    { id_municipio: "23001", Nombre: "Albanchez de Mágina", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23002", Nombre: "Alcalá la Real", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23003", Nombre: "Alcaudete", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23004", Nombre: "Aldeaquemada", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
     { id_municipio: "23005", Nombre: "Andújar", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
-    { id_municipio: "23059", Nombre: "Marmolejo", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
     { id_municipio: "23006", Nombre: "Arjona", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
-    { id_municipio: "23097", Nombre: "Villanueva de la Reina", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
-    { id_municipio: "23050", Nombre: "Jaén", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23007", Nombre: "Arjonilla", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23008", Nombre: "Arquillos", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23905", Nombre: "Arroyo del Ojanco", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23009", Nombre: "Baeza", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
     { id_municipio: "23010", Nombre: "Bailén", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
     { id_municipio: "23011", Nombre: "Baños de la Encina", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
-    { id_municipio: "23054", Nombre: "Lahiguera", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23012", Nombre: "Beas de Segura", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23902", Nombre: "Bedmar y Garcíez", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23014", Nombre: "Begíjar", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23016", Nombre: "Benatae", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23015", Nombre: "Bélmez de la Moraleda", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23017", Nombre: "Cabra del Santo Cristo", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23018", Nombre: "Cambil", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23019", Nombre: "Campillo de Arenas", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23020", Nombre: "Canena", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23021", Nombre: "Carboneros", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23025", Nombre: "Castellar", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23026", Nombre: "Castillo de Locubín", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23027", Nombre: "Cazalilla", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23028", Nombre: "Cazorla", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23029", Nombre: "Chiclana de Segura", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23030", Nombre: "Chilluévar", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23901", Nombre: "Cárcheles", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23031", Nombre: "Escañuela", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23032", Nombre: "Espeluy", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23033", Nombre: "Frailes", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23034", Nombre: "Fuensanta de Martos", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23035", Nombre: "Fuerte del Rey", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23039", Nombre: "Guarromán", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23037", Nombre: "Génave", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23041", Nombre: "Higuera de Calatrava", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23042", Nombre: "Hinojares", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23043", Nombre: "Hornos", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23044", Nombre: "Huelma", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23045", Nombre: "Huesa", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23046", Nombre: "Ibros", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23048", Nombre: "Iznatoraf", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23049", Nombre: "Jabalquinto", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23051", Nombre: "Jamilena", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23050", Nombre: "Jaén", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23052", Nombre: "Jimena", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23053", Nombre: "Jódar", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23024", Nombre: "La Carolina", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23038", Nombre: "La Guardia de Jaén", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23047", Nombre: "La Iruela", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23072", Nombre: "La Puerta de Segura", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23040", Nombre: "Lahiguera", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23054", Nombre: "Larva", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23055", Nombre: "Linares", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
     { id_municipio: "23056", Nombre: "Lopera", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23099", Nombre: "Los Villares", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23057", Nombre: "Lupión", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23058", Nombre: "Mancha Real", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23059", Nombre: "Marmolejo", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23060", Nombre: "Martos", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23061", Nombre: "Mengíbar", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23062", Nombre: "Montizón", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23063", Nombre: "Navas de San Juan", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23064", Nombre: "Noalejo", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23065", Nombre: "Orcera", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23066", Nombre: "Peal de Becerro", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23067", Nombre: "Pegalajar", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23069", Nombre: "Porcuna", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23070", Nombre: "Pozo Alcón", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23071", Nombre: "Puente de Génave", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23073", Nombre: "Quesada", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23074", Nombre: "Rus", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23075", Nombre: "Sabiote", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23076", Nombre: "Santa Elena", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23077", Nombre: "Santiago de Calatrava", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23904", Nombre: "Santiago-Pontones", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23079", Nombre: "Santisteban del Puerto", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23080", Nombre: "Santo Tomé", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23081", Nombre: "Segura de la Sierra", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23082", Nombre: "Siles", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23084", Nombre: "Sorihuela del Guadalimar", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23085", Nombre: "Torreblascopedro", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23086", Nombre: "Torredelcampo", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23087", Nombre: "Torredonjimeno", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23088", Nombre: "Torreperogil", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23090", Nombre: "Torres", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23091", Nombre: "Torres de Albanchez", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23093", Nombre: "Valdepeñas de Jaén", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23094", Nombre: "Vilches", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23095", Nombre: "Villacarrillo", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23096", Nombre: "Villanueva de la Reina", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23097", Nombre: "Villanueva del Arzobispo", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23098", Nombre: "Villardompardo", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23101", Nombre: "Villarrodrigo", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23903", Nombre: "Villatorres", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23092", Nombre: "Úbeda", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
 ];
+
 
 // =====================================================
 // COEFICIENTES DE ANTIGÜEDAD (Coef. H) — Simplificados
@@ -391,3 +486,4 @@ export const dbCultivos = dbTiposEvaluatorios.map(t => ({
     Nombre: t.nombre,
     Renta_Hectarea: t.intensidades[0]?.eur_ha ?? 0  // fallback: intensidad 1
 }));
+

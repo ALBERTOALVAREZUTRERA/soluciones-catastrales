@@ -86,7 +86,13 @@ export function RusticCalculator() {
                 const nuevasSubparcelas: SubparcelaCultivo[] = data.subparcelas.map((sp: { clave: string; intensidad: string; superficieHa: number }) => {
                     // Mapear clave del API a nuestros cultivos
                     const cultivoMatch = dbTiposEvaluatorios.find(c => c.clave === sp.clave)
-                    const clave = cultivoMatch?.clave || 'O-'
+                    let clave = cultivoMatch?.clave || 'O-'
+                    // Casos especiales frecuentes
+                    if (!cultivoMatch && sp.clave === 'C') clave = 'C-' // Labor secano
+                    if (!cultivoMatch && sp.clave === 'E') clave = 'E-' // Pastos
+                    if (!cultivoMatch && sp.clave === 'V') clave = 'V-' // Viña secano
+                    if (!cultivoMatch && sp.clave === 'I') clave = 'I-' // Improductivo
+
                     // Mapear intensidad
                     const intNum = parseInt(sp.intensidad) || 1
                     const cultivoData = dbTiposEvaluatorios.find(c => c.clave === clave)
@@ -99,35 +105,80 @@ export function RusticCalculator() {
                         superficieHa: sp.superficieHa || 0.5
                     }
                 })
-                if (nuevasSubparcelas.length > 0) setSubparcelas(nuevasSubparcelas)
+                setSubparcelas(nuevasSubparcelas)
+            } else {
+                setSubparcelas([])
             }
 
-            // Auto-rellenar construcciones si hay datos
+            // Auto-rellenar construcciones y suelo ocupado si hay datos
             if (data.construcciones && data.construcciones.length > 0) {
-                const nuevasConstrucciones: UnidadConstructiva[] = data.construcciones.map((c: { tipologia: string; superficieM2: number; anioConstruccion: number }) => {
+                const nuevasConstrucciones: UnidadConstructiva[] = []
+                const nuevosSuelos: SueloOcupado[] = []
+
+                data.construcciones.forEach((c: { tipologia: string; uso: string; superficieM2: number; anioConstruccion: number }) => {
                     // Intentar mapear tipología del API a nuestras tipologías
-                    const tipoStr = (c.tipologia || '').toUpperCase()
-                    let tipologiaId = 'AAL' // default
-                    if (tipoStr.includes('VIVIENDA') || tipoStr.includes('RESID')) tipologiaId = 'V'
-                    else if (tipoStr.includes('NAVE') || tipoStr.includes('COBERTIZO')) tipologiaId = 'BIG'
-                    else if (tipoStr.includes('GARAJE')) tipologiaId = 'GAR'
-                    else if (tipoStr.includes('PISCINA') || tipoStr.includes('DEPORT')) tipologiaId = 'KPS'
-                    else if (tipoStr.includes('CORRAL') || tipoStr.includes('ESTABLO')) tipologiaId = 'COR'
-                    return {
+                    const tipoStr = (c.tipologia || '').toUpperCase() + " " + (c.uso || '').toUpperCase()
+
+                    let tipologiaId = 'AAL' // default: Almacén
+                    let usoIdSuelo = 'agricola' // default: Agrícola
+
+                    if (tipoStr.includes('VIVIENDA') || tipoStr.includes('RESID')) {
+                        tipologiaId = 'V'
+                        usoIdSuelo = 'residencial'
+                    } else if (tipoStr.includes('NAVE') || tipoStr.includes('COBERTIZO')) {
+                        tipologiaId = 'BIG'
+                        usoIdSuelo = 'agricola'
+                    } else if (tipoStr.includes('GARAJE') || tipoStr.includes('APARCAMIENTO')) {
+                        tipologiaId = 'GAR'
+                        usoIdSuelo = 'residencial' // Los garajes suelen ir con residencial
+                    } else if (tipoStr.includes('PISCINA') || tipoStr.includes('DEPORT') || tipoStr.includes('DESCUBIERTO')) {
+                        tipologiaId = 'KPS'
+                        usoIdSuelo = 'deportivo'
+                    } else if (tipoStr.includes('CORRAL') || tipoStr.includes('ESTABLO') || tipoStr.includes('AGRARIO') || tipoStr.includes('AGR')) {
+                        tipologiaId = 'COR'
+                        usoIdSuelo = 'agricola'
+                    } else if (tipoStr.includes('BALSA') || tipoStr.includes('OBRA')) {
+                        tipologiaId = 'BAL'
+                        usoIdSuelo = 'agricola'
+                    } else if (tipoStr.includes('INDUS')) {
+                        tipologiaId = 'AAL' // Almacén industrial
+                        usoIdSuelo = 'industrial'
+                    }
+
+                    const sup = c.superficieM2 || 100
+
+                    nuevasConstrucciones.push({
                         id: unidadCounter++,
                         tipologiaId,
-                        categoria: 4,
-                        superficieM2: c.superficieM2 || 100,
-                        anioConstruccion: c.anioConstruccion || 2000,
-                        conservacion: 'N'
-                    }
+                        categoria: 4, // Categoría media por defecto
+                        superficieM2: sup,
+                        anioConstruccion: c.anioConstruccion || new Date().getFullYear(),
+                        conservacion: 'N' // Normal por defecto
+                    })
+
+                    nuevosSuelos.push({
+                        id: sueloOcupadoCounter++,
+                        superficieM2: sup,
+                        usoId: usoIdSuelo
+                    })
                 })
-                if (nuevasConstrucciones.length > 0) setConstrucciones(nuevasConstrucciones)
+
+                setConstrucciones(nuevasConstrucciones)
+                setSuelosOcupados(nuevosSuelos)
+            } else {
+                setConstrucciones([])
+                setSuelosOcupados([])
             }
 
             const numSp = data.subparcelas?.length || 0
             const numConst = data.construcciones?.length || 0
             setMsgBusqueda(`✅ ${data.municipio || 'Encontrado'}: ${numSp} subparcela(s)${numConst > 0 ? `, ${numConst} construcción(es)` : ''}`)
+
+            // Auto-seleccionar el municipio si existe en nuestra BD (usando los primeros 5 dígitos de la RC)
+            const idMunicipioRC = rcToSearch.substring(0, 5)
+            if (dbMunicipiosRustica.some(m => m.id_municipio === idMunicipioRC)) {
+                setMunicipioId(idMunicipioRC)
+            }
 
         } catch (err) {
             setMsgBusqueda('Error de conexión con el Catastro')
