@@ -176,12 +176,15 @@ export async function GET(request: Request) {
             anioConstruccion: number;
         }[] = [];
 
-        const lcons = birc.lcons?.cons || root.lcons?.cons || [];
+        const lcons = birc.lcons?.cons || root.bico?.lcons?.cons || root.lcons?.cons || [];
         for (const cons of lcons) {
-            const lcd = cons.lcd || cons.dfcons || '';
+            const lcd = cons.lcd || (typeof cons.dfcons === 'string' ? cons.dfcons : '');
             const uso = cons.uso || cons.tuso || lcd || '';
-            const supM2 = parseFloat(cons.stl?.toString().replace(',', '.') || cons.sup?.toString().replace(',', '.') || '0');
-            const anio = parseInt(cons.aco?.toString() || '0') || 0;
+
+            const dfcons = cons.dfcons || {};
+            const rawSup = cons.stl || cons.sup || dfcons.stl || dfcons.sup;
+            const supM2 = parseFloat(rawSup?.toString().replace(',', '.') || '0');
+            const anio = parseInt(cons.aco?.toString() || dfcons.aco?.toString() || '0') || 0;
 
             if (supM2 > 0 || lcd) {
                 construcciones.push({ uso, tipologia: lcd, superficieM2: supM2, anioConstruccion: anio });
