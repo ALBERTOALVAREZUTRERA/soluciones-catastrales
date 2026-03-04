@@ -68,9 +68,10 @@ function generateGuide() {
         // Body
         doc.setFont("helvetica", "normal");
         doc.setTextColor(70, 70, 70);
+        // Usamos el texto original con maxWidth y align:"justify" para que jsPDF lo cuadre perfectamente
+        doc.text(section.body, margin, y, { maxWidth: maxWidth, align: "justify" });
         const splitBody = doc.splitTextToSize(section.body, maxWidth);
-        doc.text(splitBody, margin, y);
-        y += (splitBody.length * lineHeight) + 12; // Extra space between sections
+        y += (splitBody.length * lineHeight) + 12; // Extra round space
     });
 
     // Footer / CTA
