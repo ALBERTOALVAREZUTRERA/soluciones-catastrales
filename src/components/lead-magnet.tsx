@@ -145,15 +145,24 @@ export function LeadMagnet() {
                                     </div>
                                     <h3 className="text-2xl font-bold mb-3">¡Petición Recibida!</h3>
                                     <p className="text-blue-100 mb-8 leading-relaxed">
-                                        Hemos procesado tu solicitud. Un analista técnico revisará tu contacto y te enviaremos el enlace de descarga segura de inmediato.
+                                        Hemos procesado tu solicitud. Haz clic en el siguiente botón para descargar tu guía gratuita de forma segura y al instante.
                                     </p>
-                                    <Button
-                                        variant="outline"
-                                        className="border-white/20 text-white hover:bg-white inline-flex items-center font-bold px-8 pt-6 pb-6"
-                                        onClick={() => setIsSuccess(false)}
-                                    >
-                                        ⬅ Hacer otra consulta
-                                    </Button>
+                                    <div className="flex flex-col gap-4 max-w-xs mx-auto">
+                                        <a
+                                            href="/descargas/guia-supervivencia-catastral.pdf"
+                                            download="Guia_Supervivencia_Catastro_2026.pdf"
+                                            className="w-full bg-emerald-500 hover:bg-emerald-400 text-white font-bold py-4 px-6 rounded-lg shadow-lg flex items-center justify-center gap-2 transition-all"
+                                        >
+                                            <Download className="h-5 w-5" /> Descargar PDF Ahora
+                                        </a>
+                                        <Button
+                                            variant="outline"
+                                            className="border-white/20 text-white hover:bg-white inline-flex items-center font-bold px-8 pt-6 pb-6"
+                                            onClick={() => setIsSuccess(false)}
+                                        >
+                                            ⬅ Volver atrás
+                                        </Button>
+                                    </div>
                                 </div>
                             )}
                         </div>
