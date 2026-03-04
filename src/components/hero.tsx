@@ -83,13 +83,13 @@ export function Hero() {
         <div className="max-w-4xl animate-fade-in-up">
           <div className="inline-flex items-center gap-2 bg-accent/20 backdrop-blur-md border border-accent/30 text-accent-foreground px-4 py-2 rounded-full mb-8">
             <FileCode className="h-4 w-4" />
-            <span className="text-sm font-semibold tracking-wide uppercase">Especialistas en Archivos GML</span>
+            <span className="text-sm font-semibold tracking-wide uppercase">Ingenieros Técnicos Topógrafos</span>
           </div>
-          <h1 className="text-4xl md:text-7xl font-bold text-white font-headline leading-tight mb-6 drop-shadow-[0_5px_5px_rgba(0,0,0,0.8)]">
-            Soluciones <span className="text-accent">Catastrales</span> a Nivel Nacional
+          <h1 className="text-4xl md:text-5xl lg:text-7xl font-bold text-white font-headline leading-tight mb-6 drop-shadow-[0_5px_5px_rgba(0,0,0,0.8)]">
+            Especialistas en Topografía y Soluciones Catastrales en <span className="text-accent underline decoration-accent/50 underline-offset-8">Jaén y Andalucía</span>
           </h1>
           <p className="text-lg md:text-2xl text-gray-200 mb-10 max-w-2xl leading-relaxed">
-            Generación profesional de archivos <strong>GML GRATUITOS</strong> para parcelas y edificios. Ingeniería avanzada para técnicos y propietarios en toda España.
+            Subsanamos <strong>discrepancias</strong> entre el Registro y el Catastro mediante informes IVGA, Mediciones Topográficas y generación de GML.
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
             <Button size="lg" className="bg-accent text-white hover:bg-accent/90 text-lg h-14 px-10" asChild>

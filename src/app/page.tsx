@@ -72,14 +72,13 @@ export default function Home() {
       {/* ── Sección Trámites ── */}
       <section id="tramites" className="py-20 bg-slate-50">
         <div className="container mx-auto px-4 md:px-8">
-          <div className="text-center mb-12 max-w-2xl mx-auto">
+          <div className="text-center mb-12 max-w-3xl mx-auto">
             <h2 className="text-3xl md:text-4xl font-bold font-headline text-primary mb-4 uppercase tracking-tight">
-              Trámites Administrativos
+              Resolución Técnica de Expedientes
             </h2>
             <div className="h-1 w-20 bg-accent mx-auto mb-6" />
             <p className="text-muted-foreground text-lg">
-              Gestión integral de expedientes ante el Catastro y el Registro de la Propiedad.
-              Nos encargamos de toda la documentación técnica y jurídica.
+              Solucionamos discrepancias inmobiliarias de forma integral. Levantamientos topográficos, informes técnicos y gestión jurídica ante Catastro, Ayuntamientos y Registro de la Propiedad en Andalucía.
             </p>
           </div>
 
@@ -91,8 +90,8 @@ export default function Home() {
                   <div className="w-14 h-14 bg-white/10 rounded-xl flex items-center justify-center mb-4">
                     <Scale className="h-8 w-8 text-accent" />
                   </div>
-                  <h3 className="text-2xl font-bold text-white mb-2">Trámites Registrales</h3>
-                  <p className="text-blue-200/80 text-sm">Ley Hipotecaria · Registro de la Propiedad</p>
+                  <h3 className="text-2xl font-bold text-white mb-2">Subsanación Registral</h3>
+                  <p className="text-blue-200/80 text-sm">Registro de la Propiedad y Notarías</p>
                 </div>
                 <div className="p-8 space-y-3">
                   {[
@@ -121,8 +120,8 @@ export default function Home() {
                   <div className="w-14 h-14 bg-white/10 rounded-xl flex items-center justify-center mb-4">
                     <Landmark className="h-8 w-8 text-white" />
                   </div>
-                  <h3 className="text-2xl font-bold text-white mb-2">Trámites Catastrales</h3>
-                  <p className="text-white/70 text-sm">Dirección General del Catastro · DGC</p>
+                  <h3 className="text-2xl font-bold text-white mb-2">Ingeniería Catastral</h3>
+                  <p className="text-white/70 text-sm">Dirección General del Catastro</p>
                 </div>
                 <div className="p-8 space-y-3">
                   {[

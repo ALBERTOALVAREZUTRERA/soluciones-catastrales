@@ -4,18 +4,18 @@ import { FirebaseClientProvider } from '@/firebase/client-provider';
 import FacebookPixel from '@/components/facebook-pixel';
 
 export const metadata: Metadata = {
-  title: 'SOLUCIONES CATASTRALES | Alberto Álvarez',
-  description: 'Ingeniería Técnica especializada en archivos GML, coordinación Catastro-Registro y revisiones de IBI. Soluciones profesionales en Jaén.',
-  keywords: ['GML', 'Catastro', 'Registro de la Propiedad', 'Ingeniero Técnico', 'Jaén', 'Andújar', 'IBI', 'Topografía', 'SOLUCIONES CATASTRALES'],
+  title: 'Ingeniería Catastral y Topografía en Jaén | Soluciones Catastrales',
+  description: 'Ingeniería Técnica en Jaén especializada en Levantamientos Topográficos, archivos GML, subsanación de discrepancias Catastro-Registro y revisiones de IBI en Andalucía.',
+  keywords: ['Topógrafo Jaén', 'Archivo GML', 'Catastro', 'Registro de la Propiedad', 'Ingeniero Técnico', 'Andújar', 'Levantamiento Topográfico', 'Discrepancias Registrales', 'SOLUCIONES CATASTRALES'],
   metadataBase: new URL('https://solucionescatastrales.app'),
   alternates: {
     canonical: '/',
   },
   openGraph: {
-    title: 'SOLUCIONES CATASTRALES | Alberto Álvarez',
-    description: 'Ingeniería Técnica y archivos GML en Jaén.',
+    title: 'Topografía e Ingeniería Catastral en Jaén | Soluciones Catastrales',
+    description: 'Resolvemos discrepancias entre Catastro y Registro de la Propiedad en Andalucía mediante informes técnicos y cartografía GML.',
     url: 'https://solucionescatastrales.app',
-    siteName: 'Soluciones Catastrales',
+    siteName: 'Soluciones Catastrales (Jaén)',
     locale: 'es_ES',
     type: 'website',
   },
