@@ -6,6 +6,7 @@ import { ProcessPortal } from "@/components/process-portal";
 import { CatastroTimeWrapper } from "@/components/catastro-time-wrapper";
 import { TechnicalFaq } from "@/components/technical-faq";
 import { HistoricalCartography } from "@/components/historical-cartography";
+import { TopographyQuiz } from "@/components/topography-quiz";
 import { LeadMagnet } from "@/components/lead-magnet";
 import { Footer } from "@/components/footer";
 import { WhatsAppButton } from "@/components/whatsapp-button";
@@ -173,6 +174,7 @@ export default function Home() {
         </div>
       </section>
 
+      <TopographyQuiz />
       <LeadMagnet />
       <TechnicalFaq />
       <ProcessPortal />
