@@ -452,7 +452,6 @@ async def generate_shape(request: GenerateGMLRequest):
         # Sanitizar EPSG
         request.epsg = str(request.epsg).upper().replace("EPSG:", "")
         
-        import shutil
         temp_dir = tempfile.mkdtemp()
         base_name = "exportacion_catastral"
         shp_base_path = os.path.join(temp_dir, base_name)
@@ -474,19 +473,14 @@ async def generate_shape(request: GenerateGMLRequest):
             
         ShapeGenerator.exportar_a_shape(features, shp_base_path, request.epsg)
         
-        # Crear ZIP con todos los archivos del shapefile
+        # Crear ZIP con todos los archivos del shapefile (.shp, .shx, .dbf, .prj)
         zip_path = os.path.join(temp_dir, f"{base_name}.zip")
-        shutil.make_archive(os.path.join(temp_dir, base_name), 'zip', temp_dir, base_name)
-        
-        # make_archive añade el .zip solo, así que la ruta final es zip_path
-        # Pero a veces el base_dir y root_dir de make_archive son confusos.
-        # Mejor hacerlo simple:
-        files_to_zip = [f for f in os.listdir(temp_dir) if f.startswith(base_name) and f != f"{base_name}.zip"]
-        
         import zipfile
-        with zipfile.ZipFile(zip_path, 'w') as zipf:
-            for f in files_to_zip:
-                zipf.write(os.path.join(temp_dir, f), f)
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            for ext in ['.shp', '.shx', '.dbf', '.prj']:
+                f_path = shp_base_path + ext
+                if os.path.exists(f_path):
+                    zipf.write(f_path, base_name + ext)
         
         def file_iterator():
             with open(zip_path, 'rb') as f:
