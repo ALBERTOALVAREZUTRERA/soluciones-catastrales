@@ -65,7 +65,9 @@ export function UrbanCalculator({ formData, setFormData, onCalculate, loading }:
 
         // Find age coef (H)
         const currentYear = new Date().getFullYear();
-        const age = Math.max(0, currentYear - (Number(formData.anio_const) || currentYear));
+        const anioPonencia = Number(formData.custom_anio_ponencia) || currentYear;
+        const anioConst = Number(formData.anio_const) || currentYear;
+        const age = Math.max(0, anioPonencia - anioConst);
         const coefH = coeficientesAntiguedadUrbana.find(c => age <= c.maxAge)?.coef || 0.39;
 
         // Find conservation coef (I)

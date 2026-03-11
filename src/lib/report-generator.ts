@@ -4,6 +4,23 @@ import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, Borde
 import { saveAs } from 'file-saver';
 import { GmlFeature } from "./gml-utils";
 
+// Fórmula de Shoelace (Gauss) para área plana euclidiana de un anillo
+function shoelaceArea(coords: number[][]): number {
+    let area = 0;
+    for (let i = 0; i < coords.length - 1; i++) {
+        area += coords[i][0] * coords[i + 1][1] - coords[i + 1][0] * coords[i][1];
+    }
+    return Math.abs(area / 2);
+}
+
+// Calcula el área real de una parcela descontando los huecos interiores
+function computeEffectiveArea(feature: GmlFeature): number {
+    if (!feature.geometry || feature.geometry.length === 0) return 0;
+    const exterior = shoelaceArea(feature.geometry[0]);
+    const holes = feature.geometry.slice(1).reduce((acc, hole) => acc + shoelaceArea(hole), 0);
+    return exterior - holes;
+}
+
 // Extender tipos para jsPDF con autotable
 interface jsPDFWithAutoTable extends jsPDF {
     autoTable: (options: any) => jsPDF;
@@ -64,7 +81,9 @@ export async function generateTechnicalReport(features: GmlFeature[], crs: strin
         doc.setFontSize(10);
         doc.text("RESUMEN DE SUPERFICIES", 15, 95);
 
-        const areaValue = feature.area ? `${feature.area.toFixed(2)} m²` : "No calculada";
+        // Calcular área real descontando huecos interiores (igual que el GML)
+        const effectiveArea = computeEffectiveArea(feature);
+        const areaValue = effectiveArea > 0 ? `${effectiveArea.toFixed(2)} m²` : "No calculada";
 
         autoTable(doc, {
             startY: 100,
