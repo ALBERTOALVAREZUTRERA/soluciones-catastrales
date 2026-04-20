@@ -154,7 +154,7 @@ export function GmlConverter() {
                         <h3 className="font-bold text-emerald-900">Sube tus Planos</h3>
                     </div>
                     <p className="text-sm text-emerald-800/80 relative z-10">
-                        Arrastra tus archivos DXF, Shapefiles (en ZIP) o CSV de coordenadas. Puedes procesar múltiples geometrías a la vez.
+                        Arrastra tus archivos DXF, Shapefiles (en ZIP), KMZ de Google Earth o CSV de coordenadas.
                     </p>
                 </div>
 
@@ -211,11 +211,12 @@ export function GmlConverter() {
                 </CardHeader>
                 <CardContent>
                     <Tabs defaultValue="dxf" onValueChange={setFormat} className="w-full">
-                        <TabsList className="grid w-full grid-cols-4 mb-8">
-                            <TabsTrigger value="dxf">DXF (CAD)</TabsTrigger>
-                            <TabsTrigger value="shp">Shapefile (GIS)</TabsTrigger>
-                            <TabsTrigger value="gml">GML / XML</TabsTrigger>
-                            <TabsTrigger value="csv">Coordenadas</TabsTrigger>
+                        <TabsList className="grid w-full grid-cols-5 mb-8">
+                            <TabsTrigger value="dxf">DXF</TabsTrigger>
+                            <TabsTrigger value="shp">Shapefile</TabsTrigger>
+                            <TabsTrigger value="kmz">KML/KMZ</TabsTrigger>
+                            <TabsTrigger value="gml">GML/XML</TabsTrigger>
+                            <TabsTrigger value="csv">CSV</TabsTrigger>
                         </TabsList>
 
                         <div className="grid gap-6">
@@ -248,6 +249,16 @@ export function GmlConverter() {
                                     setCrs={setCrs}
                                     accept=".zip"
                                     desc="Añade archivos ZIP con SHP. Puedes añadir varios."
+                                />
+                            </TabsContent>
+                            <TabsContent value="kmz" className="mt-0">
+                                <FileUploader
+                                    format="kmz"
+                                    onFileChange={handleFileChange}
+                                    crs={crs}
+                                    setCrs={setCrs}
+                                    accept=".kmz,.kml"
+                                    desc="Añade archivos KMZ o KML exportados de Google Earth u otros visores geográficos."
                                 />
                             </TabsContent>
                             <TabsContent value="csv" className="mt-0">
@@ -432,6 +443,50 @@ export function GmlConverter() {
                             >
                                 <Download className="h-5 w-5" />
                                 Descargar KML
+                            </Button>
+
+                            <Button
+                                size="lg"
+                                variant="outline"
+                                className="border-2 border-emerald-700 text-emerald-700 hover:bg-emerald-700 hover:text-white gap-2 font-bold"
+                                onClick={async () => {
+                                    try {
+                                        const { generateKMZWithBackend } = await import('@/lib/backend-api');
+                                        const parcelasData = features.map(f => ({
+                                            id: f.id || f.cadastralReference || 'Sin ID',
+                                            referencia_catastral: f.cadastralReference || '',
+                                            area: f.area || 0,
+                                            coordenadas_utm: f.geometry[0],
+                                            interiores_utm: f.geometry.slice(1),
+                                            has_conflict: f.hasConflict || false,
+                                            is_hole: f.isHole || false
+                                        }));
+
+                                        const kmzBlob = await generateKMZWithBackend(parcelasData, crs);
+                                        const url = URL.createObjectURL(kmzBlob);
+                                        const a = document.createElement('a');
+                                        a.href = url;
+                                        a.download = `parcelas_catastro_${new Date().getTime()}.kmz`;
+                                        document.body.appendChild(a);
+                                        a.click();
+                                        document.body.removeChild(a);
+                                        URL.revokeObjectURL(url);
+
+                                        toast({
+                                            title: "KMZ Generado",
+                                            description: "Archivo comprimido listo para Google Earth."
+                                        });
+                                    } catch (error) {
+                                        toast({
+                                            title: "Error al generar KMZ",
+                                            description: error instanceof Error ? error.message : "Error desconocido",
+                                            variant: "destructive"
+                                        });
+                                    }
+                                }}
+                            >
+                                <Download className="h-5 w-5" />
+                                Descargar KMZ
                             </Button>
 
                             <Button

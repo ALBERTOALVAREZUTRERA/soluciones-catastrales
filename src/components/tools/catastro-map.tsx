@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { MapContainer, TileLayer, WMSTileLayer, useMapEvents, Marker, Popup, LayersControl, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, WMSTileLayer, useMapEvents, Marker, Popup, LayersControl, useMap, Polygon } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { Button } from "@/components/ui/button";
-import { Loader2, ExternalLink, MapPin, Search, X } from "lucide-react";
+import { Loader2, ExternalLink, MapPin, Search, X, Upload, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "@/hooks/use-toast";
 import { API_BASE_URL } from "@/lib/backend-api";
@@ -32,14 +32,24 @@ interface PlotInfo {
     lng: number;
 }
 
+interface KMZFeature {
+    id: string;
+    coordinates: [number, number][];
+    interiors?: [number, number][][];
+    area?: number;
+    name?: string;
+}
+
 // Componente interno para mover el mapa hacia el target
-function MapController({ target }: { target: [number, number] | null }) {
+function MapController({ target, bounds }: { target: [number, number] | null, bounds?: L.LatLngBounds | null }) {
     const map = useMap();
     useEffect(() => {
-        if (target) {
+        if (bounds) {
+            map.fitBounds(bounds, { padding: [50, 50], duration: 1.5 });
+        } else if (target) {
             map.flyTo(target, 18, { duration: 1.5 });
         }
-    }, [target, map]);
+    }, [target, bounds, map]);
     return null;
 }
 
@@ -94,6 +104,66 @@ export function CatastroMap({ className = "" }: CatastroMapProps) {
     const [searching, setSearching] = useState(false);
     const [searchError, setSearchError] = useState<string | null>(null);
     const [flyTarget, setFlyTarget] = useState<[number, number] | null>(null);
+
+    // Soporte KMZ
+    const [kmzFeatures, setKmzFeatures] = useState<KMZFeature[]>([]);
+    const [kmzLoading, setKmzLoading] = useState(false);
+    const [kmzBounds, setKmzBounds] = useState<L.LatLngBounds | null>(null);
+
+    const handleKmzUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || e.target.files.length === 0) return;
+        
+        const file = e.target.files[0];
+        setKmzLoading(true);
+        
+        try {
+            const { analyzeWithBackend } = await import("@/lib/backend-api");
+            // Usamos 25830 como EPSG por defecto para el procesamiento (aunque Leaflet use Lat/Lon)
+            const data = await analyzeWithBackend(file, "25830", "CP");
+            
+            if (data.parcelas && data.parcelas.length > 0) {
+                const newFeatures: KMZFeature[] = data.parcelas.map(p => ({
+                    id: p.id,
+                    // Lat/Lon desde backend: [ [lat, lon], [lat, lon], ... ]
+                    // Leaflet Polygon espera [lat, lon][]
+                    coordinates: p.coordenadas_latlon as [number, number][],
+                    interiors: p.interiores_latlon as [number, number][][],
+                    area: p.area,
+                    name: p.nombre_archivo
+                }));
+
+                setKmzFeatures(newFeatures);
+
+                // Calcular bounds para zoom
+                const bounds = L.latLngBounds([]);
+                newFeatures.forEach(feat => {
+                    feat.coordinates.forEach(coord => bounds.extend(coord));
+                });
+                setKmzBounds(bounds);
+                
+                toast({
+                    title: "Archivo KMZ cargado",
+                    description: `Se han importado ${newFeatures.length} geometrías correctamente.`,
+                });
+            } else {
+                toast({
+                    title: "Sin geometrías",
+                    description: "No se encontraron polígonos válidos en el archivo.",
+                    variant: "destructive"
+                });
+            }
+        } catch (error) {
+            toast({
+                title: "Error al cargar KMZ",
+                description: error instanceof Error ? error.message : "Error desconocido",
+                variant: "destructive"
+            });
+        } finally {
+            setKmzLoading(false);
+            // Limpiar input
+            e.target.value = "";
+        }
+    };
 
     const searchByRC = useCallback(async (e?: React.FormEvent) => {
         e?.preventDefault();
@@ -215,6 +285,44 @@ export function CatastroMap({ className = "" }: CatastroMapProps) {
                     <span className="text-accent">hacer clic directamente sobre cualquier parcela</span>{" "}
                     en el mapa para identificarla.
                 </p>
+
+                {/* Herramientas de Capas KMZ */}
+                <div className="flex items-center gap-3 pt-2 border-t border-slate-800">
+                    <div className="relative">
+                        <input
+                            type="file"
+                            accept=".kmz,.kml"
+                            onChange={handleKmzUpload}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                            disabled={kmzLoading}
+                        />
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="bg-slate-800 border-slate-700 text-slate-300 hover:text-white h-8 text-xs gap-2"
+                        >
+                            {kmzLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                            Cargar KMZ / KML
+                        </Button>
+                    </div>
+                    {kmzFeatures.length > 0 && (
+                        <>
+                            <div className="h-4 w-px bg-slate-700" />
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-red-400 hover:text-red-300 hover:bg-red-950/30 h-8 text-xs gap-2"
+                                onClick={() => {
+                                    setKmzFeatures([]);
+                                    setKmzBounds(null);
+                                }}
+                            >
+                                <Trash2 className="h-3.5 w-3.5" />
+                                Limpiar Geometrías
+                            </Button>
+                        </>
+                    )}
+                </div>
             </div>
 
             {/* ── Mapa ── */}
@@ -235,7 +343,7 @@ export function CatastroMap({ className = "" }: CatastroMapProps) {
                     style={{ height: "100%", width: "100%", zIndex: 1 }}
                     attributionControl={false}
                 >
-                    <MapController target={flyTarget} />
+                    <MapController target={flyTarget} bounds={kmzBounds} />
                     <ClickHandler setPlotInfo={setPlotInfo} setLoading={setLoading} setFlyTarget={setFlyTarget} />
 
                     <LayersControl position="topright">
@@ -266,6 +374,33 @@ export function CatastroMap({ className = "" }: CatastroMapProps) {
                                 opacity={0.7}
                             />
                         </LayersControl.Overlay>
+
+                        {kmzFeatures.length > 0 && (
+                            <LayersControl.Overlay name="Mis Geometrías (KMZ/KML)" checked>
+                                <L.LayerGroup>
+                                    {kmzFeatures.map((feat, i) => (
+                                        <Polygon
+                                            key={feat.id || i}
+                                            positions={[feat.coordinates, ...(feat.interiors || [])]}
+                                            pathOptions={{
+                                                color: "#ec4899", // Rosa fuerte (accent)
+                                                weight: 3,
+                                                fillOpacity: 0.2,
+                                                dashArray: "5, 10"
+                                            }}
+                                        >
+                                            <Popup>
+                                                <div className="text-sm">
+                                                    <p className="font-bold border-b pb-1 mb-1">{feat.name || "Geometría Importada"}</p>
+                                                    <p><b>Superficie:</b> {feat.area?.toFixed(2)} m²</p>
+                                                    <p className="text-[10px] text-muted-foreground mt-1 uppercase font-mono">{feat.id}</p>
+                                                </div>
+                                            </Popup>
+                                        </Polygon>
+                                    ))}
+                                </L.LayerGroup>
+                            </LayersControl.Overlay>
+                        )}
                     </LayersControl>
 
                     {plotInfo && (

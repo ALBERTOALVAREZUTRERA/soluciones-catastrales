@@ -89,6 +89,26 @@ export async function generateKMLWithBackend(parcelas: any[], epsg: string = '25
 }
 
 /**
+ * Genera un archivo KMZ para visualización en Google Earth (comprimido)
+ */
+export async function generateKMZWithBackend(parcelas: any[], epsg: string = '25830'): Promise<Blob> {
+    const response = await fetch(`${API_BASE_URL}/generate-kmz`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ parcelas, epsg }),
+    });
+
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: 'Error desconocido' }));
+        throw new Error(error.detail || `Error HTTP: ${response.status}`);
+    }
+
+    return response.blob();
+}
+
+/**
  * Genera un archivo DXF para CAD
  */
 export async function generateDXFWithBackend(parcelas: any[], epsg: string = '25830'): Promise<Blob> {

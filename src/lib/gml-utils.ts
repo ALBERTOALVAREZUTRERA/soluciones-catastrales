@@ -62,6 +62,20 @@ export async function processFile(file: File, format: string, targetCrs: string)
         } else if (format === 'gml') {
             const text = await file.text();
             features = parseGml(text, baseName);
+        } else if (format === 'kmz' || format === 'kml') {
+            // Utilizamos el backend que ya tiene toda la logica KML/KMZ
+            const { analyzeWithBackend } = await import('@/lib/backend-api');
+            const res = await analyzeWithBackend(file, targetCrs.replace('EPSG:', ''), 'CP');
+            features = res.parcelas.map(p => ({
+                id: p.id,
+                geometry: [p.coordenadas_utm, ...(p.interiores_utm || [])],
+                area: p.area,
+                cadastralReference: p.referencia_catastral,
+                hasConflict: p.has_conflict,
+                isHole: p.is_hole,
+                capaOrigen: p.capa_origen,
+                coordsLatLon: [p.coordenadas_latlon, ...(p.interiores_latlon || [])]
+            }));
         }
     } catch (e) {
         console.error("Error parsing file:", e);

@@ -5,7 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalculatorIcon, FileText, Sparkles, ShieldCheck } from "lucide-react";
+import { CalculatorIcon, FileText, Sparkles, ShieldCheck, Upload, Loader2 } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
+import { analyzeWithBackend } from "@/lib/backend-api";
 import { dbTipologiasUrbanas, coeficientesAntiguedadUrbana, coeficientesConservacionUrbana } from "@/data/mock-db-urbana";
 
 export interface UrbanCalculatorProps {
@@ -16,6 +18,41 @@ export interface UrbanCalculatorProps {
 }
 
 export function UrbanCalculator({ formData, setFormData, onCalculate, loading }: UrbanCalculatorProps) {
+    const [kmzLoading, setKmzLoading] = useState(false);
+
+    const handleKmzImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || e.target.files.length === 0) return;
+        const file = e.target.files[0];
+        setKmzLoading(true);
+
+        try {
+            const data = await analyzeWithBackend(file, "25830", "CP");
+            if (data.parcelas && data.parcelas.length > 0) {
+                const parcela = data.parcelas[0];
+                setFormData(prev => ({
+                    ...prev,
+                    sup_parcela: parcela.area || prev.sup_parcela,
+                    rc: parcela.referencia_catastral || prev.rc,
+                    // Si es un edificio, también actualizamos sup_const
+                    sup_const: parcela.capa_origen?.includes("BU") ? (parcela.area || prev.sup_const) : prev.sup_const
+                }));
+
+                toast({
+                    title: "Datos importados",
+                    description: `Superficie: ${parcela.area.toFixed(2)} m². ${parcela.referencia_catastral ? `RC: ${parcela.referencia_catastral}` : ""}`,
+                });
+            }
+        } catch (error) {
+            toast({
+                title: "Error al importar KMZ",
+                description: error instanceof Error ? error.message : "Error desconocido",
+                variant: "destructive"
+            });
+        } finally {
+            setKmzLoading(false);
+            e.target.value = "";
+        }
+    };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -200,7 +237,26 @@ export function UrbanCalculator({ formData, setFormData, onCalculate, loading }:
 
                 <div className="space-y-2">
                     <Label className="text-slate-600 font-medium">Superficie Suelo / Parcela (m²)</Label>
-                    <Input type="number" name="sup_parcela" value={formData.sup_parcela} onChange={handleInputChange} className="h-11 bg-slate-50 border-slate-200 text-lg font-medium" />
+                    <div className="flex gap-2">
+                        <Input type="number" name="sup_parcela" value={formData.sup_parcela} onChange={handleInputChange} className="h-11 bg-slate-50 border-slate-200 text-lg font-medium" />
+                        <div className="relative">
+                            <input
+                                type="file"
+                                accept=".kmz,.kml"
+                                onChange={handleKmzImport}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                disabled={kmzLoading}
+                            />
+                            <Button
+                                variant="outline"
+                                type="button"
+                                className="h-11 px-3 border-slate-200 bg-white hover:bg-slate-50"
+                                title="Importar superficie desde KMZ/KML"
+                            >
+                                {kmzLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Upload className="h-5 w-5 text-slate-400" />}
+                            </Button>
+                        </div>
+                    </div>
                 </div>
             </div>
 

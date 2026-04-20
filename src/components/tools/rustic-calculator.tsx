@@ -2,7 +2,9 @@
 
 import React, { useState, useMemo, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Calculator, Sprout, Home, Euro, Info, Plus, Trash2, Building2, Search, Loader2, Zap, Sparkles, ShieldCheck, AlertTriangle } from "lucide-react"
+import { Calculator, Sprout, Home, Euro, Info, Plus, Trash2, Building2, Search, Loader2, Zap, Sparkles, ShieldCheck, AlertTriangle, Upload } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import { analyzeWithBackend } from "@/lib/backend-api"
 
 import {
     dbMunicipiosRustica,
@@ -52,6 +54,46 @@ export function RusticCalculator() {
     const [buscando, setBuscando] = useState(false)
     const [msgBusqueda, setMsgBusqueda] = useState<string>("")
     const [esFueraDeJaen, setEsFueraDeJaen] = useState<boolean>(false)
+    const { toast } = useToast()
+    const [kmzBuscando, setKmzBuscando] = useState(false)
+
+    const handleKmzImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || e.target.files.length === 0) return
+        const file = e.target.files[0]
+        setKmzBuscando(true)
+
+        try {
+            const data = await analyzeWithBackend(file, "25830", "CP")
+            if (data.parcelas && data.parcelas.length > 0) {
+                const nuevasSubparcelas: SubparcelaCultivo[] = data.parcelas.map(p => ({
+                    id: subparcelaCounter++,
+                    cultivoClave: "O-", // Olivar por defecto si no se sabe
+                    intensidad: 5,     // Media por defecto
+                    superficieHa: Number((p.area / 10000).toFixed(4))
+                }))
+
+                setSubparcelas(nuevasSubparcelas)
+                
+                if (data.parcelas[0].referencia_catastral) {
+                    setRc(data.parcelas[0].referencia_catastral)
+                }
+
+                toast({
+                    title: "Importación KMZ correcta",
+                    description: `Se han cargado ${data.parcelas.length} parcelas (${(data.parcelas.reduce((acc, p) => acc + p.area, 0) / 10000).toFixed(2)} Ha totales).`
+                })
+            }
+        } catch (error) {
+            toast({
+                title: "Error al importar KMZ",
+                description: error instanceof Error ? error.message : "Error desconocido",
+                variant: "destructive"
+            })
+        } finally {
+            setKmzBuscando(false)
+            e.target.value = ""
+        }
+    }
 
     // Referencia catastral desde URL
     React.useEffect(() => {
@@ -411,6 +453,21 @@ export function RusticCalculator() {
                                             title="Consultar Catastro">
                                             {buscando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                                         </button>
+                                        <div className="relative">
+                                            <input
+                                                type="file"
+                                                accept=".kmz,.kml"
+                                                onChange={handleKmzImport}
+                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                                disabled={kmzBuscando}
+                                            />
+                                            <button
+                                                className="flex items-center justify-center h-10 w-10 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0"
+                                                title="Importar desde KMZ/KML"
+                                            >
+                                                {kmzBuscando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                                            </button>
+                                        </div>
                                     </div>
                                     {msgBusqueda && (
                                         <p className={`text-xs ${msgBusqueda.startsWith('✅') ? 'text-emerald-600' : 'text-red-500'}`}>

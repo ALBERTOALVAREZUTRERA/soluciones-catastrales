@@ -1,11 +1,15 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-    title: 'Visor Cartográfico Catastral Gratuito | Buscar Referencia en Mapa',
-    description: 'Navega por la cartografía oficial del Catastro Español. Haz clic en cualquier parcela para detectar automáticamente su Referencia Catastral y calcular su Valor, IBI o exportar a GML.',
+    title: 'Visor Catastral Interactivo | Mapa de Parcelas y Referencias Catastrales',
+    description: 'Consulta cualquier parcela catastral de España en el mapa oficial del Catastro. Introduce una referencia catastral o dirección y visualiza linderos, superficie e histórico de la parcela.',
+    alternates: {
+        canonical: 'https://www.solucionescatastrales.app/herramientas/visor-catastral',
+    },
     openGraph: {
-        title: 'Visor Catastral Interactivo',
-        description: 'Navega, haz clic y obtén Referencias Catastrales al instante.',
+        title: 'Visor Catastral Interactivo — Mapa de Parcelas España',
+        description: 'Consulta referencias catastrales, superficies y linderos en el mapa oficial. Herramienta gratuita.',
+        url: 'https://www.solucionescatastrales.app/herramientas/visor-catastral',
     }
 };
 

@@ -110,11 +110,15 @@ def generate_kml(
                 continue
         
         # Guardar archivo
-        output_path = Path(output_path)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        kml.save(str(output_path))
+        output_path_obj = Path(output_path)
+        output_path_obj.parent.mkdir(parents=True, exist_ok=True)
         
-        logger.info(f"KML generado exitosamente: {output_path}")
+        if str(output_path).lower().endswith('.kmz'):
+            kml.savekmz(str(output_path))
+        else:
+            kml.save(str(output_path))
+        
+        logger.info(f"Archivo KML/KMZ generado exitosamente: {output_path}")
         return str(output_path)
         
     except Exception as e:

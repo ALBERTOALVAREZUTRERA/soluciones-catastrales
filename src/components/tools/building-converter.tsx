@@ -39,7 +39,7 @@ export function BuildingConverter() {
 
     const handleProcess = async () => {
         if (!file) {
-            toast({ title: "Error", description: "Selecciona un archivo DXF o SHP (zip).", variant: "destructive" });
+            toast({ title: "Error", description: "Selecciona un archivo DXF, SHP (zip) o KMZ.", variant: "destructive" });
             return;
         }
 
@@ -152,7 +152,7 @@ export function BuildingConverter() {
                 <Loader2 className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
                 <div className="text-sm text-amber-900">
                     <p className="font-bold mb-1">Nota Técnica:</p>
-                    <p>Subir el archivo ZIP completo si usas Shapefiles terrestres o el archivo DXF directo si trabajas en AutoCAD.</p>
+                    <p>Subir el archivo ZIP completo si usas Shapefiles terrestres, el archivo DXF directo si trabajas en AutoCAD, o archivos .KMZ / .KML exportados de Google Earth.</p>
                 </div>
             </div>
 
@@ -161,7 +161,7 @@ export function BuildingConverter() {
                     <div className="flex flex-col items-center justify-center space-y-2">
                         <CardTitle className="text-2xl font-bold tracking-tight">Carga de Geometría de Edificio</CardTitle>
                         <CardDescription className="text-slate-400 font-medium">
-                            Sube el archivo DXF o ZIP (con SHP) que contiene la huella del edificio.
+                            Sube el archivo DXF, ZIP (con SHP) o KMZ que contiene la huella del edificio.
                         </CardDescription>
                     </div>
                 </CardHeader>
@@ -183,11 +183,11 @@ export function BuildingConverter() {
                         </div>
 
                         <div className="space-y-2">
-                            <Label>Archivo (DXF o ZIP)</Label>
+                            <Label>Archivo (DXF, ZIP, KMZ)</Label>
                             <div className="relative">
                                 <Input
                                     type="file"
-                                    accept=".dxf,.zip"
+                                    accept=".dxf,.zip,.kmz,.kml"
                                     onChange={handleFileChange}
                                     className="cursor-pointer"
                                 />
@@ -232,13 +232,41 @@ export function BuildingConverter() {
                             </div>
                         </CardContent>
                         <CardFooter className="p-6 bg-slate-50 flex justify-center">
-                            <Button
-                                size="lg"
-                                onClick={handleDownloadGML}
-                                className="gap-2 px-8 h-12 text-lg font-bold shadow-lg shadow-green-200"
-                            >
                                 <Download className="h-5 w-5" />
                                 Descargar GML
+                            </Button>
+                            <Button
+                                size="lg"
+                                variant="outline"
+                                className="border-2 border-emerald-600 text-emerald-600 hover:bg-emerald-600 hover:text-white gap-2 font-bold px-8 h-12 text-lg"
+                                onClick={async () => {
+                                    try {
+                                        const { generateKMZWithBackend } = await import('@/lib/backend-api');
+                                        const parcelasData = features.map(f => ({
+                                            id: f.id || 'Edificio',
+                                            referencia_catastral: f.cadastralReference || '',
+                                            area: f.area || 0,
+                                            coordenadas_utm: f.geometry[0],
+                                            interiores_utm: f.geometry.slice(1)
+                                        }));
+
+                                        const kmzBlob = await generateKMZWithBackend(parcelasData, crs);
+                                        const url = URL.createObjectURL(kmzBlob);
+                                        const a = document.createElement('a');
+                                        a.href = url;
+                                        a.download = `edificio_kmz_${new Date().getTime()}.kmz`;
+                                        document.body.appendChild(a);
+                                        a.click();
+                                        document.body.removeChild(a);
+                                        URL.revokeObjectURL(url);
+                                        toast({ title: "KMZ Generado", description: "Visto previa en Google Earth lista." });
+                                    } catch (error) {
+                                        toast({ title: "Error", description: "No se pudo generar el KMZ", variant: "destructive" });
+                                    }
+                                }}
+                            >
+                                <Download className="h-5 w-5" />
+                                Descargar KMZ
                             </Button>
                             <Button
                                 size="lg"

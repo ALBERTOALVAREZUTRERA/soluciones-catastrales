@@ -115,6 +115,7 @@ async def debug_cors():
     }
 
 from core.shp_reader import SHPReader
+from core.kml_reader import KMLReader
 
 @app.post("/analyze", response_model=AnalyzeResponse)
 async def analyze_file(
@@ -123,16 +124,22 @@ async def analyze_file(
     tipo_entidad: str = Query("CP", description="Tipo de entidad: CP (Parcela) o BU (Edificio)")
 ):
     """
-    Analiza un archivo DXF o ZIP (Shapefile) y devuelve parcelas/edificios.
+    Analiza un archivo DXF, ZIP (Shapefile) o KMZ y devuelve parcelas/edificios.
     """
     
     filename = file.filename.lower()
-    if not (filename.endswith('.dxf') or filename.endswith('.zip')):
-        raise HTTPException(status_code=400, detail="El archivo debe ser DXF o ZIP (Shapefile)")
+    if not (filename.endswith('.dxf') or filename.endswith('.zip') or filename.endswith('.kmz') or filename.endswith('.kml')):
+        raise HTTPException(status_code=400, detail="El archivo debe ser DXF, ZIP (Shapefile) o KMZ/KML")
     
     try:
         # Guardar archivo temporalmente
-        suffix = '.zip' if filename.endswith('.zip') else '.dxf'
+        if filename.endswith('.zip'):
+            suffix = '.zip'
+        elif filename.endswith('.kmz') or filename.endswith('.kml'):
+            suffix = '.kmz' if filename.endswith('.kmz') else '.kml'
+        else:
+            suffix = '.dxf'
+            
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
             content = await file.read()
             tmp_file.write(content)
@@ -145,6 +152,10 @@ async def analyze_file(
             # 1. Leer de Shapefile (ZIP)
             parcelas = SHPReader.leer_desde_zip(tmp_path)
             print(f"DEBUG: {len(parcelas)} geometrías extraídas de SHP")
+        elif filename.endswith('.kmz') or filename.endswith('.kml'):
+            # 1.5. Leer de KML/KMZ
+            parcelas = KMLReader.leer_desde_kmz(tmp_path, epsg)
+            print(f"DEBUG: {len(parcelas)} geometrías extraídas de KMZ/KML")
         else:
             # 2. Leer de DXF
             # Obtener capas del DXF
@@ -398,6 +409,45 @@ async def generate_kml(request: GenerateGMLRequest):
     except Exception as e:
         print(f"ERROR generando KML: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error generando KML: {str(e)}")
+
+
+@app.post("/generate-kmz")
+async def generate_kmz(request: GenerateGMLRequest):
+    """
+    Exporta las parcelas actuales a formato KMZ (KML Comprimido).
+    """
+    try:
+        temp_dir = tempfile.mkdtemp()
+        kmz_file = os.path.join(temp_dir, "parcelas_catastro.kmz")
+        
+        # Preparar features formato GmlFeature
+        features = []
+        for p_data in request.parcelas:
+            # Asegurar estructura correcta para KMLGenerator
+            features.append({
+                'id': p_data.get('id', 'S/N'),
+                'geometry': p_data.get('coordenadas_utm', []),
+                'area': p_data.get('area', 0.0),
+                'cadastralReference': p_data.get('referencia_catastral', ''),
+                'hasConflict': p_data.get('has_conflict', False),
+                'isHole': p_data.get('is_hole', False)
+            })
+            
+        KMLGenerator.generate_kml_from_gml_features(features, kmz_file, request.epsg)
+        
+        def file_iterator():
+            with open(kmz_file, 'rb') as f:
+                yield from f
+        
+        return StreamingResponse(
+            file_iterator(),
+            media_type='application/vnd.google-earth.kmz',
+            headers={'Content-Disposition': 'attachment; filename="parcelas_catastro.kmz"'}
+        )
+    
+    except Exception as e:
+        print(f"ERROR generando KMZ: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error generando KMZ: {str(e)}")
 
 
 @app.post("/generate-dxf")
