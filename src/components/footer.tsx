@@ -33,7 +33,7 @@ export function Footer() {
 
           {/* Links */}
           <div>
-            <h4 className="text-lg font-bold mb-6 font-headline">Servicios</h4>
+            <h2 className="text-lg font-bold mb-6 font-headline">Servicios</h2>
             <ul className="space-y-4 text-sm text-gray-300">
               <li><Link href="/servicios" className="hover:text-accent">Topografía y georreferenciación</Link></li>
               <li><Link href="/herramientas/conversor-gml" className="hover:text-accent">Archivos GML de parcela</Link></li>
@@ -45,7 +45,7 @@ export function Footer() {
 
           {/* Resources */}
           <div>
-            <h4 className="text-lg font-bold mb-6 font-headline">Recursos</h4>
+            <h2 className="text-lg font-bold mb-6 font-headline">Recursos</h2>
             <ul className="space-y-4 text-sm text-gray-300">
               <li><a href="https://www.sedecatastro.gob.es/" target="_blank" rel="noopener noreferrer" className="hover:text-accent">Sede Electrónica Catastro</a></li>
               <li><a href="https://www1.sedecatastro.gob.es/Cartografia/mapa.aspx?historica=SI" target="_blank" rel="noopener noreferrer" className="hover:text-accent underline decoration-accent/30 font-semibold text-accent/90">Visor Cartografía Histórica</a></li>
@@ -57,7 +57,7 @@ export function Footer() {
 
           {/* Contact */}
           <div>
-            <h4 className="text-lg font-bold mb-6 font-headline">Contacto</h4>
+            <h2 className="text-lg font-bold mb-6 font-headline">Contacto</h2>
             <ul className="space-y-4 text-sm text-gray-300">
               <li className="flex items-center gap-3">
                 <MapPin className="h-5 w-5 text-accent" />
