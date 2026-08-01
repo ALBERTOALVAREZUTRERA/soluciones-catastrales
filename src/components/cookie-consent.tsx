@@ -47,37 +47,32 @@ export function CookieConsentBanner() {
 
   return (
     <aside
-      className="fixed inset-x-3 bottom-3 z-[100] mx-auto max-w-4xl rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl md:p-6"
+      className="fixed inset-x-3 bottom-3 z-[100] mx-auto max-w-3xl rounded-xl border border-slate-200 bg-white p-3 shadow-xl md:p-4"
       aria-label="Configuración de cookies"
     >
-      <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-        <div className="max-w-2xl">
-          <h2 className="mb-2 text-lg font-bold text-primary">
-            Privacidad y cookies
-          </h2>
-          <p className="text-sm leading-relaxed text-slate-600">
-            Utilizamos cookies técnicas necesarias y, solo si lo autoriza,
-            cookies de medición de Google Analytics y Meta. Puede cambiar su
-            decisión en cualquier momento.{" "}
-            <Link
-              href="/legal/cookies"
-              className="font-semibold text-primary underline underline-offset-2"
-            >
-              Más información
-            </Link>
-            .
-          </p>
-        </div>
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <p className="max-w-xl text-xs leading-relaxed text-slate-700 md:text-sm">
+          Usamos cookies técnicas y, solo con su permiso, analítica de Google y Meta.{" "}
+          <Link
+            href="/legal/cookies"
+            className="font-semibold text-primary underline underline-offset-2"
+          >
+            Más información
+          </Link>
+          .
+        </p>
         <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
           <Button
             type="button"
             variant="outline"
+            size="sm"
             onClick={() => updateConsent("rejected")}
           >
             Rechazar opcionales
           </Button>
           <Button
             type="button"
+            size="sm"
             className="bg-accent text-white hover:bg-accent/90"
             onClick={() => updateConsent("accepted")}
           >
