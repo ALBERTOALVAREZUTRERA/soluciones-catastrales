@@ -73,4 +73,14 @@ describe("geometría y generación GML", () => {
             /hueco fuera/i,
         );
     });
+
+    test("rechaza declaraciones XML peligrosas antes de interpretar un GML", async () => {
+        Object.defineProperty(globalThis, "self", { value: globalThis, configurable: true });
+        const { parseGml } = await import("../../src/lib/gml-utils");
+
+        assert.throws(
+            () => parseGml('<!DOCTYPE gml [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><gml/>', "prueba"),
+            /declaraciones no permitidas/i,
+        );
+    });
 });
