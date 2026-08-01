@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { Menu, X, Landmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -45,13 +46,29 @@ const navigationGroups = {
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
+  const pathname = usePathname();
+
+  useEffect(() => {
+    setIsOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsOpen(false);
+    };
+
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [isOpen]);
 
   return (
-    <nav className="sticky top-0 z-50 w-full bg-primary text-primary-foreground shadow-md">
+    <nav aria-label="Navegación principal" className="sticky top-0 z-[60] w-full bg-primary text-primary-foreground shadow-md">
       <div className="container mx-auto px-4 md:px-8">
         <div className="flex h-20 items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 group">
-            <Landmark className="h-8 w-8 text-accent transition-transform group-hover:scale-110" />
+          <Link href="/" className="flex min-h-11 items-center gap-2 group" aria-label="Soluciones Catastrales y Registrales, inicio">
+            <Landmark aria-hidden="true" className="h-8 w-8 text-accent transition-transform group-hover:scale-110" />
             <span className="text-lg md:text-xl font-bold tracking-tight font-headline uppercase leading-none">
               SOLUCIONES <span className="text-green-300 block text-xs md:text-sm tracking-widest">CATASTRALES Y REGISTRALES</span>
             </span>
@@ -64,6 +81,7 @@ export function Navbar() {
                 key={link.name}
                 href={link.href}
                 className="text-sm font-medium transition-colors hover:text-accent"
+                aria-current={pathname === link.href ? "page" : undefined}
               >
                 {link.name}
               </Link>
@@ -114,18 +132,21 @@ export function Navbar() {
             >
               {navigationGroups.map.name}
             </Link>
-            <Link href="#tramites">
-              <Button variant="outline" className="border-accent text-accent hover:bg-accent hover:text-white">
-                Área Cliente
-              </Button>
-            </Link>
+            <Button variant="outline" className="border-accent text-accent hover:bg-accent hover:text-white" asChild>
+              <Link href="/#tramites">
+                Consultar caso
+              </Link>
+            </Button>
           </div>
 
           {/* Mobile Menu Button */}
           <button
-            className="md:hidden p-2 rounded-md hover:bg-white/10"
+            type="button"
+            className="md:hidden min-h-11 min-w-11 p-2 rounded-md hover:bg-white/10"
             onClick={() => setIsOpen(!isOpen)}
-            aria-label="Menu de navegación"
+            aria-label={isOpen ? "Cerrar menú de navegación" : "Abrir menú de navegación"}
+            aria-expanded={isOpen}
+            aria-controls="menu-movil"
           >
             {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
@@ -134,10 +155,10 @@ export function Navbar() {
 
       {/* Mobile Nav */}
       {isOpen && (
-        <div className="md:hidden bg-primary-foreground text-primary border-b animate-in slide-in-from-top duration-300">
+        <div id="menu-movil" className="md:hidden bg-primary-foreground text-primary border-b animate-in slide-in-from-top duration-300">
           <div className="flex flex-col space-y-4 p-6">
             {navigationGroups.main.map((link) => (
-              <Link key={link.name} href={link.href} className="text-lg font-semibold" onClick={() => setIsOpen(false)}>
+              <Link key={link.name} href={link.href} className="flex min-h-11 items-center text-lg font-semibold" aria-current={pathname === link.href ? "page" : undefined} onClick={() => setIsOpen(false)}>
                 {link.name}
               </Link>
             ))}
@@ -146,7 +167,7 @@ export function Navbar() {
               <p className="text-xs font-bold text-primary/70 uppercase tracking-wider mb-2">{navigationGroups.tools.label}</p>
               <div className="flex flex-col space-y-3 pl-2">
                 {navigationGroups.tools.items.map((link) => (
-                  <Link key={link.name} href={link.href} className="text-md font-medium" onClick={() => setIsOpen(false)}>
+                  <Link key={link.name} href={link.href} className="flex min-h-11 items-center text-md font-medium" onClick={() => setIsOpen(false)}>
                     {link.name}
                   </Link>
                 ))}
@@ -157,7 +178,7 @@ export function Navbar() {
               <p className="text-xs font-bold text-primary/70 uppercase tracking-wider mb-2">{navigationGroups.calculators.label}</p>
               <div className="flex flex-col space-y-3 pl-2">
                 {navigationGroups.calculators.items.map((link) => (
-                  <Link key={link.name} href={link.href} className="text-md font-medium" onClick={() => setIsOpen(false)}>
+                  <Link key={link.name} href={link.href} className="flex min-h-11 items-center text-md font-medium" onClick={() => setIsOpen(false)}>
                     {link.name}
                   </Link>
                 ))}
@@ -168,7 +189,7 @@ export function Navbar() {
               <p className="text-xs font-bold text-primary/70 uppercase tracking-wider mb-2">{navigationGroups.procedures.label}</p>
               <div className="flex flex-col space-y-3 pl-2">
                 {navigationGroups.procedures.items.map((link) => (
-                  <Link key={link.name} href={link.href} className="text-md font-medium" onClick={() => setIsOpen(false)}>
+                  <Link key={link.name} href={link.href} className="flex min-h-11 items-center text-md font-medium" onClick={() => setIsOpen(false)}>
                     {link.name}
                   </Link>
                 ))}
@@ -176,15 +197,15 @@ export function Navbar() {
             </div>
 
             <div className="pt-2">
-              <Link href={navigationGroups.map.href} className="text-lg font-semibold" onClick={() => setIsOpen(false)}>
+              <Link href={navigationGroups.map.href} className="flex min-h-11 items-center text-lg font-semibold" onClick={() => setIsOpen(false)}>
                 {navigationGroups.map.name}
               </Link>
             </div>
-            <Link href="#tramites" onClick={() => setIsOpen(false)}>
-              <Button className="w-full bg-accent hover:bg-accent/90">
-                Área Cliente
-              </Button>
-            </Link>
+            <Button className="w-full bg-accent hover:bg-accent/90" asChild>
+              <Link href="/#tramites" onClick={() => setIsOpen(false)}>
+                Consultar caso
+              </Link>
+            </Button>
           </div>
         </div>
       )}

@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Upload, Home, Download, Loader2, FileCode, CheckCircle2, Map as MapIcon, Zap, Sparkles, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { analyzeWithBackend, generateBuildingGMLWithBackend } from "@/lib/backend-api";
-import { GmlFeature } from "@/lib/gml-utils";
+import type { GmlFeature } from "@/lib/gml-utils";
 
 const GmlViewer = dynamic(() => import("./gml-viewer"), {
     ssr: false,
@@ -25,6 +25,7 @@ export function BuildingConverter() {
     const { toast } = useToast();
     const [file, setFile] = useState<File | null>(null);
     const [crs, setCrs] = useState("EPSG:25830");
+    const [floors, setFloors] = useState(1);
     const [processing, setProcessing] = useState(false);
     const [features, setFeatures] = useState<GmlFeature[]>([]);
     const [gmlResult, setGmlResult] = useState<Blob | null>(null);
@@ -81,8 +82,11 @@ export function BuildingConverter() {
         if (features.length === 0) return;
 
         try {
-            // Para edificios solemos generar uno por uno o el primero
-            const blob = await generateBuildingGMLWithBackend(features, crs);
+            const buildingFeatures = features.map(feature => ({
+                ...feature,
+                numero_plantas: floors,
+            }));
+            const blob = await generateBuildingGMLWithBackend(buildingFeatures, crs);
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
@@ -140,10 +144,10 @@ export function BuildingConverter() {
                     </div>
                     <div className="flex items-center gap-3 mb-3 relative z-10">
                         <div className="bg-purple-100 text-purple-700 w-8 h-8 rounded-full flex items-center justify-center font-bold">3</div>
-                        <h3 className="font-bold text-purple-900">Validado SEC</h3>
+                        <h3 className="font-bold text-purple-900">Preparado para validar</h3>
                     </div>
                     <p className="text-sm text-purple-800/80 relative z-10">
-                        Descarga el archivo estructurado bajo la normativa INSPIRE, listo para aportarse a Obra Nueva en Notaría.
+                        Descarga el archivo estructurado según INSPIRE y compruébalo en el servicio de validación de Catastro antes de aportarlo.
                     </p>
                 </div>
             </div>
@@ -166,11 +170,11 @@ export function BuildingConverter() {
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                    <div className="grid gap-4 md:grid-cols-2">
+                    <div className="grid gap-4 md:grid-cols-3">
                         <div className="space-y-2">
-                            <Label>Sistema de Coordenadas (EPSG)</Label>
+                            <Label htmlFor="building-crs">Sistema de Coordenadas (EPSG)</Label>
                             <Select value={crs} onValueChange={setCrs}>
-                                <SelectTrigger>
+                                <SelectTrigger id="building-crs">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -183,9 +187,26 @@ export function BuildingConverter() {
                         </div>
 
                         <div className="space-y-2">
-                            <Label>Archivo (DXF, ZIP, KMZ)</Label>
+                            <Label htmlFor="building-floors">Máximo de plantas sobre rasante</Label>
+                            <Input
+                                id="building-floors"
+                                type="number"
+                                min={1}
+                                max={200}
+                                step={1}
+                                value={floors}
+                                onChange={(event) => {
+                                    const value = Number.parseInt(event.target.value, 10);
+                                    setFloors(Number.isInteger(value) ? Math.min(200, Math.max(1, value)) : 1);
+                                }}
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="building-file">Archivo (DXF, ZIP, KMZ)</Label>
                             <div className="relative">
                                 <Input
+                                    id="building-file"
                                     type="file"
                                     accept=".dxf,.zip,.kmz,.kml"
                                     onChange={handleFileChange}
@@ -223,15 +244,21 @@ export function BuildingConverter() {
                                 {/* Soporte Técnico Persistente */}
                                 <div className="mt-4 bg-blue-50/50 border border-blue-100 rounded-lg p-4 text-center">
                                     <p className="text-sm font-medium text-slate-700 mb-3">¿Necesitas un informe pericial o ayuda con la validación?</p>
-                                    <Link href="#tramites">
-                                        <Button size="sm" variant="outline" className="border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white font-bold uppercase text-[10px]">
+                                    <Button size="sm" variant="outline" className="border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white font-bold uppercase text-[10px]" asChild>
+                                        <Link href="/#tramites">
                                             Consultar con Alberto Álvarez
-                                        </Button>
-                                    </Link>
+                                        </Link>
+                                    </Button>
                                 </div>
                             </div>
                         </CardContent>
-                        <CardFooter className="p-6 bg-slate-50 flex justify-center">
+                        <CardFooter className="p-6 bg-slate-50 flex justify-center gap-4">
+                            <Button
+                                size="lg"
+                                variant="outline"
+                                className="border-2 border-primary text-primary hover:bg-primary hover:text-white gap-2 font-bold px-8 h-12 text-lg"
+                                onClick={handleDownloadGML}
+                            >
                                 <Download className="h-5 w-5" />
                                 Descargar GML
                             </Button>

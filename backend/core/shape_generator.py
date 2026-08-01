@@ -1,6 +1,5 @@
 
 import shapefile
-import os
 
 # WKT de proyección por EPSG para los más usados en España
 PRJ_DEFINITIONS = {
@@ -19,11 +18,14 @@ class ShapeGenerator:
 
         # Normalizar EPSG: aceptar "EPSG:25830", "25830", etc.
         epsg_code = str(epsg).upper().replace("EPSG:", "").strip()
-        # Por defecto ETRS89 UTM 30N si no se reconoce
         if epsg_code not in PRJ_DEFINITIONS:
-            epsg_code = "25830"
+            raise ValueError("Sistema de coordenadas no soportado para Shapefile")
 
-        w = shapefile.Writer(output_base_path, shapeType=shapefile.POLYGON)
+        w = shapefile.Writer(
+            output_base_path,
+            shapeType=shapefile.POLYGON,
+            encoding="utf-8",
+        )
 
         # Definir campos DBF
         w.field('ID', 'C', 50)
@@ -42,32 +44,29 @@ class ShapeGenerator:
 
             # Convertir a formato pyshp y cerrar cada anillo si hace falta
             processed_geometry = []
-            valid = True
             for ring in geometry:
                 if not ring or len(ring) < 3:
-                    continue  # anillo inválido, ignorar
+                    raise ValueError(f"La geometría de {identificador} contiene un anillo incompleto")
                 # Asegurar que los puntos son listas/tuplas de 2 números
                 try:
                     ring_pts = [[float(p[0]), float(p[1])] for p in ring]
-                except (TypeError, IndexError, ValueError):
-                    valid = False
-                    break
+                except (TypeError, IndexError, ValueError) as exc:
+                    raise ValueError(f"La geometría de {identificador} contiene coordenadas no válidas") from exc
                 # Cerrar el anillo si no lo está
                 if ring_pts[0] != ring_pts[-1]:
                     ring_pts.append(ring_pts[0])
                 if len(ring_pts) >= 4:  # Al menos 3 vértices + cierre
                     processed_geometry.append(ring_pts)
 
-            if not valid or not processed_geometry:
-                continue
+            if not processed_geometry:
+                raise ValueError(f"La parcela {identificador} no contiene geometría")
 
             try:
                 w.poly(processed_geometry)
                 w.record(identificador, ref_cat, area)
                 written += 1
-            except Exception as e:
-                print(f"[ShapeGenerator] Geometría ignorada para '{identificador}': {e}")
-                continue
+            except Exception as exc:
+                raise ValueError(f"No se pudo escribir la parcela {identificador}") from exc
 
         w.close()
 
@@ -77,8 +76,10 @@ class ShapeGenerator:
         # Crear archivo .prj (proyección)
         prj_path = output_base_path + ".prj"
         prj_content = PRJ_DEFINITIONS.get(epsg_code, PRJ_DEFINITIONS["25830"])
-        with open(prj_path, "w") as f:
+        with open(prj_path, "w", encoding="ascii") as f:
             f.write(prj_content)
 
-        print(f"[ShapeGenerator] {written} parcelas exportadas a {output_base_path}.shp (EPSG:{epsg_code})")
+        with open(output_base_path + ".cpg", "w", encoding="ascii") as f:
+            f.write("UTF-8")
+
         return output_base_path + ".shp"

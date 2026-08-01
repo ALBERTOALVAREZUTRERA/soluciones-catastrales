@@ -3,7 +3,19 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { API_BASE_URL } from '@/lib/backend-api';
+import { queryCatastro } from '@/lib/backend-api';
+import {
+    isValidCadastralReference,
+    normalizeCadastralReference,
+} from '@/lib/catastro-reference';
+import {
+    CATASTRO_WMS_LAYER,
+    CATASTRO_WMS_URL,
+    HISTORIC_CADASTRE_START_YEAR,
+    PONENCIAS_WMS_LAYERS,
+    PONENCIAS_WMS_URL,
+    historicCadastreDate,
+} from '@/lib/map-services';
 
 /**
  * Visor de Localización Técnica con búsqueda de parcelas y Máquina del Tiempo
@@ -14,10 +26,8 @@ import { API_BASE_URL } from '@/lib/backend-api';
  * Fechas anteriores a 2004 pueden devolver vacíos en municipios no digitalizados.
  */
 
-const WMS_URL = 'https://ovc.catastro.meh.es/Cartografia/WMS/ServidorWMS.aspx';
-const WMS_VALORES_URL = 'https://ovc.catastro.meh.es/cartografia/INSPIRE/spadgcwms.aspx';
 const CURRENT_YEAR = new Date().getFullYear();
-const MIN_YEAR = 2002;
+const MIN_YEAR = HISTORIC_CADASTRE_START_YEAR;
 
 export default function CatastroTimeViewer() {
     const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -32,8 +42,10 @@ export default function CatastroTimeViewer() {
     const [refCatastral, setRefCatastral] = useState('');
     const [rusticData, setRusticData] = useState({ provincia: '', municipio: '', poligono: '', parcela: '' });
     const [isSearching, setIsSearching] = useState(false);
-    const [parcelInfo, setParcelInfo] = useState<string | null>(null);
+    const [parcelInfo, setParcelInfo] = useState<string[] | null>(null);
+    const [locatedReference, setLocatedReference] = useState('');
     const [searchError, setSearchError] = useState<string | null>(null);
+    const [layerError, setLayerError] = useState<string | null>(null);
 
     // Capas
     const [showCatastro, setShowCatastro] = useState(true);
@@ -69,8 +81,8 @@ export default function CatastroTimeViewer() {
         }).addTo(map);
 
         // Capa Catastro actual
-        const catastro = L.tileLayer.wms(WMS_URL, {
-            layers: 'Catastro',
+        const catastro = L.tileLayer.wms(CATASTRO_WMS_URL, {
+            layers: CATASTRO_WMS_LAYER,
             format: 'image/png',
             transparent: true,
             version: '1.1.1',
@@ -78,7 +90,14 @@ export default function CatastroTimeViewer() {
             attribution: '© DG Catastro',
             maxZoom: 22,
             opacity: 0.7,
+            tileSize: 512,
+            updateWhenIdle: true,
+            keepBuffer: 1,
         } as any);
+        catastro.on('tileerror', () => {
+            setLayerError('La cartografía catastral no está disponible temporalmente.');
+        });
+        catastro.on('load', () => setLayerError(null));
         catastro.addTo(map);
         catastroLayerRef.current = catastro;
 
@@ -106,16 +125,22 @@ export default function CatastroTimeViewer() {
         if (!mapRef.current) return;
         if (showValores) {
             if (!valoresLayerRef.current) {
-                valoresLayerRef.current = L.tileLayer.wms(WMS_VALORES_URL, {
-                    layers: 'MV',
+                valoresLayerRef.current = L.tileLayer.wms(PONENCIAS_WMS_URL, {
+                    layers: PONENCIAS_WMS_LAYERS,
                     format: 'image/png',
                     transparent: true,
-                    version: '1.3.0',
+                    version: '1.1.1',
                     crs: L.CRS.EPSG3857,
-                    attribution: '© DG Catastro - Mapa de Valores',
+                    attribution: '© DG Catastro - Ponencias de valores',
                     maxZoom: 22,
                     opacity: valoresOpacity,
+                    tileSize: 512,
+                    updateWhenIdle: true,
+                    keepBuffer: 1,
                 } as any);
+                valoresLayerRef.current.on('tileerror', () => {
+                    setLayerError('La capa de ponencias de valores no está disponible temporalmente.');
+                });
             }
             valoresLayerRef.current.addTo(mapRef.current);
         } else {
@@ -141,19 +166,22 @@ export default function CatastroTimeViewer() {
                 catastroLayerRef.current.setOpacity(0.1); // Solo un rastro muy tenue
             }
 
-            const historic = L.tileLayer.wms(WMS_URL, {
-                layers: 'CATASTRO', // Usando la capa general en lugar de PARCELA
+            const historic = L.tileLayer.wms(CATASTRO_WMS_URL, {
+                layers: CATASTRO_WMS_LAYER,
                 format: 'image/png',
                 transparent: true,
                 version: '1.1.1',
                 crs: L.CRS.EPSG3857,
                 maxZoom: 22,
                 opacity: historicOpacity,
-                TIME: `${selectedYear}-01-01`,
-                styles: 'default',
-                // Este parámetro extra fuerza al WMS a omitir las marcas de agua de fecha si el servidor lo soporta
-                env: 'texto:oculto',
+                TIME: historicCadastreDate(selectedYear),
+                tileSize: 512,
+                updateWhenIdle: true,
+                keepBuffer: 1,
             } as any);
+            historic.on('tileerror', () => {
+                setLayerError('La cartografía histórica no está disponible para esta fecha o zona.');
+            });
             historic.addTo(mapRef.current);
             historicLayerRef.current = historic;
         } else {
@@ -182,7 +210,7 @@ export default function CatastroTimeViewer() {
     // ─── Actualizar año ───
     useEffect(() => {
         if (historicLayerRef.current && timeEnabled) {
-            (historicLayerRef.current as any).setParams({ TIME: `${selectedYear}-01-01` });
+            (historicLayerRef.current as any).setParams({ TIME: historicCadastreDate(selectedYear) });
         }
     }, [selectedYear, timeEnabled]);
 
@@ -207,7 +235,7 @@ export default function CatastroTimeViewer() {
     }, [isPlaying, timeEnabled]);
 
     // ─── Navegar a parcela ───
-    const flyToAndHighlight = useCallback((lat: number, lon: number, label: string) => {
+    const flyToAndHighlight = useCallback((lat: number, lon: number, lines: string[]) => {
         if (!mapRef.current) return;
         if (markerRef.current) mapRef.current.removeLayer(markerRef.current);
 
@@ -220,43 +248,49 @@ export default function CatastroTimeViewer() {
             iconAnchor: [7, 7],
         });
 
+        const popup = document.createElement('div');
+        popup.style.cssText = 'font-size:12px;font-weight:600;text-align:center;';
+        for (const line of lines) {
+            const row = document.createElement('div');
+            row.textContent = line;
+            popup.appendChild(row);
+        }
         markerRef.current = L.marker([lat, lon], { icon })
             .addTo(mapRef.current)
-            .bindPopup(`<div style="font-size:12px;font-weight:600;text-align:center;">${label}</div>`)
+            .bindPopup(popup)
             .openPopup();
-        setParcelInfo(label);
+        setParcelInfo(lines);
     }, []);
 
     // ─── Buscar por referencia catastral (via proxy backend) ───
     const searchByRef = useCallback(async () => {
-        if (!refCatastral.trim() || refCatastral.trim().length < 14) {
-            setSearchError('Introduzca una referencia catastral válida (mínimo 14 caracteres)');
+        const reference = normalizeCadastralReference(refCatastral);
+        if (!isValidCadastralReference(reference)) {
+            setSearchError('Introduzca una referencia catastral de 14, 18 o 20 caracteres');
             return;
         }
         setIsSearching(true);
         setParcelInfo(null);
+        setLocatedReference('');
         setSearchError(null);
         try {
-            const resp = await fetch(`${API_BASE_URL}/catastro/buscar-rc`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ referencia_catastral: refCatastral.trim() }),
+            const data = await queryCatastro<any>('/catastro/buscar-rc', {
+                referencia_catastral: reference,
             });
-            const data = await resp.json();
             if (data.encontrado) {
                 setSearchError(null);
                 const parts = [`📍 RC: ${data.rc}`];
                 if (data.direccion) parts.push(`🏠 ${data.direccion}`);
                 if (data.municipio) parts.push(`📍 ${data.municipio} (${data.provincia})`);
                 parts.push(`📐 Lat: ${data.lat.toFixed(6)}, Lon: ${data.lon.toFixed(6)}`);
-                flyToAndHighlight(data.lat, data.lon, parts.join('<br/>'));
-                // Auto-activar Mapa de Valores al localizar una parcela
+                flyToAndHighlight(data.lat, data.lon, parts);
+                setLocatedReference(data.rc);
+                // Mostrar la ponencia de valores al localizar una parcela.
                 setShowValores(true);
             } else {
                 setSearchError(data.error || 'Referencia catastral no encontrada.');
             }
-        } catch (err) {
-            console.error(err);
+        } catch {
             setSearchError('Error de conexión con el servicio catastral.');
         }
         finally { setIsSearching(false); }
@@ -270,22 +304,27 @@ export default function CatastroTimeViewer() {
         }
         setIsSearching(true);
         setParcelInfo(null);
+        setLocatedReference('');
         setSearchError(null);
         try {
-            const resp = await fetch(`${API_BASE_URL}/catastro/buscar-rustica`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ provincia, municipio, poligono, parcela }),
+            const data = await queryCatastro<any>('/catastro/buscar-rustica', {
+                provincia,
+                municipio,
+                poligono,
+                parcela,
             });
-            const data = await resp.json();
             if (data.encontrado) {
                 setSearchError(null);
-                flyToAndHighlight(data.lat, data.lon, `📍 Pol. ${poligono}, Par. ${parcela}<br/>🏷️ RC: ${data.rc}<br/>📐 ${municipio} (${provincia})`);
+                flyToAndHighlight(data.lat, data.lon, [
+                    `📍 Pol. ${poligono}, Par. ${parcela}`,
+                    `🏷️ RC: ${data.rc}`,
+                    `📐 ${municipio} (${provincia})`,
+                ]);
+                setLocatedReference(data.rc);
             } else {
                 setSearchError(data.error || 'Parcela rústica no encontrada.');
             }
-        } catch (err) {
-            console.error(err);
+        } catch {
             setSearchError('Error de conexión con el servicio catastral.');
         }
         finally { setIsSearching(false); }
@@ -316,10 +355,12 @@ export default function CatastroTimeViewer() {
                             {/* Toggle ref/rústica */}
                             <div className="flex bg-slate-700 rounded-lg p-0.5 shrink-0">
                                 <button type="button" onClick={() => setSearchMode('ref')}
+                                    aria-pressed={searchMode === 'ref'}
                                     className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${searchMode === 'ref' ? 'bg-amber-500 text-black' : 'text-slate-300 hover:text-white'}`}>
                                     Ref. Catastral
                                 </button>
                                 <button type="button" onClick={() => setSearchMode('rustica')}
+                                    aria-pressed={searchMode === 'rustica'}
                                     className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${searchMode === 'rustica' ? 'bg-amber-500 text-black' : 'text-slate-300 hover:text-white'}`}>
                                     Rústica
                                 </button>
@@ -368,10 +409,10 @@ export default function CatastroTimeViewer() {
 
                                 <div className="w-px h-5 bg-slate-600" />
 
-                                {/* Mapa de Valores */}
+                                {/* Ponencia de valores */}
                                 <label className="flex items-center gap-1.5 cursor-pointer">
                                     <input type="checkbox" checked={showValores} onChange={(e) => setShowValores(e.target.checked)} className="w-3.5 h-3.5 accent-emerald-400" />
-                                    <span className="text-xs text-slate-300">💰 Valores</span>
+                                    <span className="text-xs text-slate-300">Ponencia</span>
                                 </label>
                                 {showValores && (
                                     <input type="range" min={0} max={100} value={valoresOpacity * 100}
@@ -410,7 +451,8 @@ export default function CatastroTimeViewer() {
                                 {/* Play/Pause */}
                                 <button type="button" onClick={() => setIsPlaying(p => !p)}
                                     className="bg-slate-600 hover:bg-slate-500 rounded-full w-7 h-7 flex items-center justify-center text-xs transition-colors"
-                                    title={isPlaying ? 'Pausar' : 'Reproducir'}>
+                                    title={isPlaying ? 'Pausar' : 'Reproducir'}
+                                    aria-label={isPlaying ? 'Pausar animación temporal' : 'Reproducir animación temporal'}>
                                     {isPlaying ? '⏸' : '▶'}
                                 </button>
 
@@ -449,7 +491,14 @@ export default function CatastroTimeViewer() {
                                 <div className="w-2.5 h-2.5 bg-red-500 rounded-full"></div>
                                 <span className="text-xs font-medium text-red-800">⚠️ {searchError}</span>
                             </div>
-                            <button onClick={() => setSearchError(null)} className="text-xs text-red-500 hover:text-red-700 font-bold">✕</button>
+                            <button type="button" onClick={() => setSearchError(null)} aria-label="Cerrar mensaje de error" className="min-h-10 min-w-10 text-xs text-red-600 hover:text-red-800 font-bold">✕</button>
+                        </div>
+                    )}
+
+                    {layerError && (
+                        <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center justify-between">
+                            <span className="text-xs font-medium text-amber-900">{layerError}</span>
+                            <button type="button" onClick={() => setLayerError(null)} aria-label="Cerrar aviso de capa" className="min-h-10 min-w-10 text-amber-700 font-bold">✕</button>
                         </div>
                     )}
 
@@ -458,9 +507,9 @@ export default function CatastroTimeViewer() {
                         <div className="bg-emerald-50 border-b border-emerald-200 px-4 py-2 flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse"></div>
-                                <span className="text-xs font-medium text-emerald-800" dangerouslySetInnerHTML={{ __html: parcelInfo.replace(/<br\/>/g, ' · ') }} />
+                                <span className="text-xs font-medium text-emerald-800">{parcelInfo.join(' · ')}</span>
                             </div>
-                            <a href={`https://www1.sedecatastro.gob.es/CYCBienInmueble/OVCConCiwordsue.aspx?RefC=${refCatastral.trim().substring(0, 14)}`}
+                            <a href={`https://www1.sedecatastro.gob.es/CYCBienInmueble/OVCConCiwordsue.aspx?RefC=${encodeURIComponent(locatedReference.substring(0, 14))}`}
                                 target="_blank" rel="noopener noreferrer"
                                 className="text-xs text-emerald-700 hover:text-emerald-900 underline">
                                 Sede Catastro →
@@ -487,7 +536,7 @@ export default function CatastroTimeViewer() {
                             {showValores && (
                                 <div className="flex items-center gap-1.5">
                                     <div className="w-3 h-2 border border-emerald-400 bg-emerald-100 rounded-sm"></div>
-                                    <span>Mapa de Valores (DG Catastro)</span>
+                                    <span>Ponencia de valores (DG Catastro)</span>
                                 </div>
                             )}
                         </div>

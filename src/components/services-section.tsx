@@ -7,17 +7,17 @@ import { PlaceHolderImages } from "@/app/lib/placeholder-images";
 const services = [
   {
     title: "Reclamación de Ingresos Indebidos (IBI)",
-    description: "Analizamos si tu Ayuntamiento te ha cobrado de más por un Valor Catastral mal calculado. Tramitamos la devolución de tus impuestos con carácter retroactivo (hasta 4 años).",
+    description: "Revisamos la descripción y valoración catastral para detectar posibles errores. Si existen, preparamos la documentación técnica para solicitar su corrección y estudiar ingresos indebidos.",
     imgId: "revision-ibi", // Reusing the IBI image
     detailedContent: {
-      subtitle: "Recupera tu dinero si el Catastro tasó tu inmueble por encima de su valor real.",
+      subtitle: "Comprueba si la descripción y los parámetros de valoración de tu inmueble son correctos.",
       points: [
         "Estudio técnico completo de la ponencia de valores.",
         "Diferenciación precisa entre superficie útil y construida.",
         "Análisis de coeficientes de depreciación (Antigüedad y Estado).",
-        "Redacción y presentación jurídica del recurso de reposición."
+        "Preparación de la documentación técnica para fundamentar la solicitud."
       ],
-      technicalNote: "Un error catastral no detectado te hace perder dinero cada año. Revisamos tu recibo y exigimos la devolución retroactiva del exceso cobrado."
+      technicalNote: "La procedencia y el alcance de cualquier devolución dependen del error detectado, las liquidaciones afectadas y los plazos aplicables."
     }
   },
   {
@@ -40,14 +40,14 @@ const services = [
     description: "Certificación técnica de la huella georreferenciada de las construcciones sobre la parcela. Indispensable para inscripciones de Obra Nueva y cumplimiento legal.",
     imgId: "gml-edificio",
     detailedContent: {
-      subtitle: "Documento oficial necesario para la declaración de Obra Nueva y División Horizontal.",
+      subtitle: "Documentación técnica de ubicación para determinados expedientes de obra nueva.",
       points: [
         "Georreferenciación de la huella de todos los edificios.",
         "Verificación de no invasión de linderos colindantes.",
         "Fichero GML de edificio integrado en el sistema del Catastro.",
         "Cumplimiento estricto de la Ley 13/2015 y RD 1/2004."
       ],
-      technicalNote: "Este informe garantiza que su construcción está correctamente ubicada y no presenta problemas legales de invasión de fincas vecinas o suelo público."
+      technicalNote: "La medición permite comprobar la posición de la construcción; la aceptación final corresponde al organismo que tramita el expediente."
     }
   },
   {
@@ -62,7 +62,7 @@ const services = [
         "Impugnación de valores catastrales excesivos.",
         "Recuperación de ingresos indebidos por errores de la administración."
       ],
-      technicalNote: "Una correcta descripción técnica de su inmueble puede suponer un ahorro de hasta el 40% en su recibo anual de IBI."
+      technicalNote: "Si se confirma un error con incidencia económica, la corrección puede modificar recibos futuros y permitir estudiar liquidaciones anteriores."
     }
   },
   {
@@ -87,7 +87,7 @@ const services = [
   },
   {
     title: "Informe de Validación (IVGA)",
-    description: "Obtención del Informe de Validación Gráfica Alternativa 'Positivo'. Garantía técnica para que Notarios y Registradores autoricen su escritura.",
+    description: "Preparación del GML y comprobación previa para solicitar el Informe de Validación Gráfica Alternativa. El resultado lo emite la Sede Electrónica del Catastro.",
     imgId: "ivga",
   },
   {

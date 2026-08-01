@@ -1,9 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import * as turf from '@turf/turf';
 import proj4 from 'proj4';
-import { GmlFeature } from '@/lib/gml-utils';
+import type { GmlFeature } from '@/lib/gml-utils';
+import {
+    CATASTRO_WMS_LAYER,
+    CATASTRO_WMS_URL,
+    PNOA_WMS_LAYER,
+    PNOA_WMS_URL,
+} from '@/lib/map-services';
 
 // Fix Leaflet icons
 // @ts-ignore
@@ -65,6 +70,7 @@ export default function GmlViewer({ features, crs }: GmlViewerProps) {
     const verticesLayerRef = useRef<L.LayerGroup | null>(null); // NUEVA CAPA PARA VÉRTICES
     const legendRef = useRef<L.Control | null>(null);
     const [showVertices, setShowVertices] = useState(false); // ESTADO PARA MOSTRAR/OCULTAR
+    const [renderError, setRenderError] = useState<string | null>(null);
 
     useEffect(() => {
         if (!mapContainerRef.current) return;
@@ -76,13 +82,16 @@ export default function GmlViewer({ features, crs }: GmlViewerProps) {
             }).setView([40.4168, -3.7038], 6);
 
             // Base Layers
-            const pnoa = L.tileLayer.wms("https://www.ign.es/wms-inspire/pnoa-ma", {
-                layers: 'OI.OrthoimageCoverage',
+            const pnoa = L.tileLayer.wms(PNOA_WMS_URL, {
+                layers: PNOA_WMS_LAYER,
                 format: 'image/png',
                 transparent: false,
                 attribution: 'PNOA © IGN',
                 maxZoom: 22,
-                maxNativeZoom: 20  // Zoom nativo del servicio
+                maxNativeZoom: 20,
+                tileSize: 512,
+                updateWhenIdle: true,
+                keepBuffer: 1,
             }).addTo(map);
 
             const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -92,13 +101,16 @@ export default function GmlViewer({ features, crs }: GmlViewerProps) {
             });
 
             // Overlay
-            const catastro = L.tileLayer.wms("http://ovc.catastro.meh.es/Cartografia/WMS/ServidorWMS.aspx", {
-                layers: 'Catastro',
+            const catastro = L.tileLayer.wms(CATASTRO_WMS_URL, {
+                layers: CATASTRO_WMS_LAYER,
                 format: 'image/png',
                 transparent: true,
                 attribution: 'DG Catastro',
                 maxZoom: 22,
-                maxNativeZoom: 20  // Zoom nativo del WMS Catastro
+                maxNativeZoom: 20,
+                tileSize: 512,
+                updateWhenIdle: true,
+                keepBuffer: 1,
             }).addTo(map);
 
             // Layers Control
@@ -169,10 +181,10 @@ export default function GmlViewer({ features, crs }: GmlViewerProps) {
         }
 
         try {
+            setRenderError(null);
             // Reproject coordinates from CRS (UTM) to WGS84 (Lat/Lng)
             const reprojectFeatures = features.map(f => {
                 if (!f.geometry || !Array.isArray(f.geometry)) {
-                    console.warn(`Feature ${f.id} has no valid geometry:`, f);
                     return null;
                 }
 
@@ -201,7 +213,12 @@ export default function GmlViewer({ features, crs }: GmlViewerProps) {
                         coordinates: reprojectedGeometry
                     }
                 };
-            });
+            }).filter((feature): feature is NonNullable<typeof feature> => feature !== null);
+
+            if (reprojectFeatures.length === 0) {
+                setRenderError("No hay geometrías válidas para representar en el mapa.");
+                return;
+            }
 
             const geoJsonData = {
                 type: "FeatureCollection",
@@ -248,8 +265,8 @@ export default function GmlViewer({ features, crs }: GmlViewerProps) {
             // RENDERIZAR VÉRTICES NUMERADOS
             renderVertices(map, reprojectFeatures, showVertices);
 
-        } catch (error) {
-            console.error("Error updating map features:", error);
+        } catch {
+            setRenderError("No se pudo representar la geometría con el sistema de coordenadas seleccionado.");
         }
     }, [features, crs, showVertices]); // Añadir showVertices a dependencias
 
@@ -364,6 +381,13 @@ export default function GmlViewer({ features, crs }: GmlViewerProps) {
     }, [showVertices]);
 
     return (
-        <div ref={mapContainerRef} className="h-[500px] w-full border rounded-lg overflow-hidden relative z-0" />
+        <div className="space-y-2">
+            {renderError && (
+                <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                    {renderError}
+                </p>
+            )}
+            <div ref={mapContainerRef} className="h-[500px] w-full border rounded-lg overflow-hidden relative z-0" />
+        </div>
     );
 }

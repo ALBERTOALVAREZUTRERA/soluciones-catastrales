@@ -1,11 +1,17 @@
 "use client";
 import React from 'react';
 
-import { GmlFeature } from '@/lib/gml-utils';
+import type { GmlFeature } from '@/lib/gml-utils';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Download, FileSpreadsheet } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
+import {
+    buildCoordinateExport,
+    createCoordinatesCsv,
+    createCoordinatesXlsx,
+} from '@/lib/coordinate-export';
 
 interface CoordinatesTableProps {
     features: GmlFeature[];
@@ -13,110 +19,50 @@ interface CoordinatesTableProps {
 }
 
 export function CoordinatesTable({ features, coordinateSystem = "UTM 30N (EPSG:25830)" }: CoordinatesTableProps) {
+    const { toast } = useToast();
+    const exportData = React.useMemo(() => buildCoordinateExport(features), [features]);
 
-    // Exportar a CSV
-    const exportToCSV = () => {
-        if (features.length === 0) return;
-
-        const headers = ['ID Parcela', 'Punto', 'X (m)', 'Y (m)', 'Tipo'];
-        const rows: string[][] = [headers];
-
-        features.forEach((feature) => {
-            // Exteriores
-            if (feature.geometry && feature.geometry[0]) {
-                feature.geometry[0].forEach((coord, idx) => {
-                    rows.push([
-                        feature.id || feature.cadastralReference || 'Sin ID',
-                        `${idx + 1}`,
-                        coord[0].toFixed(3),
-                        coord[1].toFixed(3),
-                        'Exterior'
-                    ]);
-                });
-            }
-
-            // Interiores (huecos)
-            if (feature.geometry && feature.geometry.length > 1) {
-                feature.geometry.slice(1).forEach((hole, holeIdx) => {
-                    hole.forEach((coord, idx) => {
-                        rows.push([
-                            feature.id || feature.cadastralReference || 'Sin ID',
-                            `H${holeIdx + 1}-${idx + 1}`,
-                            coord[0].toFixed(3),
-                            coord[1].toFixed(3),
-                            'Hueco'
-                        ]);
-                    });
-                });
-            }
-        });
-
-        const csvContent = rows.map(row => row.join(',')).join('\n');
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
+    const downloadBlob = (blob: Blob, filename: string) => {
         const url = URL.createObjectURL(blob);
-        link.setAttribute('href', url);
-        link.setAttribute('download', `coordenadas_${new Date().toISOString().split('T')[0]}.csv`);
-        link.style.visibility = 'hidden';
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
         document.body.appendChild(link);
         link.click();
-        document.body.removeChild(link);
+        link.remove();
+        globalThis.setTimeout(() => URL.revokeObjectURL(url), 0);
     };
 
-    // Exportar a Excel (formato TSV que Excel puede abrir)
-    const exportToExcel = () => {
-        if (features.length === 0) return;
+    const exportToCSV = () => {
+        try {
+            const csv = createCoordinatesCsv(features, coordinateSystem);
+            downloadBlob(
+                new Blob([csv], { type: 'text/csv;charset=utf-8' }),
+                `coordenadas_${new Date().toISOString().slice(0, 10)}.csv`,
+            );
+        } catch (error) {
+            toast({
+                title: 'No se pudo exportar el CSV',
+                description: error instanceof Error ? error.message : 'La geometría no es válida.',
+                variant: 'destructive',
+            });
+        }
+    };
 
-        const headers = ['ID Parcela', 'Punto', 'X (m)', 'Y (m)', 'Tipo', 'Área (m²)', 'Referencia Catastral'];
-        const rows: string[][] = [headers];
-
-        features.forEach((feature) => {
-            const area = feature.area?.toFixed(2) || 'N/A';
-            const ref = feature.cadastralReference || 'Sin referencia';
-
-            // Exteriores
-            if (feature.geometry && feature.geometry[0]) {
-                feature.geometry[0].forEach((coord, idx) => {
-                    rows.push([
-                        feature.id || 'Sin ID',
-                        `${idx + 1}`,
-                        coord[0].toFixed(3),
-                        coord[1].toFixed(3),
-                        'Exterior',
-                        idx === 0 ? area : '',
-                        idx === 0 ? ref : ''
-                    ]);
-                });
-            }
-
-            // Interiores (huecos)
-            if (feature.geometry && feature.geometry.length > 1) {
-                feature.geometry.slice(1).forEach((hole, holeIdx) => {
-                    hole.forEach((coord, idx) => {
-                        rows.push([
-                            feature.id || 'Sin ID',
-                            `Hueco${holeIdx + 1}-${idx + 1}`,
-                            coord[0].toFixed(3),
-                            coord[1].toFixed(3),
-                            'Hueco Interior',
-                            '',
-                            ''
-                        ]);
-                    });
-                });
-            }
-        });
-
-        const tsvContent = rows.map(row => row.join('\t')).join('\n');
-        const blob = new Blob([tsvContent], { type: 'application/vnd.ms-excel;charset=utf-8;' });
-        const link = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-        link.setAttribute('href', url);
-        link.setAttribute('download', `coordenadas_${new Date().toISOString().split('T')[0]}.xls`);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+    const exportToExcel = async () => {
+        try {
+            const workbook = await createCoordinatesXlsx(features, coordinateSystem);
+            downloadBlob(
+                workbook,
+                `coordenadas_${new Date().toISOString().slice(0, 10)}.xlsx`,
+            );
+        } catch (error) {
+            toast({
+                title: 'No se pudo exportar el Excel',
+                description: error instanceof Error ? error.message : 'La geometría no es válida.',
+                variant: 'destructive',
+            });
+        }
     };
 
     if (features.length === 0) {
@@ -124,15 +70,7 @@ export function CoordinatesTable({ features, coordinateSystem = "UTM 30N (EPSG:2
     }
 
     // Calcular total de puntos
-    const totalPoints = features.reduce((sum, feature) => {
-        let count = 0;
-        if (feature.geometry) {
-            feature.geometry.forEach(ring => {
-                count += ring.length;
-            });
-        }
-        return sum + count;
-    }, 0);
+    const totalPoints = exportData.rows.length;
 
     return (
         <Card className="mt-6">
@@ -170,67 +108,26 @@ export function CoordinatesTable({ features, coordinateSystem = "UTM 30N (EPSG:2
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {features.map((feature) => {
-                                const rows: any[] = [];
-
-                                // Exteriores
-                                if (feature.geometry && feature.geometry[0]) {
-                                    feature.geometry[0].forEach((coord: number[], idx: number) => {
-                                        rows.push(
-                                            <TableRow key={`${feature.id}-ext-${idx}`}>
-                                                <TableCell className="font-medium">
-                                                    {idx === 0 ? (feature.id || feature.cadastralReference || 'Sin ID') : ''}
-                                                </TableCell>
-                                                <TableCell>{idx + 1}</TableCell>
-                                                <TableCell className="text-right font-mono text-sm">
-                                                    {coord[0].toFixed(3)}
-                                                </TableCell>
-                                                <TableCell className="text-right font-mono text-sm">
-                                                    {coord[1].toFixed(3)}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-green-50 text-green-700 ring-1 ring-inset ring-green-600/20">
-                                                        Exterior
-                                                    </span>
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    {idx === 0 && feature.area ? feature.area.toFixed(2) : ''}
-                                                </TableCell>
-                                            </TableRow>
-                                        );
-                                    });
-                                }
-
-                                // Interiores (huecos)
-                                if (feature.geometry && feature.geometry.length > 1) {
-                                    feature.geometry.slice(1).forEach((hole: number[][], holeIdx: number) => {
-                                        hole.forEach((coord: number[], idx: number) => {
-                                            rows.push(
-                                                <TableRow key={`${feature.id}-hole-${holeIdx}-${idx}`}>
-                                                    <TableCell className="font-medium"></TableCell>
-                                                    <TableCell className="text-muted-foreground">
-                                                        H{holeIdx + 1}-{idx + 1}
-                                                    </TableCell>
-                                                    <TableCell className="text-right font-mono text-sm">
-                                                        {coord[0].toFixed(3)}
-                                                    </TableCell>
-                                                    <TableCell className="text-right font-mono text-sm">
-                                                        {coord[1].toFixed(3)}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-600/20">
-                                                            Hueco
-                                                        </span>
-                                                    </TableCell>
-                                                    <TableCell></TableCell>
-                                                </TableRow>
-                                            );
-                                        });
-                                    });
-                                }
-
-                                return <React.Fragment key={feature.id}>{rows}</React.Fragment>;
-                            })}
+                            {exportData.rows.map((row, index) => (
+                                <TableRow key={`${row.parcelId}-${row.ring}-${row.vertex}-${index}`}>
+                                    <TableCell className="font-medium">
+                                        {row.area !== null ? row.parcelId : ''}
+                                    </TableCell>
+                                    <TableCell className={row.type === 'Hueco' ? 'text-muted-foreground' : ''}>
+                                        {row.type === 'Exterior' ? row.vertex : `H${row.ring.replace('Hueco ', '')}-${row.vertex}`}
+                                    </TableCell>
+                                    <TableCell className="text-right font-mono text-sm">{row.x.toFixed(3)}</TableCell>
+                                    <TableCell className="text-right font-mono text-sm">{row.y.toFixed(3)}</TableCell>
+                                    <TableCell>
+                                        <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ring-1 ring-inset ${row.type === 'Exterior' ? 'bg-green-50 text-green-700 ring-green-600/20' : 'bg-blue-50 text-blue-700 ring-blue-600/20'}`}>
+                                            {row.type}
+                                        </span>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        {row.area === null ? '' : row.area.toFixed(2)}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
                         </TableBody>
                     </Table>
                 </div>

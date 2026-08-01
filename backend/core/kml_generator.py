@@ -6,6 +6,8 @@ Convierte parcelas procesadas a formato KML con estilos y descripciones.
 import simplekml
 from typing import List, Optional
 import logging
+import html
+import math
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -48,19 +50,21 @@ def generate_kml(
         style_hole.linestyle.width = 2
         style_hole.polystyle.color = simplekml.Color.changealphaint(80, simplekml.Color.blue)
         
+        written = 0
         for parcel in parcels_data:
+            parcel_id = str(parcel.get('id', 'Sin ID') or 'Sin ID')
             try:
-                parcel_id = parcel.get('id', 'Sin ID')
                 coords_latlon = parcel.get('coords_latlon', [])
-                area = parcel.get('area', 0)
-                ref_catastral = parcel.get('cadastral_reference', '')
+                area = float(parcel.get('area', 0))
+                if not math.isfinite(area) or area <= 0:
+                    raise ValueError("El área exportada debe ser positiva y finita")
+                ref_catastral = str(parcel.get('cadastral_reference', '') or '')
                 has_conflict = parcel.get('has_conflict', False)
                 is_hole = parcel.get('is_hole', False)
                 geometry_fixed = parcel.get('geometry_fixed', False)
                 
                 if not coords_latlon or len(coords_latlon) < 1:
-                    logger.warning(f"Parcela {parcel_id} sin coordenadas, omitiendo")
-                    continue
+                    raise ValueError("La parcela no contiene coordenadas")
                 
                 # Crear polígono
                 pol = kml.newpolygon(name=parcel_id)
@@ -79,12 +83,12 @@ def generate_kml(
                 
                 # Descripción HTML
                 description_parts = [
-                    f"<b>ID:</b> {parcel_id}<br/>",
+                    f"<b>ID:</b> {html.escape(parcel_id)}<br/>",
                     f"<b>Área:</b> {area:.2f} m²<br/>"
                 ]
                 
                 if ref_catastral:
-                    description_parts.append(f"<b>Ref. Catastral:</b> {ref_catastral}<br/>")
+                    description_parts.append(f"<b>Ref. Catastral:</b> {html.escape(ref_catastral)}<br/>")
                 
                 if geometry_fixed:
                     description_parts.append("<b>⚠ Geometría corregida automáticamente</b><br/>")
@@ -104,10 +108,12 @@ def generate_kml(
                     pol.style = style_hole
                 else:
                     pol.style = style_correct
-                    
+                written += 1
             except Exception as e:
-                logger.error(f"Error procesando parcela {parcel.get('id', 'unknown')}: {e}")
-                continue
+                raise ValueError(f"No se pudo exportar la parcela {parcel_id}") from e
+
+        if written == 0:
+            raise ValueError("No hay parcelas válidas para exportar a KML")
         
         # Guardar archivo
         output_path_obj = Path(output_path)

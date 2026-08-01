@@ -3,24 +3,33 @@ Backend FastAPI para Visor/Conversor Catastral DXF ↔ GML
 MEJORAS: Topología + Detección de Conflictos + Conversión coordenadas
 """
 
-from fastapi import FastAPI, UploadFile, File, HTTPException, Query
+from fastapi import FastAPI, UploadFile, File, HTTPException, Query, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
+from fastapi.responses import JSONResponse, StreamingResponse
+from starlette.background import BackgroundTask
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from pydantic import BaseModel, Field
+from typing import List, Dict, Any, Literal, Optional
+from contextvars import ContextVar
+from datetime import datetime, timezone
+import asyncio
 import tempfile
 import os
 import re
-import urllib.request
-import ssl
+import shutil
 import json
+import logging
+import math
+import time
+import uuid
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
 # Importar módulos core
 from core.dxf_reader import DXFReader
 from core.gml_generator import GMLGenerator
-from core.parcel_model import ParcelaInfo
+from core.parcel_model import ParcelaInfo, sanitizar_nombre_catastral
 from core.conflict_detector import ConflictDetector
 from core.coordinate_transformer import CoordinateTransformer
 from core.kml_generator import generate_kml_from_gml_features
@@ -28,6 +37,27 @@ from core.tax_calculator import TaxCalculator, MUNICIPALITIES
 from core.building_generator import BuildingGenerator
 from core.dxf_generator import DXFGenerator
 from core.shape_generator import ShapeGenerator
+from core.file_security import (
+    FileSecurityError,
+    UploadTooLargeError,
+    get_max_upload_bytes,
+    save_upload_limited,
+)
+from core.catastro_client import (
+    CatastroUpstreamError,
+    cadastral_reference_from,
+    catastro_error,
+    child,
+    child_text,
+    elements,
+    first_element,
+    first_text,
+    get_coordinates,
+    get_property,
+    get_reference_by_coordinates,
+    get_rustic_property,
+    normalize_cadastral_reference,
+)
 
 # Crear app FastAPI
 app = FastAPI(
@@ -36,12 +66,462 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Configurar CORS para producción y desarrollo
-admitted_origins_str = os.getenv(
-    "ADMITTED_ORIGINS", 
-    "http://localhost:9002,http://localhost:3000,https://www.solucionescatastrales.app,https://solucionescatastrales.app,https://soluciones-catastrales-git-main-albertos-projects-5a599afd.vercel.app,https://soluciones-catastrales-1cjfcpwy2-albertos-projects-5a599afd.vercel.app,https://soluciones-catastrales.vercel.app"
+ALLOWED_EPSG = {"25829", "25830", "25831", "32628"}
+MAX_GENERATION_PARCELS = 100
+MAX_GENERATION_POINTS = 200_000
+DEFAULT_MAX_JSON_REQUEST_BYTES = 16 * 1024 * 1024
+MULTIPART_OVERHEAD_BYTES = 1024 * 1024
+GIS_JOB_PATHS = frozenset({
+    "/analyze",
+    "/generate-gml",
+    "/generate-kml",
+    "/generate-kmz",
+    "/generate-dxf",
+    "/generate-shape",
+    "/generate-building-gml",
+})
+REQUEST_ID_HEADER = "X-Request-ID"
+REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._-]{8,100}$")
+request_id_context: ContextVar[str] = ContextVar("request_id", default="-")
+logger = logging.getLogger("catastro.api")
+logger.setLevel(getattr(logging, os.getenv("LOG_LEVEL", "INFO").upper(), logging.INFO))
+if not logger.handlers:
+    log_handler = logging.StreamHandler()
+    log_handler.setFormatter(logging.Formatter("%(message)s"))
+    logger.addHandler(log_handler)
+logger.propagate = False
+
+
+def _bounded_env_int(name: str, default: int, minimum: int, maximum: int) -> int:
+    raw_value = os.getenv(name)
+    if not raw_value:
+        return default
+    try:
+        value = int(raw_value)
+    except ValueError as exc:
+        raise RuntimeError(f"{name} debe ser un número entero") from exc
+    if not minimum <= value <= maximum:
+        raise RuntimeError(f"{name} debe estar entre {minimum} y {maximum}")
+    return value
+
+
+MAX_JSON_REQUEST_BYTES = _bounded_env_int(
+    "MAX_JSON_REQUEST_BYTES",
+    DEFAULT_MAX_JSON_REQUEST_BYTES,
+    1024,
+    64 * 1024 * 1024,
 )
+MAX_CONCURRENT_GIS_JOBS = _bounded_env_int(
+    "MAX_CONCURRENT_GIS_JOBS",
+    2,
+    1,
+    32,
+)
+GIS_QUEUE_TIMEOUT_MS = _bounded_env_int(
+    "GIS_QUEUE_TIMEOUT_MS",
+    2_000,
+    100,
+    30_000,
+)
+gis_job_slots = asyncio.Semaphore(MAX_CONCURRENT_GIS_JOBS)
+
+
+def _request_id_from(request: Request) -> str:
+    candidate = request.headers.get(REQUEST_ID_HEADER, "").strip()
+    if REQUEST_ID_PATTERN.fullmatch(candidate):
+        return candidate
+    return uuid.uuid4().hex
+
+
+def _error_code(status_code: int) -> str:
+    return {
+        400: "invalid_request",
+        404: "not_found",
+        413: "payload_too_large",
+        422: "validation_error",
+        429: "rate_limited",
+        502: "upstream_unavailable",
+        503: "service_unavailable",
+    }.get(status_code, "internal_error" if status_code >= 500 else "request_failed")
+
+
+def _error_payload(status_code: int, message: str, request_id: str) -> dict[str, str]:
+    return {
+        "error": message,
+        "code": _error_code(status_code),
+        "requestId": request_id,
+    }
+
+
+def _early_body_rejection(request: Request, request_id: str) -> JSONResponse | None:
+    raw_length = request.headers.get("content-length")
+    if raw_length is None:
+        return None
+    try:
+        content_length = int(raw_length)
+    except ValueError:
+        content_length = -1
+    if content_length < 0:
+        return JSONResponse(
+            status_code=400,
+            content=_error_payload(
+                400,
+                "La cabecera Content-Length no es válida.",
+                request_id,
+            ),
+            headers={"Cache-Control": "no-store"},
+        )
+
+    if request.url.path == "/analyze":
+        limit = get_max_upload_bytes() + MULTIPART_OVERHEAD_BYTES
+    elif request.url.path in GIS_JOB_PATHS:
+        limit = MAX_JSON_REQUEST_BYTES
+    else:
+        return None
+
+    if content_length <= limit:
+        return None
+    return JSONResponse(
+        status_code=413,
+        content=_error_payload(
+            413,
+            "La solicitud supera el tamaño máximo permitido.",
+            request_id,
+        ),
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+def _log_event(level: int, event: str, **fields: Any) -> None:
+    payload = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "event": event,
+        "requestId": request_id_context.get(),
+        **fields,
+    }
+    logger.log(level, json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
+
+
+@app.middleware("http")
+async def observe_request(request: Request, call_next):
+    request_id = _request_id_from(request)
+    request.state.request_id = request_id
+    token = request_id_context.set(request_id)
+    started_at = time.perf_counter()
+    slot_acquired = False
+    try:
+        try:
+            response = _early_body_rejection(request, request_id)
+            if response is None and request.url.path in GIS_JOB_PATHS:
+                try:
+                    await asyncio.wait_for(
+                        gis_job_slots.acquire(),
+                        timeout=GIS_QUEUE_TIMEOUT_MS / 1000,
+                    )
+                    slot_acquired = True
+                except asyncio.TimeoutError:
+                    response = JSONResponse(
+                        status_code=503,
+                        content={
+                            **_error_payload(
+                                503,
+                                "El servicio está ocupado. Inténtelo de nuevo en unos segundos.",
+                                request_id,
+                            ),
+                            "code": "capacity_exhausted",
+                        },
+                        headers={
+                            "Cache-Control": "no-store",
+                            "Retry-After": "2",
+                        },
+                    )
+            if response is None:
+                response = await call_next(request)
+        except Exception as exc:
+            _log_event(
+                logging.ERROR,
+                "unhandled_request_error",
+                method=request.method,
+                path=request.url.path,
+                errorType=type(exc).__name__,
+            )
+            response = JSONResponse(
+                status_code=500,
+                content=_error_payload(
+                    500,
+                    "No se pudo completar la solicitud.",
+                    request_id,
+                ),
+                headers={"Cache-Control": "no-store"},
+            )
+
+        response.headers[REQUEST_ID_HEADER] = request_id
+        duration_ms = round((time.perf_counter() - started_at) * 1000, 2)
+        _log_event(
+            logging.INFO if response.status_code < 500 else logging.ERROR,
+            "request_completed",
+            method=request.method,
+            path=request.url.path,
+            status=response.status_code,
+            durationMs=duration_ms,
+        )
+        return response
+    finally:
+        if slot_acquired:
+            gis_job_slots.release()
+        request_id_context.reset(token)
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_response(request: Request, exc: StarletteHTTPException):
+    request_id = getattr(request.state, "request_id", uuid.uuid4().hex)
+    if exc.status_code >= 500:
+        message = "No se pudo completar la solicitud."
+        cause = exc.__cause__
+        _log_event(
+            logging.ERROR,
+            "handled_server_error",
+            method=request.method,
+            path=request.url.path,
+            status=exc.status_code,
+            errorType=type(cause).__name__ if cause else type(exc).__name__,
+        )
+    else:
+        message = exc.detail if isinstance(exc.detail, str) else "La solicitud no es válida."
+    headers = dict(exc.headers or {})
+    headers.setdefault("Cache-Control", "no-store")
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=_error_payload(exc.status_code, message, request_id),
+        headers=headers,
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_response(request: Request, _exc: RequestValidationError):
+    request_id = getattr(request.state, "request_id", uuid.uuid4().hex)
+    return JSONResponse(
+        status_code=422,
+        content=_error_payload(
+            422,
+            "Revise los datos enviados.",
+            request_id,
+        ),
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+def _cleanup_temp_dir(temp_dir: Optional[str]) -> None:
+    if temp_dir:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+def _stream_file_response(
+    file_path: str,
+    temp_dir: str,
+    media_type: str,
+    download_name: str,
+) -> StreamingResponse:
+    safe_download_name = re.sub(
+        r"[^A-Za-z0-9._-]",
+        "_",
+        Path(download_name).name,
+    ) or "descarga"
+
+    def file_iterator():
+        with open(file_path, "rb") as file_handle:
+            yield from file_handle
+
+    return StreamingResponse(
+        file_iterator(),
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{safe_download_name}"'},
+        background=BackgroundTask(_cleanup_temp_dir, temp_dir),
+    )
+
+
+def _normalize_epsg(value: Any) -> str:
+    epsg = str(value).upper().replace("EPSG:", "")
+    if epsg not in ALLOWED_EPSG:
+        raise HTTPException(status_code=400, detail="Sistema de coordenadas EPSG no soportado")
+    return epsg
+
+
+def _count_coordinate_points(value: Any) -> int:
+    if not isinstance(value, list):
+        return 0
+    if (
+        len(value) >= 2
+        and isinstance(value[0], (int, float))
+        and isinstance(value[1], (int, float))
+    ):
+        return 1
+    return sum(_count_coordinate_points(item) for item in value)
+
+
+def _validate_ring(ring: Any, field_name: str, latlon: bool = False) -> None:
+    if not isinstance(ring, list) or len(ring) < 3:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{field_name} debe contener al menos tres vértices",
+        )
+    distinct_points = set()
+    for coordinate in ring:
+        if (
+            not isinstance(coordinate, list)
+            or len(coordinate) < 2
+            or isinstance(coordinate[0], bool)
+            or isinstance(coordinate[1], bool)
+            or not isinstance(coordinate[0], (int, float))
+            or not isinstance(coordinate[1], (int, float))
+            or not math.isfinite(coordinate[0])
+            or not math.isfinite(coordinate[1])
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail=f"{field_name} contiene una coordenada no válida",
+            )
+        x, y = float(coordinate[0]), float(coordinate[1])
+        if latlon and not (-180 <= x <= 180 and -90 <= y <= 90):
+            raise HTTPException(
+                status_code=400,
+                detail=f"{field_name} contiene una longitud o latitud fuera de rango",
+            )
+        distinct_points.add((round(x, 8), round(y, 8)))
+    if len(distinct_points) < 3:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{field_name} debe contener al menos tres vértices distintos",
+        )
+
+
+def _validate_generation_request(request: "GenerateGMLRequest") -> None:
+    if not request.parcelas:
+        raise HTTPException(status_code=400, detail="No se enviaron parcelas")
+    if len(request.parcelas) > MAX_GENERATION_PARCELS:
+        raise HTTPException(
+            status_code=413,
+            detail=f"No se admiten más de {MAX_GENERATION_PARCELS} parcelas por operación",
+        )
+
+    total_points = 0
+    coordinate_fields = (
+        "coordenadas_utm",
+        "coordenadas_latlon",
+        "interiores_utm",
+        "interiores_latlon",
+    )
+    identifiers = set()
+    for parcel_index, parcela in enumerate(request.parcelas):
+        total_points += sum(
+            _count_coordinate_points(parcela.get(field, []))
+            for field in coordinate_fields
+        )
+        if total_points > MAX_GENERATION_POINTS:
+            raise HTTPException(
+                status_code=413,
+                detail=f"La operación supera el límite de {MAX_GENERATION_POINTS} coordenadas",
+            )
+        exterior_utm = parcela.get("coordenadas_utm", [])
+        exterior_latlon = parcela.get("coordenadas_latlon", [])
+        if not exterior_utm and not exterior_latlon:
+            raise HTTPException(
+                status_code=400,
+                detail="Cada parcela debe incluir coordenadas UTM o geográficas",
+            )
+        if exterior_utm:
+            _validate_ring(exterior_utm, "coordenadas_utm")
+        if exterior_latlon:
+            _validate_ring(exterior_latlon, "coordenadas_latlon", latlon=True)
+        for index, hole in enumerate(parcela.get("interiores_utm", [])):
+            _validate_ring(hole, f"interiores_utm[{index}]")
+        for index, hole in enumerate(parcela.get("interiores_latlon", [])):
+            _validate_ring(hole, f"interiores_latlon[{index}]", latlon=True)
+        area = parcela.get("area", 0)
+        if (
+            isinstance(area, bool)
+            or not isinstance(area, (int, float))
+            or not math.isfinite(area)
+            or area < 0
+        ):
+            raise HTTPException(status_code=400, detail="El área de la parcela no es válida")
+        if "numero_plantas" in parcela:
+            floors = parcela["numero_plantas"]
+            if (
+                isinstance(floors, bool)
+                or not isinstance(floors, int)
+                or not 1 <= floors <= 200
+            ):
+                raise HTTPException(
+                    status_code=400,
+                    detail="El número de plantas debe ser un entero entre 1 y 200",
+                )
+        raw_id = str(parcela.get("id") or f"PARCELA_{parcel_index + 1}").strip()
+        if len(raw_id) > 100 or any(ord(character) < 32 for character in raw_id):
+            raise HTTPException(
+                status_code=400,
+                detail="El identificador de la parcela no es válido",
+            )
+        raw_reference = str(parcela.get("referencia_catastral") or "")
+        normalized_reference = re.sub(r"\s+", "", raw_reference).upper()
+        if normalized_reference and not re.fullmatch(
+            r"(?:[A-Z0-9]{14}|[A-Z0-9]{18}|[A-Z0-9]{20})",
+            normalized_reference,
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="La referencia catastral de la exportación no es válida",
+            )
+        parcela["referencia_catastral"] = normalized_reference
+        identifier = sanitizar_nombre_catastral(normalized_reference or raw_id)
+        if identifier in identifiers:
+            raise HTTPException(
+                status_code=400,
+                detail="Las parcelas de una misma exportación deben tener identificadores únicos",
+            )
+        identifiers.add(identifier)
+
+
+def _extract_utm_geometry(
+    parcela: Dict[str, Any],
+    epsg: str,
+    exterior_clockwise: bool = False,
+):
+    if parcela.get("coordenadas_utm"):
+        exterior = [(c[0], c[1]) for c in parcela["coordenadas_utm"]]
+    else:
+        exterior = CoordinateTransformer.latlon_to_utm(
+            [(c[0], c[1]) for c in parcela.get("coordenadas_latlon", [])],
+            epsg,
+        )
+
+    if parcela.get("interiores_utm"):
+        holes = [
+            [(c[0], c[1]) for c in hole]
+            for hole in parcela["interiores_utm"]
+        ]
+    else:
+        holes = [
+            CoordinateTransformer.latlon_to_utm(
+                [(c[0], c[1]) for c in hole],
+                epsg,
+            )
+            for hole in parcela.get("interiores_latlon", [])
+        ]
+    return GMLGenerator.prepare_polygon(
+        exterior,
+        holes,
+        exterior_clockwise=exterior_clockwise,
+    )
+
+# Configurar CORS de forma explícita en producción.
+app_env = os.getenv("APP_ENV", "development").strip().lower()
+default_origins = "http://localhost:9002,http://localhost:3000"
+admitted_origins_str = os.getenv("ADMITTED_ORIGINS", default_origins)
 allow_origins = [orig.strip() for orig in admitted_origins_str.split(",") if orig.strip() and orig.strip() != "*"]
+
+if app_env == "production" and not os.getenv("ADMITTED_ORIGINS", "").strip():
+    raise RuntimeError("ADMITTED_ORIGINS es obligatorio cuando APP_ENV=production")
 
 app.add_middleware(
     CORSMiddleware,
@@ -49,6 +529,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=[REQUEST_ID_HEADER],
 )
 
 
@@ -106,14 +587,6 @@ async def health():
     """Health check endpoint"""
     return {"status": "healthy", "service": "catastro-api"}
 
-@app.get("/debug-cors")
-async def debug_cors():
-    """Endpoint temporal para depurar el valor de ADMITTED_ORIGINS en Railway"""
-    return {
-        "env_admitted_origins_str": admitted_origins_str,
-        "allow_origins_list": allow_origins
-    }
-
 from core.shp_reader import SHPReader
 from core.kml_reader import KMLReader
 
@@ -127,10 +600,17 @@ async def analyze_file(
     Analiza un archivo DXF, ZIP (Shapefile) o KMZ y devuelve parcelas/edificios.
     """
     
-    filename = file.filename.lower()
+    filename = Path(file.filename or "").name.lower()
     if not (filename.endswith('.dxf') or filename.endswith('.zip') or filename.endswith('.kmz') or filename.endswith('.kml')):
         raise HTTPException(status_code=400, detail="El archivo debe ser DXF, ZIP (Shapefile) o KMZ/KML")
-    
+
+    epsg = _normalize_epsg(epsg)
+
+    tipo_entidad = tipo_entidad.upper()
+    if tipo_entidad not in {"CP", "BU"}:
+        raise HTTPException(status_code=400, detail="El tipo de entidad debe ser CP o BU")
+
+    tmp_path = None
     try:
         # Guardar archivo temporalmente
         if filename.endswith('.zip'):
@@ -141,27 +621,21 @@ async def analyze_file(
             suffix = '.dxf'
             
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
-            content = await file.read()
-            tmp_file.write(content)
+            await save_upload_limited(file, tmp_file)
             tmp_path = tmp_file.name
         
-        print(f"DEBUG: Archivo guardado en: {tmp_path}")
-        
         parcelas = []
+        is_dxf = filename.endswith('.dxf')
         if filename.endswith('.zip'):
             # 1. Leer de Shapefile (ZIP)
-            parcelas = SHPReader.leer_desde_zip(tmp_path)
-            print(f"DEBUG: {len(parcelas)} geometrías extraídas de SHP")
+            parcelas = SHPReader.leer_desde_zip(tmp_path, epsg)
         elif filename.endswith('.kmz') or filename.endswith('.kml'):
             # 1.5. Leer de KML/KMZ
             parcelas = KMLReader.leer_desde_kmz(tmp_path, epsg)
-            print(f"DEBUG: {len(parcelas)} geometrías extraídas de KMZ/KML")
         else:
             # 2. Leer de DXF
             # Obtener capas del DXF
             capas_info = DXFReader.obtener_capas_con_detalle(tmp_path)
-            print(f"DEBUG: Capas encontradas: {capas_info}")
-            
             # Selección de capas según tipo
             if tipo_entidad == "BU":
                 # Para edificios, ser más permisivo (usar todas las capas con geometrías si no hay LP/LI específicas)
@@ -178,14 +652,13 @@ async def analyze_file(
                 
                 capa_textos = capas_textos[0] if capas_textos else ""
             
-            print(f"DEBUG: Capas seleccionadas - Geometría: {capas_parcelas}, Textos: {capa_textos}")
-            
             # Leer parcelas/edificios del DXF
             parcelas = DXFReader.leer_borde_parcelas(tmp_path, capas_parcelas, capa_textos)
-            print(f"DEBUG: {len(parcelas)} geometrías extraídas de DXF")
+        if not parcelas:
+            raise ValueError("No se encontraron polígonos válidos en el archivo")
         
         # Asignar tipo de entidad y asegurar nombre de archivo original
-        base_filename = os.path.splitext(file.filename)[0]
+        base_filename = os.path.splitext(Path(file.filename or "archivo").name)[0]
         for p in parcelas:
             p.tipo_entidad = tipo_entidad
             # Si el nombre detectado es genérico o nulo, usar el del archivo original
@@ -197,11 +670,10 @@ async def analyze_file(
         
         # 3. MEJORA 1: Limpieza topológica
         parcelas = DXFReader.limpiar_topologia(parcelas)
-        print(f"DEBUG: Limpieza topológica completada")
-        
-        # 4. Detectar nesting (huecos interiores)
-        anidamientos = DXFReader.detect_nesting(parcelas)
-        print(f"DEBUG: Anidamientos detectados: {anidamientos}")
+
+        # Solo el DXF necesita inferir huecos a partir de anillos separados.
+        # SHP y KML ya expresan sus anillos interiores en el propio formato.
+        anidamientos = DXFReader.detect_nesting(parcelas) if is_dxf else {}
         
         # Marcar huecos con is_hole=True
         parcelas = ConflictDetector.marcar_huecos(parcelas, anidamientos)
@@ -227,7 +699,8 @@ async def analyze_file(
                 indices_procesados.add(idx)
         
         parcelas = parcelas_procesadas
-        print(f"DEBUG: {len(parcelas)} parcelas después de agrupar huecos")
+        # Recalcular área y validez después de incorporar huecos.
+        parcelas = DXFReader.limpiar_topologia(parcelas)
         
         # 5. MEJORA 2: Detección de conflictos
         parcelas = ConflictDetector.detectar_conflictos(parcelas)
@@ -265,9 +738,6 @@ async def analyze_file(
             if parcela.has_conflict:
                 num_conflictos += 1
         
-        # Limpiar archivo temporal
-        os.unlink(tmp_path)
-        
         return AnalyzeResponse(
             parcelas=parcelas_response,
             num_parcelas=len(parcelas),
@@ -276,14 +746,22 @@ async def analyze_file(
             epsg_utm=epsg,
             mensaje="Análisis completado exitosamente"
         )
-    
-    except Exception as e:
-        # Limpiar archivo temporal en caso de error
-        if 'tmp_path' in locals() and os.path.exists(tmp_path):
+    except UploadTooLargeError as e:
+        raise HTTPException(status_code=413, detail=str(e)) from e
+    except FileSecurityError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="No se pudo procesar el archivo importado",
+        )
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
             os.unlink(tmp_path)
-        
-        print(f"ERROR: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error procesando DXF: {str(e)}")
 
 
 @app.post("/generate-gml")
@@ -291,35 +769,25 @@ async def generate_gml(request: GenerateGMLRequest):
     """
     Genera un archivo GML a partir de datos de parcelas (posiblemente editados por el usuario)
     """
+    temp_dir = None
     try:
-        # Sanitizar EPSG
-        request.epsg = str(request.epsg).upper().replace("EPSG:", "")
+        _validate_generation_request(request)
+        request.epsg = _normalize_epsg(request.epsg)
         
         # Crear directorio temporal para GML
         temp_dir = tempfile.mkdtemp()
         
         # Convertir datos JSON a ParcelaInfo
         parcelas = []
-        for p_data in request.parcelas:
+        for parcel_index, p_data in enumerate(request.parcelas):
             parcela = ParcelaInfo()
             parcela.referencia_catastral = p_data.get('referencia_catastral', '')
-            parcela.nombre_archivo = p_data.get('id', 'parcela')
+            parcela.nombre_archivo = p_data.get('id', f'parcela_{parcel_index + 1}')
             parcela.area = p_data.get('area', 0.0)
-            
-            # Convertir coordenadas lat/lon de vuelta a UTM para GML
-            coords_latlon = p_data.get('coordenadas_latlon', [])
-            parcela.coordenadas = CoordinateTransformer.latlon_to_utm(
-                [(c[0], c[1]) for c in coords_latlon],
-                request.epsg
+            parcela.coordenadas, parcela.interiores, parcela.area = _extract_utm_geometry(
+                p_data,
+                request.epsg,
             )
-            
-            # Interiores
-            for hueco_ll in p_data.get('interiores_latlon', []):
-                hueco_utm = CoordinateTransformer.latlon_to_utm(
-                    [(c[0], c[1]) for c in hueco_ll],
-                    request.epsg
-                )
-                parcela.interiores.append(hueco_utm)
             
             parcelas.append(parcela)
         
@@ -332,24 +800,40 @@ async def generate_gml(request: GenerateGMLRequest):
         # Si es una sola parcela, devolver ese GML
         # Si son múltiples, podríamos combinarlas o devolver un ZIP
         if len(gml_paths) == 1:
-            def file_iterator():
-                with open(gml_paths[0], 'rb') as f:
-                    yield from f
-            
             filename = os.path.basename(gml_paths[0])
-            
-            return StreamingResponse(
-                file_iterator(),
-                media_type='application/gml+xml',
-                headers={'Content-Disposition': f'attachment; filename="{filename}"'}
+            return _stream_file_response(
+                gml_paths[0],
+                temp_dir,
+                "application/gml+xml",
+                filename,
             )
         else:
-            # TODO: Combinar múltiples GML o crear ZIP
-            raise HTTPException(status_code=501, detail="Múltiples parcelas no soportado aún")
-    
+            combined_path = os.path.join(temp_dir, "parcelas_catastrales.gml")
+            combined_tree = ET.parse(gml_paths[0])
+            combined_root = combined_tree.getroot()
+            member_tag = "{http://www.opengis.net/wfs/2.0}member"
+            for path in gml_paths[1:]:
+                source_root = ET.parse(path).getroot()
+                for member in list(source_root.findall(member_tag)):
+                    combined_root.append(member)
+            combined_root.set("numberMatched", str(len(gml_paths)))
+            combined_root.set("numberReturned", str(len(gml_paths)))
+            combined_tree.write(combined_path, encoding="UTF-8", xml_declaration=True)
+            return _stream_file_response(
+                combined_path,
+                temp_dir,
+                "application/gml+xml",
+                "parcelas_catastrales.gml",
+            )
+    except HTTPException:
+        _cleanup_temp_dir(temp_dir)
+        raise
+    except ValueError as e:
+        _cleanup_temp_dir(temp_dir)
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
-        print(f"ERROR generando GML: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error generando GML: {str(e)}")
+        _cleanup_temp_dir(temp_dir)
+        raise HTTPException(status_code=500, detail="No se pudo generar el GML") from e
 
 
 @app.post("/generate-kml")
@@ -358,29 +842,23 @@ async def generate_kml(request: GenerateGMLRequest):
     Genera un archivo KML para visualización en Google Earth.
     Las parcelas incluyen estilos diferenciados y soporte para huecos.
     """
+    temp_dir = None
     try:
-        # Sanitizar EPSG
-        request.epsg = str(request.epsg).upper().replace("EPSG:", "")
+        _validate_generation_request(request)
+        request.epsg = _normalize_epsg(request.epsg)
         
         # Preparar features en formato compatible
         features = []
         
         for p_data in request.parcelas:
             # Convertir coordenadas lat/lon de vuelta a UTM para el transformador
-            coords_latlon = p_data.get('coordenadas_latlon', [])
-            coords_utm = [[c[0], c[1]] for c in p_data.get('coordenadas_utm', [])]
-            
-            # Preparar geometría (exterior + huecos)
-            geometry = [coords_utm]
-            
-            # Añadir huecos interiores
-            for hueco_utm in p_data.get('interiores_utm', []):
-                geometry.append([[c[0], c[1]] for c in hueco_utm])
+            coords_utm, holes_utm, geometry_area = _extract_utm_geometry(p_data, request.epsg)
+            geometry = [coords_utm, *holes_utm]
             
             feature = {
                 'id': p_data.get('id', 'Sin ID'),
                 'geometry': geometry,
-                'area': p_data.get('area', 0.0),
+                'area': geometry_area,
                 'cadastralReference': p_data.get('referencia_catastral', ''),
                 'hasConflict': p_data.get('has_conflict', False),
                 'isHole': p_data.get('is_hole', False),
@@ -395,20 +873,21 @@ async def generate_kml(request: GenerateGMLRequest):
         
         # Generar KML
         kml_file = generate_kml_from_gml_features(features, kml_path, epsg=request.epsg)        
-        # Devolver archivo como descarga
-        def file_iterator():
-            with open(kml_file, 'rb') as f:
-                yield from f
-        
-        return StreamingResponse(
-            file_iterator(),
-            media_type='application/vnd.google-earth.kml+xml',
-            headers={'Content-Disposition': 'attachment; filename="parcelas_catastro.kml"'}
+        return _stream_file_response(
+            kml_file,
+            temp_dir,
+            "application/vnd.google-earth.kml+xml",
+            "parcelas_catastro.kml",
         )
-    
+    except HTTPException:
+        _cleanup_temp_dir(temp_dir)
+        raise
+    except ValueError as e:
+        _cleanup_temp_dir(temp_dir)
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
-        print(f"ERROR generando KML: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error generando KML: {str(e)}")
+        _cleanup_temp_dir(temp_dir)
+        raise HTTPException(status_code=500, detail="No se pudo generar el KML") from e
 
 
 @app.post("/generate-kmz")
@@ -416,7 +895,10 @@ async def generate_kmz(request: GenerateGMLRequest):
     """
     Exporta las parcelas actuales a formato KMZ (KML Comprimido).
     """
+    temp_dir = None
     try:
+        _validate_generation_request(request)
+        request.epsg = _normalize_epsg(request.epsg)
         temp_dir = tempfile.mkdtemp()
         kmz_file = os.path.join(temp_dir, "parcelas_catastro.kmz")
         
@@ -424,30 +906,33 @@ async def generate_kmz(request: GenerateGMLRequest):
         features = []
         for p_data in request.parcelas:
             # Asegurar estructura correcta para KMLGenerator
+            exterior_utm, holes_utm, geometry_area = _extract_utm_geometry(p_data, request.epsg)
             features.append({
                 'id': p_data.get('id', 'S/N'),
-                'geometry': p_data.get('coordenadas_utm', []),
-                'area': p_data.get('area', 0.0),
+                'geometry': [exterior_utm, *holes_utm],
+                'area': geometry_area,
                 'cadastralReference': p_data.get('referencia_catastral', ''),
                 'hasConflict': p_data.get('has_conflict', False),
                 'isHole': p_data.get('is_hole', False)
             })
             
-        KMLGenerator.generate_kml_from_gml_features(features, kmz_file, request.epsg)
+        generate_kml_from_gml_features(features, kmz_file, request.epsg)
         
-        def file_iterator():
-            with open(kmz_file, 'rb') as f:
-                yield from f
-        
-        return StreamingResponse(
-            file_iterator(),
-            media_type='application/vnd.google-earth.kmz',
-            headers={'Content-Disposition': 'attachment; filename="parcelas_catastro.kmz"'}
+        return _stream_file_response(
+            kmz_file,
+            temp_dir,
+            "application/vnd.google-earth.kmz",
+            "parcelas_catastro.kmz",
         )
-    
+    except HTTPException:
+        _cleanup_temp_dir(temp_dir)
+        raise
+    except ValueError as e:
+        _cleanup_temp_dir(temp_dir)
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
-        print(f"ERROR generando KMZ: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error generando KMZ: {str(e)}")
+        _cleanup_temp_dir(temp_dir)
+        raise HTTPException(status_code=500, detail="No se pudo generar el KMZ") from e
 
 
 @app.post("/generate-dxf")
@@ -455,9 +940,10 @@ async def generate_dxf(request: GenerateGMLRequest):
     """
     Exporta las parcelas actuales a formato DXF.
     """
+    temp_dir = None
     try:
-        # Sanitizar EPSG
-        request.epsg = str(request.epsg).upper().replace("EPSG:", "")
+        _validate_generation_request(request)
+        request.epsg = _normalize_epsg(request.epsg)
         
         temp_dir = tempfile.mkdtemp()
         dxf_path = os.path.join(temp_dir, "exportacion_catastral.dxf")
@@ -465,32 +951,33 @@ async def generate_dxf(request: GenerateGMLRequest):
         # Preparar features
         features = []
         for p_data in request.parcelas:
-            coords_utm = [[c[0], c[1]] for c in p_data.get('coordenadas_utm', [])]
-            geometry = [coords_utm]
-            for hueco_utm in p_data.get('interiores_utm', []):
-                geometry.append([[c[0], c[1]] for c in hueco_utm])
+            coords_utm, holes_utm, geometry_area = _extract_utm_geometry(p_data, request.epsg)
+            geometry = [coords_utm, *holes_utm]
                 
             features.append({
                 'id': p_data.get('id', 'S/N'),
                 'geometry': geometry,
                 'cadastralReference': p_data.get('referencia_catastral', ''),
-                'area': p_data.get('area', 0.0)
+                'area': geometry_area
             })
             
         final_path = DXFGenerator.exportar_a_dxf(features, dxf_path, request.epsg)
         
-        def file_iterator():
-            with open(final_path, 'rb') as f:
-                yield from f
-                
-        return StreamingResponse(
-            file_iterator(),
-            media_type='application/dxf',
-            headers={'Content-Disposition': 'attachment; filename="parcelas_catastro.dxf"'}
+        return _stream_file_response(
+            final_path,
+            temp_dir,
+            "application/dxf",
+            "parcelas_catastro.dxf",
         )
+    except HTTPException:
+        _cleanup_temp_dir(temp_dir)
+        raise
+    except ValueError as e:
+        _cleanup_temp_dir(temp_dir)
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
-        print(f"ERROR generando DXF: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error generando DXF: {str(e)}")
+        _cleanup_temp_dir(temp_dir)
+        raise HTTPException(status_code=500, detail="No se pudo generar el DXF") from e
 
 
 @app.post("/generate-shape")
@@ -498,9 +985,10 @@ async def generate_shape(request: GenerateGMLRequest):
     """
     Exporta las parcelas actuales a formato Shapefile (ZIP).
     """
+    temp_dir = None
     try:
-        # Sanitizar EPSG
-        request.epsg = str(request.epsg).upper().replace("EPSG:", "")
+        _validate_generation_request(request)
+        request.epsg = _normalize_epsg(request.epsg)
         
         temp_dir = tempfile.mkdtemp()
         base_name = "exportacion_catastral"
@@ -509,41 +997,52 @@ async def generate_shape(request: GenerateGMLRequest):
         # Preparar features
         features = []
         for p_data in request.parcelas:
-            coords_utm = [[c[0], c[1]] for c in p_data.get('coordenadas_utm', [])]
-            geometry = [coords_utm]
-            for hueco_utm in p_data.get('interiores_utm', []):
-                geometry.append([[c[0], c[1]] for c in hueco_utm])
+            coords_utm, holes_utm, geometry_area = _extract_utm_geometry(
+                p_data,
+                request.epsg,
+                exterior_clockwise=True,
+            )
+            geometry = [coords_utm, *holes_utm]
                 
             features.append({
                 'id': p_data.get('id', 'S/N'),
                 'geometry': geometry,
                 'cadastralReference': p_data.get('referencia_catastral', ''),
-                'area': p_data.get('area', 0.0)
+                'area': geometry_area
             })
             
         ShapeGenerator.exportar_a_shape(features, shp_base_path, request.epsg)
         
-        # Crear ZIP con todos los archivos del shapefile (.shp, .shx, .dbf, .prj)
+        # Crear ZIP con todos los componentes obligatorios y la codificación.
         zip_path = os.path.join(temp_dir, f"{base_name}.zip")
         import zipfile
+        extensions = ['.shp', '.shx', '.dbf', '.prj', '.cpg']
+        missing_outputs = [
+            ext for ext in extensions
+            if not os.path.isfile(shp_base_path + ext)
+        ]
+        if missing_outputs:
+            raise RuntimeError("El generador no produjo un Shapefile completo")
         with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            for ext in ['.shp', '.shx', '.dbf', '.prj']:
+            for ext in extensions:
                 f_path = shp_base_path + ext
-                if os.path.exists(f_path):
-                    zipf.write(f_path, base_name + ext)
+                zipf.write(f_path, base_name + ext)
         
-        def file_iterator():
-            with open(zip_path, 'rb') as f:
-                yield from f
-                
-        return StreamingResponse(
-            file_iterator(),
-            media_type='application/zip',
-            headers={'Content-Disposition': 'attachment; filename="parcelas_catastro.zip"'}
+        return _stream_file_response(
+            zip_path,
+            temp_dir,
+            "application/zip",
+            "parcelas_catastro.zip",
         )
+    except HTTPException:
+        _cleanup_temp_dir(temp_dir)
+        raise
+    except ValueError as e:
+        _cleanup_temp_dir(temp_dir)
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
-        print(f"ERROR generando Shapefile: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error generando Shapefile: {str(e)}")
+        _cleanup_temp_dir(temp_dir)
+        raise HTTPException(status_code=500, detail="No se pudo generar el Shapefile") from e
 
 
 @app.post("/generate-building-gml")
@@ -551,16 +1050,13 @@ async def generate_building_gml(request: GenerateGMLRequest):
     """
     Genera GML de Edificio (INSPIRE Building) para las parcelas enviadas.
     """
+    temp_dir = None
     try:
-        # Sanitizar EPSG
-        request.epsg = str(request.epsg).upper().replace("EPSG:", "")
+        _validate_generation_request(request)
+        request.epsg = _normalize_epsg(request.epsg)
         
         temp_dir = tempfile.mkdtemp()
         
-        # Solo soportamos una parcela por GML de edificio por ahora
-        if not request.parcelas:
-             raise HTTPException(status_code=400, detail="No se enviaron parcelas")
-             
         p_data = request.parcelas[0]
         parcela = ParcelaInfo()
         parcela.nombre_archivo = p_data.get('id', 'edificio')
@@ -568,187 +1064,143 @@ async def generate_building_gml(request: GenerateGMLRequest):
         parcela.nombre_original = p_data.get('nombre_archivo', '')
         parcela.referencia_catastral = p_data.get('referencia_catastral', '')
         parcela.area = p_data.get('area', 0.0)
+        parcela.numero_plantas = max(
+            part.get("numero_plantas", 1)
+            for part in request.parcelas
+        )
         
-        # Coordenadas
-        parcela.coordenadas = [[c[0], c[1]] for c in p_data.get('coordenadas_utm', [])]
-        for hueco_utm in p_data.get('interiores_utm', []):
-            parcela.interiores.append([[c[0], c[1]] for c in hueco_utm])
+        # Un edificio puede estar formado por varias huellas disjuntas.
+        parcela.partes = []
+        total_area = 0.0
+        for part in request.parcelas:
+            exterior, holes, part_area = _extract_utm_geometry(
+                part,
+                request.epsg,
+                exterior_clockwise=True,
+            )
+            parcela.partes.append({"exterior": exterior, "huecos": holes})
+            total_area += part_area
+        parcela.area = round(total_area, 2)
+        parcela.coordenadas = parcela.partes[0]["exterior"]
+        parcela.interiores = parcela.partes[0]["huecos"]
             
         gml_file = BuildingGenerator.generar_gml_edificio(parcela, temp_dir, request.epsg)
         
-        def file_iterator():
-            with open(gml_file, 'rb') as f:
-                yield from f
-                
-        return StreamingResponse(
-            file_iterator(),
-            media_type='application/gml+xml',
-            headers={'Content-Disposition': f'attachment; filename="{os.path.basename(gml_file)}"'}
+        return _stream_file_response(
+            gml_file,
+            temp_dir,
+            "application/gml+xml",
+            os.path.basename(gml_file),
         )
+    except HTTPException:
+        _cleanup_temp_dir(temp_dir)
+        raise
+    except ValueError as e:
+        _cleanup_temp_dir(temp_dir)
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
-        print(f"ERROR generando Building GML: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error generando Building GML: {str(e)}")
+        _cleanup_temp_dir(temp_dir)
+        raise HTTPException(status_code=500, detail="No se pudo generar el GML de edificio") from e
 
 
 # ══════════════════════════════════════════════════════════════════════
 # PROXY CATASTRO: Búsqueda de parcelas por referencia catastral
 # ══════════════════════════════════════════════════════════════════════
 
-import urllib.request
-import urllib.parse
-import urllib.error
-import ssl
-import xml.etree.ElementTree as ET
-
 class BuscarRCRequest(BaseModel):
     referencia_catastral: str
-    provincia: Optional[str] = ""
-    municipio: Optional[str] = ""
 
 class BuscarRusticaRequest(BaseModel):
-    provincia: str
-    municipio: str
-    poligono: str
-    parcela: str
+    provincia: str = Field(min_length=1, max_length=25)
+    municipio: str = Field(min_length=1, max_length=40)
+    poligono: str = Field(pattern=r"^\d{1,3}$")
+    parcela: str = Field(pattern=r"^\d{1,5}$")
 
-def _check_catastro_error(xml_text: str) -> Optional[str]:
-    """
-    Parsea el XML del Catastro y devuelve el mensaje de error si lo hay.
-    Los errores vienen en la estructura <lerr><err><cod>N</cod><des>MENSAJE</des></err></lerr>
-    Retorna None si no hay error.
-    """
-    import re
-    # Buscar errores con regex (más robusto que ElementTree con namespaces)
-    cod_match = re.search(r'<cod>(\d+)</cod>', xml_text, re.IGNORECASE)
-    des_match = re.search(r'<des>([^<]+)</des>', xml_text, re.IGNORECASE)
-    
-    if cod_match and des_match:
-        cod = int(cod_match.group(1))
-        des = des_match.group(1).strip()
-        if cod > 0:  # Código 0 = sin error
-            return des
-    
-    # También comprobar el campo <cuerr> que indica si hay error (1 = hay error)
-    cuerr_match = re.search(r'<cuerr>(\d+)</cuerr>', xml_text, re.IGNORECASE)
-    if cuerr_match and int(cuerr_match.group(1)) > 0 and des_match:
-        return des_match.group(1).strip()
-    
-    return None
+
+def _catastro_float(root, name: str) -> float:
+    try:
+        value = first_text(root, name).replace(",", ".")
+        number = float(value)
+        return number if math.isfinite(number) else 0.0
+    except (TypeError, ValueError):
+        return 0.0
 
 
 @app.post("/catastro/buscar-rc")
-async def buscar_por_referencia_catastral(request: BuscarRCRequest):
+def buscar_por_referencia_catastral(request: BuscarRCRequest):
     """
-    Proxy para consultar la API XML del Catastro.
-    Busca coordenadas de una parcela por su referencia catastral.
-    Evita problemas de CORS al realizar la petición desde el servidor.
-    
-    IMPORTANTE: La API del Catastro (Consulta_CPMRC) solo acepta
-    referencias de exactamente 14 caracteres. Si el usuario introduce
-    una referencia de 20 caracteres, se trunca automáticamente.
+    Consulta los servicios WCF/REST libres del Catastro y localiza la finca.
     """
-    rc_original = request.referencia_catastral.strip().upper()
-    if len(rc_original) < 14:
-        raise HTTPException(status_code=400, detail="La referencia catastral debe tener al menos 14 caracteres")
-
-    # Truncar a 14 caracteres: la API de coordenadas SOLO acepta 14
+    try:
+        rc_original = normalize_cadastral_reference(request.referencia_catastral)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     rc = rc_original[:14]
-    print(f"DEBUG buscar-rc: original='{rc_original}' -> truncado='{rc}'")
 
     try:
-        # Crear contexto SSL permisivo (el certificado del Catastro a veces da problemas)
-        ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
-
-        # 1. Buscar datos del inmueble (para obtener dirección/info)
-        url_datos = f"https://ovc.catastro.meh.es/ovcservweb/OVCSWLocalizacionRC/OVCCallejero.asmx/Consulta_DNPRC?Provincia=&Municipio=&RC={rc}"
-        req1 = urllib.request.Request(url_datos, headers={"User-Agent": "Mozilla/5.0"})
-        resp1 = urllib.request.urlopen(req1, context=ctx, timeout=15)
-        xml_datos = resp1.read().decode("utf-8")
-        
-        # SI LA RESPUESTA ES UNA LISTA (muchos rc), pillar el primero y re-consultar
-        if "<lrcdnp>" in xml_datos and "<rcdnp>" in xml_datos:
-            # Extraer pc1, pc2, car, cc1, cc2 del primer rcdnp
-            def get_sub(tag, text):
-                m = re.search(rf'<{tag}[^>]*>(.*?)</', text, re.I)
-                return m.group(1).strip() if m else ""
-            
-            first_block = re.search(r'<rcdnp>(.*?)</rcdnp>', xml_datos, re.I | re.S).group(1)
-            rc_full = get_sub('pc1', first_block) + get_sub('pc2', first_block) + get_sub('car', first_block) + get_sub('cc1', first_block) + get_sub('cc2', first_block)
-            
-            if len(rc_full) >= 14:
-                url_datos_full = f"https://ovc.catastro.meh.es/ovcservweb/OVCSWLocalizacionRC/OVCCallejero.asmx/Consulta_DNPRC?Provincia=&Municipio=&RC={rc_full}"
-                req1_full = urllib.request.Request(url_datos_full, headers={"User-Agent": "Mozilla/5.0"})
-                resp1_full = urllib.request.urlopen(req1_full, context=ctx, timeout=15)
-                xml_datos_detailed = resp1_full.read().decode("utf-8")
-                # Fusionar lógicamente: usamos el detailed para casi todo, pero guardamos el original para spt si falta
-                xml_datos = xml_datos_detailed + xml_datos
-
-        # Comprobar errores en respuesta de datos
-        error_datos = _check_catastro_error(xml_datos)
+        property_root = get_property(rc_original)
+        error_datos = catastro_error(property_root)
         if error_datos:
-            print(f"DEBUG buscar-rc: Error del Catastro (datos): {error_datos}")
             return {"encontrado": False, "error": f"Catastro: {error_datos}"}
 
-        # 2. Buscar coordenadas (siempre con 14 caracteres)
-        url_coord = f"https://ovc.catastro.meh.es/ovcservweb/OVCSWLocalizacionRC/OVCCoordenadas.asmx/Consulta_CPMRC?Provincia=&Municipio=&SRS=EPSG:4326&RC={rc}"
-        req2 = urllib.request.Request(url_coord, headers={"User-Agent": "Mozilla/5.0"})
-        resp2 = urllib.request.urlopen(req2, context=ctx, timeout=15)
-        xml_coord = resp2.read().decode("utf-8")
-        
-        # Comprobar errores en respuesta de coordenadas
-        error_coord = _check_catastro_error(xml_coord)
+        candidates = list(elements(property_root, "rcdnp"))
+        candidate_count = len(candidates)
+        ambiguous = candidate_count > 1
+        if first_element(property_root, "bico") is None and candidates:
+            first_reference = cadastral_reference_from(candidates[0], full=True)
+            if len(first_reference) in (18, 20):
+                property_root = get_property(first_reference)
+                detailed_error = catastro_error(property_root)
+                if detailed_error:
+                    return {
+                        "encontrado": False,
+                        "error": f"Catastro: {detailed_error}",
+                    }
+
+        coordinate_root = get_coordinates(rc)
+        error_coord = catastro_error(coordinate_root)
         if error_coord:
-            print(f"DEBUG buscar-rc: Error del Catastro (coords): {error_coord}")
             return {"encontrado": False, "error": f"Catastro: {error_coord}"}
 
-        # Parsear coordenadas con regex (más robusto que ElementTree)
-        xcen_match = re.search(r'<[^>]*xcen[^>]*>([0-9.\-]+)</[^>]*>', xml_coord, re.IGNORECASE)
-        ycen_match = re.search(r'<[^>]*ycen[^>]*>([0-9.\-]+)</[^>]*>', xml_coord, re.IGNORECASE)
-
-        if not xcen_match or not ycen_match:
+        lon = _catastro_float(coordinate_root, "xcen")
+        lat = _catastro_float(coordinate_root, "ycen")
+        if not (-180 <= lon <= 180 and -90 <= lat <= 90) or (lon == 0 and lat == 0):
             return {
                 "encontrado": False,
                 "error": "No se encontraron coordenadas para esta referencia catastral"
             }
-        
-        lon = float(xcen_match.group(1))
-        lat = float(ycen_match.group(1))
 
-        # 3. Extraer info del inmueble del XML de datos
-        # Búsqueda directa vía regex para ser inmunes a namespaces y nesting variable
-        def extract_tag(tag_name, xml_text):
-            # Busca <cat:tag>contenido</cat:tag> o <tag>contenido</tag>
-            # El cierre tmb puede llevar prefix: </cat:tag>
-            pattern = rf'<{tag_name}[^>]*>(.*?)</[^>]*?{tag_name}>'
-            match = re.search(pattern, xml_text, re.IGNORECASE | re.DOTALL)
-            return match.group(1).strip() if match else ""
+        bico = first_element(property_root, "bico")
+        building = child(bico, "bi")
+        address_data = child(building, "dt")
+        property_data = child(building, "debi")
+        estate = child(bico, "finca")
+        direccion = child_text(building, "ldt") or first_text(
+            coordinate_root,
+            "ldt",
+        )
+        municipio_result = first_text(address_data, "nm")
+        provincia_result = first_text(address_data, "np")
+        uso = child_text(property_data, "luso")
+        superficie_parcela = max(
+            _catastro_float(estate, "ss"),
+            _catastro_float(estate, "spt"),
+            _catastro_float(estate, "supf"),
+        )
+        superficie_construida = _catastro_float(property_data, "sfc")
+        try:
+            anio_const = int(child_text(property_data, "ant", "0"))
+        except ValueError:
+            anio_const = 0
+        if ambiguous:
+            # Una referencia de finca puede representar varios inmuebles. No
+            # atribuimos a toda la finca los datos constructivos del primero.
+            uso = ""
+            superficie_construida = 0.0
+            anio_const = 0
 
-        direccion = extract_tag('ldt', xml_datos)
-        municipio_result = extract_tag('nm', xml_datos)
-        provincia_result = extract_tag('np', xml_datos)
-        uso = extract_tag('tuso', xml_datos)
-        
-        # Superficies (pueden venir en varios sitios, pillamos cualquiera > 0)
-        def get_float(tag):
-            try: return float(extract_tag(tag, xml_datos).replace(',', '.'))
-            except: return 0.0
-
-        superficie_parcela = max(get_float('spt'), get_float('supf'))
-        superficie_construida = max(get_float('sfc'), get_float('sup'), get_float('sct'))
-        
-        # Año de construcción (etiqueta 'aco' o 'ant')
-        anio_str = extract_tag('aco', xml_datos) or extract_tag('ant', xml_datos)
-        try: anio_const = int(anio_str)
-        except: anio_const = 0
-        
-        # Consolidar superficies (usando las variables locales recién extraídas)
-        # superficie_parcela y superficie_construida ya están calculadas arriba
-        
         # 4. Detectar zona de valoración vía WMS + fallback por distancia al centro
         zona_detectada = TaxCalculator.get_valuation_zone(lat, lon)
-        print(f"DEBUG buscar-rc: RC={rc}, Lat={lat}, Lon={lon}, Zona WMS={zona_detectada}")
 
         # Normalizar nombre municipio para buscar en MUNICIPALITIES
         import unicodedata
@@ -782,7 +1234,6 @@ async def buscar_por_referencia_catastral(request: BuscarRCRequest):
                 zona_detectada = "R50"
             else:
                 zona_detectada = "R55"
-            print(f"DEBUG buscar-rc: Fallback geográfico Andújar → dist={dist:.0f}m → Zona={zona_detectada}")
 
         valor_rep = 0.0
         zona_info = ""
@@ -802,11 +1253,10 @@ async def buscar_por_referencia_catastral(request: BuscarRCRequest):
             valor_rep = TaxCalculator.get_zone_value(muni_key, zona_detectada, uso_map)
             if valor_rep > 0:
                 zona_info = f"Zona {zona_detectada} — {valor_rep:.2f} €/m² ({uso_map})"
-                print(f"DEBUG buscar-rc: VRC auto-detectado = {valor_rep} €/m² (zona={zona_detectada}, uso={uso_map})")
 
         return {
             "encontrado": True,
-            "rc": rc,
+            "rc": rc_original,
             "lat": lat,
             "lon": lon,
             "direccion": direccion,
@@ -818,133 +1268,101 @@ async def buscar_por_referencia_catastral(request: BuscarRCRequest):
             "anio_const": anio_const,
             "zona_valor": zona_detectada,
             "valor_rep": valor_rep,
-            "zona_info": zona_info
+            "zona_info": zona_info,
+            "seleccion_aproximada": ambiguous,
+            "num_inmuebles": candidate_count or 1,
         }
 
-    except urllib.error.HTTPError as e:
-        return {"encontrado": False, "error": f"Error HTTP {e.code} del servicio del Catastro"}
-    except Exception as e:
-        print(f"Error proxy catastro: {e}")
-        return {"encontrado": False, "error": f"Error consultando el Catastro: {str(e)}"}
+    except CatastroUpstreamError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="No se pudo interpretar la respuesta del Catastro",
+        ) from exc
 
 
 @app.post("/catastro/buscar-rustica")
-async def buscar_parcela_rustica(request: BuscarRusticaRequest):
+def buscar_parcela_rustica(request: BuscarRusticaRequest):
     """
     Proxy para buscar parcela rústica por provincia/municipio/polígono/parcela.
     """
     try:
-        ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
-
-        # 1. Buscar RC por datos rústicos
-        url = (
-            f"https://ovc.catastro.meh.es/ovcservweb/OVCSWLocalizacionRC/OVCCallejero.asmx/Consulta_DNPPP?"
-            f"Provincia={urllib.parse.quote(request.provincia)}"
-            f"&Municipio={urllib.parse.quote(request.municipio)}"
-            f"&Poligono={urllib.parse.quote(request.poligono)}"
-            f"&Parcela={urllib.parse.quote(request.parcela)}"
+        property_root = get_rustic_property(
+            request.provincia.strip(),
+            request.municipio.strip(),
+            request.poligono,
+            request.parcela,
         )
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        resp = urllib.request.urlopen(req, context=ctx, timeout=15)
-        xml_text = resp.read().decode("utf-8")
-
-        # Parsear RC del resultado
-        import re
-        pc1_match = re.search(r'<[^>]*pc1[^>]*>([^<]+)</[^>]*>', xml_text, re.IGNORECASE)
-        pc2_match = re.search(r'<[^>]*pc2[^>]*>([^<]+)</[^>]*>', xml_text, re.IGNORECASE)
-
-        if pc1_match and pc2_match:
-            rc = pc1_match.group(1) + pc2_match.group(1)
-            
-            # 2. Buscar coordenadas con la RC encontrada
-            url_coord = f"https://ovc.catastro.meh.es/ovcservweb/OVCSWLocalizacionRC/OVCCoordenadas.asmx/Consulta_CPMRC?Provincia=&Municipio=&SRS=EPSG:4326&RC={rc}"
-            req2 = urllib.request.Request(url_coord, headers={"User-Agent": "Mozilla/5.0"})
-            resp2 = urllib.request.urlopen(req2, context=ctx, timeout=15)
-            xml_coord = resp2.read().decode("utf-8")
-
-            xcen_match = re.search(r'<[^>]*xcen[^>]*>([0-9.\-]+)</[^>]*>', xml_coord, re.IGNORECASE)
-            ycen_match = re.search(r'<[^>]*ycen[^>]*>([0-9.\-]+)</[^>]*>', xml_coord, re.IGNORECASE)
-
-            if xcen_match and ycen_match:
-                return {
-                    "encontrado": True,
-                    "rc": rc,
-                    "lat": float(ycen_match.group(1)),
-                    "lon": float(xcen_match.group(1)),
-                    "municipio": request.municipio,
-                    "provincia": request.provincia,
-                    "poligono": request.poligono,
-                    "parcela": request.parcela,
-                }
-            else:
-                return {"encontrado": False, "error": "Parcela encontrada pero sin coordenadas"}
-        else:
+        error = catastro_error(property_root)
+        if error:
+            return {"encontrado": False, "error": f"Catastro: {error}"}
+        rc = cadastral_reference_from(property_root)
+        if len(rc) != 14:
             return {"encontrado": False, "error": "Parcela rústica no encontrada"}
 
-    except Exception as e:
-        print(f"Error proxy catastro rústica: {e}")
-        return {"encontrado": False, "error": f"Error: {str(e)}"}
+        coordinate_root = get_coordinates(rc)
+        coordinate_error = catastro_error(coordinate_root)
+        if coordinate_error:
+            return {
+                "encontrado": False,
+                "error": f"Catastro: {coordinate_error}",
+            }
+        lon = _catastro_float(coordinate_root, "xcen")
+        lat = _catastro_float(coordinate_root, "ycen")
+        if not (-180 <= lon <= 180 and -90 <= lat <= 90) or (lon == 0 and lat == 0):
+            return {"encontrado": False, "error": "Parcela encontrada pero sin coordenadas"}
+        return {
+            "encontrado": True,
+            "rc": rc,
+            "lat": lat,
+            "lon": lon,
+            "municipio": request.municipio,
+            "provincia": request.provincia,
+            "poligono": request.poligono,
+            "parcela": request.parcela,
+        }
+    except CatastroUpstreamError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="No se pudo interpretar la respuesta del Catastro",
+        ) from exc
 
 class BuscarCoordsRequest(BaseModel):
-    lat: float
-    lon: float
+    lat: float = Field(ge=-90, le=90)
+    lon: float = Field(ge=-180, le=180)
 
 @app.post("/catastro/buscar-por-coordenadas")
-async def buscar_por_coordenadas(request: BuscarCoordsRequest):
+def buscar_por_coordenadas(request: BuscarCoordsRequest):
     """
-    Proxy para buscar una Referencia Catastral dada una coordenada inversa (Reverse Geocoding).
-    Se le envía lat/lon y el servicio OVCCoordenadas.asmx/Consulta_RCCOOR extrae la RC.
+    Busca una referencia catastral a partir de longitud y latitud.
     """
     try:
-        ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
-
-        # 1. Llamar a la API Consulta_RCCOOR de Catastro (SRS=EPSG:4326 que es Lat/Lon)
-        # Ojo: la API requiere que SRS sea EPSG:4326 y Coordenada X=Lon, Y=Lat
-        url_coord = f"https://ovc.catastro.meh.es/ovcservweb/OVCSWLocalizacionRC/OVCCoordenadas.asmx/Consulta_RCCOOR?SRS=EPSG:4326&Coordenada_X={request.lon}&Coordenada_Y={request.lat}"
-        
-        req = urllib.request.Request(url_coord, headers={"User-Agent": "Mozilla/5.0"})
-        resp = urllib.request.urlopen(req, context=ctx, timeout=15)
-        xml_text = resp.read().decode("utf-8")
-        
-        # 2. Comprobar errores del Catastro usando la función compartida
-        error_catastro = _check_catastro_error(xml_text)
+        coordinate_root = get_reference_by_coordinates(request.lat, request.lon)
+        error_catastro = catastro_error(coordinate_root)
         if error_catastro:
-            print(f"DEBUG buscar-coords: Error de catastro: {error_catastro}")
             return {"encontrado": False, "error": f"Catastro: {error_catastro}"}
 
-        # 3. Extraer la parcela principal (pc1 y pc2 componen la primera parte de la RC)
-        import re
-        pc1_match = re.search(r'<[^>]*pc1[^>]*>([^<]+)</[^>]*>', xml_text, re.IGNORECASE)
-        pc2_match = re.search(r'<[^>]*pc2[^>]*>([^<]+)</[^>]*>', xml_text, re.IGNORECASE)
-        
-        if pc1_match and pc2_match:
-            # RC básica de 14 caracteres (lo necesario para hacer una búsqueda estándar posterior)
-            rc_base = pc1_match.group(1).strip() + pc2_match.group(1).strip()
-            
-            # Buscar dirección también si viene en ldt
-            ldt_match = re.search(r'<[^>]*ldt[^>]*>([^<]+)</[^>]*>', xml_text, re.IGNORECASE)
-            direccion = ldt_match.group(1).strip() if ldt_match else ""
-            
-            print(f"DEBUG buscar-coords: Detectada RC {rc_base} en {request.lat}, {request.lon}")
+        rc_base = cadastral_reference_from(coordinate_root)
+        if len(rc_base) == 14:
             return {
                 "encontrado": True,
                 "rc": rc_base,
-                "direccion": direccion
+                "direccion": first_text(coordinate_root, "ldt"),
             }
-        else:
-            return {"encontrado": False, "error": "Las coordenadas proporcionadas no caen sobre ninguna parcela catastral válida (viales o dominio público)."}
-
-    except urllib.error.HTTPError as e:
-        return {"encontrado": False, "error": f"Error HTTP {e.code} del servicio del Catastro"}
-    except Exception as e:
-        print(f"Error reverse geocoding catastro: {e}")
-        return {"encontrado": False, "error": f"Error del servidor API: {str(e)}"}
-        print(f"Error proxy catastro rústica: {e}")
-        return {"encontrado": False, "error": f"Error: {str(e)}"}
+        return {
+            "encontrado": False,
+            "error": "Las coordenadas no caen sobre una parcela catastral disponible",
+        }
+    except CatastroUpstreamError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="No se pudo interpretar la respuesta del Catastro",
+        ) from exc
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -953,46 +1371,45 @@ async def buscar_por_coordenadas(request: BuscarCoordsRequest):
 
 class CalcularTaxRequest(BaseModel):
     municipio: Optional[str] = "Andújar"
-    clase: Optional[str] = "urbano"
+    clase: Literal["urbano", "rustico"] = "urbano"
     rc: Optional[str] = None
-    sup_parcela: Optional[float] = 0
-    valor_rep: Optional[float] = 0
+    sup_parcela: float = Field(default=0, ge=0)
+    valor_rep: float = Field(default=0, ge=0)
     zona_valor: Optional[str] = None
-    edif_max: Optional[float] = 0
-    edif_real: Optional[float] = 0
-    ha: Optional[float] = 0
-    tipo_eval: Optional[float] = 0
+    edif_max: float = Field(default=0, ge=0)
+    edif_real: float = Field(default=0, ge=0)
+    ha: float = Field(default=0, ge=0)
+    tipo_eval: float = Field(default=0, ge=0)
     uso_suelo_rust: Optional[str] = "residencial"
-    sup_ocupada: Optional[float] = 0
+    sup_ocupada: float = Field(default=0, ge=0)
     uso_const: Optional[str] = "vivienda"
-    categoria: Optional[int] = 3
-    sup_const: Optional[float] = 0
-    anio_const: Optional[int] = 2000
-    estado: Optional[str] = "normal"
+    categoria: int = Field(default=3, ge=1, le=9)
+    sup_const: float = Field(default=0, ge=0)
+    anio_const: int = Field(default=2000, ge=1000, le=2200)
+    estado: Literal["normal", "regular", "deficiente", "ruinoso"] = "normal"
     # Campos personalizados para soporte universal
-    custom_mbc: Optional[float] = None
-    custom_mbr: Optional[float] = None
-    custom_rm: Optional[float] = 0.50
-    custom_tipo_urbano: Optional[float] = None
-    custom_tipo_rustico: Optional[float] = None
-    custom_anio_ponencia: Optional[int] = None
+    custom_mbc: Optional[float] = Field(default=None, gt=0)
+    custom_mbr: Optional[float] = Field(default=None, gt=0)
+    custom_mbr_rustico: Optional[float] = Field(default=None, gt=0)
+    custom_rm: Optional[float] = Field(default=None, gt=0)
+    custom_gb: Optional[float] = Field(default=None, gt=0)
+    custom_tipo_urbano: Optional[float] = Field(default=None, ge=0, le=1)
+    custom_tipo_rustico: Optional[float] = Field(default=None, ge=0, le=1)
+    custom_anio_ponencia: Optional[int] = Field(default=None, ge=1900, le=2200)
 
 @app.post("/catastro/calcular-ibi")
 async def calcular_ibi(request: CalcularTaxRequest):
     """
     Calcula el Valor Catastral y el IBI estimado.
     """
+    params = request.model_dump()
+
+    # Si hay RC, podríamos intentar obtener datos automáticamente.
+    # Por ahora usamos los parámetros enviados desde el frontend.
     try:
-        params = request.dict()
-        
-        # Si hay RC, podríamos intentar obtener datos automáticamente
-        # Pero por ahora usamos los parámetros enviados del frontend
-        
-        result = TaxCalculator.calculate(params)
-        return result
-    except Exception as e:
-        print(f"Error en calculo IBI: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return TaxCalculator.calculate(params)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 @app.get("/catastro/municipios-disponibles")
 async def get_municipios():

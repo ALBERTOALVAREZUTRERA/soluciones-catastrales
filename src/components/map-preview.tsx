@@ -193,6 +193,7 @@ export function MapPreview() {
             {/* Map Controls */}
             <div className="absolute bottom-4 right-4 flex flex-col gap-2">
               <Button size="icon" variant="secondary" className="shadow-md bg-white hover:bg-muted" onClick={() => {setFound(false); setSearchQuery(""); setRusticData({provincia: "Jaén", municipio: "Andújar", poligono: "", parcela: ""});}}>
+                <span className="sr-only">Restablecer búsqueda del mapa</span>
                 <Maximize2 className="h-4 w-4" />
               </Button>
             </div>

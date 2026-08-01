@@ -4,22 +4,24 @@ import { Footer } from "@/components/footer";
 import { WhatsAppButton } from "@/components/whatsapp-button";
 import { Toaster } from "@/components/ui/toaster";
 import Image from "next/image";
+import { createPageMetadata } from "@/lib/site-config";
 
-export const metadata = {
-    title: "Servicios GML v4 y Catastro | CatastralPro",
-    description: "Especialistas en conversión GML v4, georreferenciación de fincas y subsanación de discrepancias catastrales. Cumple con la normativa de Diciembre 2024.",
-};
+export const metadata = createPageMetadata({
+    title: "Servicios de topografía, GML y Catastro",
+    description: "Servicios de georreferenciación, levantamientos topográficos, archivos GML y subsanación de discrepancias catastrales en Jaén y Andalucía.",
+    path: "/servicios",
+});
 
 export default function ServiciosPage() {
     return (
-        <main className="min-h-screen font-body selection:bg-accent selection:text-white">
+        <main id="contenido-principal" tabIndex={-1} className="min-h-screen font-body selection:bg-accent selection:text-white">
             <Navbar />
 
             {/* Hero Sección */}
             <section className="relative py-24 bg-primary overflow-hidden">
                 <Image
                     src="/servicios/hero_servicios.png"
-                    alt="Servicios Hero Background"
+                    alt=""
                     fill
                     className="object-cover opacity-20 pointer-events-none"
                     priority
@@ -34,10 +36,10 @@ export default function ServiciosPage() {
                     </p>
                     <div className="flex flex-wrap justify-center gap-4">
                         <span className="px-4 py-2 bg-accent/20 border border-accent/40 rounded-full text-accent font-bold text-sm uppercase tracking-widest">
-                            GML v4 (Dec. 2024 OK)
+                            GML de parcela
                         </span>
                         <span className="px-4 py-2 bg-white/5 border border-white/10 rounded-full text-white/80 font-bold text-sm uppercase tracking-widest">
-                            INSPIRE compliant
+                            Georreferenciación ETRS89
                         </span>
                     </div>
                 </div>
@@ -53,14 +55,14 @@ export default function ServiciosPage() {
                                 <span className="text-accent">Georreferenciación</span>
                             </h2>
                             <p className="text-lg text-slate-600 leading-relaxed">
-                                Desde el 12 de diciembre de 2024, el Catastro exige exclusivamente el formato **GML v4** para parcelas. Convertimos tus planos DXF y nubes de puntos en archivos interoperables que cumplen con la normativa INSPIRE al 100%.
+                                Preparamos representaciones de parcela en GML a partir de planos y mediciones, conforme al esquema y al sistema de referencia aplicables al expediente.
                             </p>
                             <ul className="space-y-4">
                                 {[
                                     "Migración profesional de GML v3 a v4.",
-                                    "Compatibilidad total con Notarías y Registros.",
+                                    "Comprobación previa de estructura y geometría.",
                                     "Soporte para Husos 28, 29, 30 y 31 (ETRS89).",
-                                    "Inscripción directa en la Sede Electrónica."
+                                    "Preparación para su validación en la Sede Electrónica."
                                 ].map((item, i) => (
                                     <li key={i} className="flex items-center gap-3 text-slate-700 font-medium">
                                         <div className="w-2 h-2 rounded-full bg-accent" />
@@ -92,7 +94,7 @@ export default function ServiciosPage() {
                                 <span className="text-accent">Discrepancias</span>
                             </h2>
                             <p className="text-lg text-slate-600 leading-relaxed">
-                                ¿Tu parcela miden más (o menos) de lo que dice el Catastro? Realizamos el **Informe de Validación Gráfica (IVG)** necesario para corregir errores de superficie, linderos o ubicación.
+                                ¿Tu parcela mide más o menos de lo que indica el Catastro? Medimos la realidad física y preparamos la representación gráfica y la documentación técnica que corresponda al procedimiento.
                             </p>
                             <ul className="space-y-4">
                                 {[
@@ -131,7 +133,7 @@ export default function ServiciosPage() {
                                 <span className="text-accent">Topografía de Campo</span>
                             </h2>
                             <p className="text-lg text-slate-600 leading-relaxed">
-                                Utilizamos equipos **GNSS de alta precisión** para definir los límites exactos de tu propiedad sobre el terreno. Evita futuros pleitos con vecinos gracias a un levantamiento profesional.
+                                Utilizamos equipos GNSS y estación total para documentar la geometría visible sobre el terreno. La medición se contrasta con títulos, cartografía y demás antecedentes disponibles.
                             </p>
                             <ul className="space-y-4">
                                 {[

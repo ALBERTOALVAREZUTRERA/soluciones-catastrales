@@ -17,12 +17,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export const metadata = {
-    title: "Trámites Catastrales | Soluciones Catastrales",
-    description:
-        "Especialistas en trámites ante el Catastro: declaraciones de alteración, cambio de titularidad, modificación de linderos y superficie, declaración de obra nueva, segregaciones y cambios de uso.",
-};
-
 const tramites = [
     {
         id: "declaracion-alteracion",
@@ -151,7 +145,7 @@ const colorMap: Record<string, { border: string; bg: string; text: string; badge
 
 export default function TramitesCatastralesPage() {
     return (
-        <main className="min-h-screen font-body selection:bg-accent selection:text-white">
+        <main id="contenido-principal" tabIndex={-1} className="min-h-screen font-body selection:bg-accent selection:text-white">
             <Navbar />
 
             {/* Hero */}
@@ -172,7 +166,7 @@ export default function TramitesCatastralesPage() {
                     <p className="text-xl text-blue-100/80 max-w-3xl mx-auto mb-10 leading-relaxed">
                         Gestionamos todos los trámites ante la Dirección General del Catastro: declaraciones de
                         alteración, cambios de titularidad, modificaciones de linderos, obras nuevas, segregaciones
-                        y cambios de uso. Cumplimiento de plazos garantizado.
+                        y cambios de uso. Revisamos cada caso para concretar documentación, alcance y plazos estimados.
                     </p>
                     <div className="flex flex-wrap justify-center gap-3">
                         {tramites.map((t) => (
@@ -275,12 +269,12 @@ export default function TramitesCatastralesPage() {
                                             ))}
                                         </ol>
                                         <div className="mt-8 pt-6 border-t border-slate-100">
-                                            <Link href="#contacto">
-                                                <Button className="w-full gap-2 font-bold">
+                                            <Button className="w-full gap-2 font-bold" asChild>
+                                                <Link href="#contacto">
                                                     Solicitar este trámite
                                                     <ArrowRight className="h-4 w-4" />
-                                                </Button>
-                                            </Link>
+                                                </Link>
+                                            </Button>
                                         </div>
                                     </div>
                                 </div>
@@ -317,32 +311,32 @@ export default function TramitesCatastralesPage() {
                 <div className="container mx-auto px-4 text-center max-w-3xl">
                     <div className="inline-flex items-center gap-2 mb-6">
                         <CheckCircle2 className="h-6 w-6 text-accent" />
-                        <span className="text-accent font-bold uppercase tracking-widest text-sm">Gestión integral garantizada</span>
+                        <span className="text-accent font-bold uppercase tracking-widest text-sm">Revisión técnica personalizada</span>
                     </div>
                     <h2 className="text-3xl md:text-5xl font-bold text-white mb-6 leading-tight">
                         ¿Tienes una alteración <br />
                         <span className="text-accent">pendiente de declarar?</span>
                     </h2>
                     <p className="text-xl text-blue-100/80 mb-10 leading-relaxed">
-                        Nos encargamos de toda la documentación técnica y jurídica necesaria,
-                        desde el levantamiento topográfico hasta la resolución del expediente catastral.
+                        Preparamos la documentación técnica necesaria y acompañamos la tramitación,
+                        desde el levantamiento topográfico hasta las posibles subsanaciones del expediente.
                     </p>
                     <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                        <a
-                            href="https://wa.me/34665890608?text=Hola,%20necesito%20información%20sobre%20un%20tr%C3%A1mite%20catastral"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                        >
-                            <Button size="lg" className="bg-accent hover:bg-accent/90 text-white font-bold px-8 gap-2">
+                        <Button size="lg" className="bg-accent hover:bg-accent/90 text-white font-bold px-8 gap-2" asChild>
+                            <a
+                                href="https://wa.me/34665890608?text=Hola,%20necesito%20información%20sobre%20un%20tr%C3%A1mite%20catastral"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
                                 Consultar por WhatsApp
                                 <ArrowRight className="h-5 w-5" />
-                            </Button>
-                        </a>
-                        <Link href="/tramites-registrales">
-                            <Button size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10 font-bold px-8">
+                            </a>
+                        </Button>
+                        <Button size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10 font-bold px-8" asChild>
+                            <Link href="/tramites-registrales">
                                 Ver Trámites Registrales
-                            </Button>
-                        </Link>
+                            </Link>
+                        </Button>
                     </div>
                 </div>
             </section>

@@ -64,6 +64,7 @@ class ParcelaInfo:
     
     # Nuevo campo para distinguir tipo
     tipo_entidad: str = "CP" # CP = CadastralParcel, BU = Building
+    numero_plantas: int = 1  # Máximo de plantas sobre rasante del edificio
     
     # Soporte para huecos (lista de listas de coordenadas)
     interiores: List[List[Tuple[float, float]]] = field(default_factory=list)

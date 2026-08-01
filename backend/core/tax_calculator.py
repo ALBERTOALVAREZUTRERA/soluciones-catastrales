@@ -1,8 +1,12 @@
 import math
+import html
+import re
+import urllib.parse
 import urllib.request
 import ssl
-import xml.etree.ElementTree as ET
 from typing import Dict, Any, Optional
+
+from core.resilient_http import open_url_with_retry
 
 # =====================================================
 # DATA FOR ANDUJAR (PONENCIA 2010)
@@ -14,6 +18,7 @@ ANDUJAR_DATA = {
     "anio_ponencia": 2010,
     "mbc": 550.00,
     "mbr": 450.00,
+    "mbr_rustico": 37.80,
     "rm": 0.50,
     "gb": 1.30,   # CT=1.30 verificado en 2 Hojas Informativas reales de Andújar
     "tipo_ibi": {
@@ -195,18 +200,6 @@ VALLADOLID_DATA = {
 
 MUNICIPALITIES = {
     "Andújar": ANDUJAR_DATA,
-    "Fuencaliente": FUENCALIENTE_DATA,
-    "Madrid": MADRID_DATA,
-    "Barcelona": BARCELONA_DATA,
-    "Valencia": VALENCIA_DATA,
-    "Sevilla": SEVILLA_DATA,
-    "Zaragoza": ZARAGOZA_DATA,
-    "Málaga": MALAGA_DATA,
-    "Murcia": MURCIA_DATA,
-    "Palma de Mallorca": PALMA_DATA,
-    "Palma": PALMA_DATA, # Alías común
-    "Bilbao": BILBAO_DATA,
-    "Valladolid": VALLADOLID_DATA
 }
 
 # =====================================================
@@ -345,58 +338,67 @@ def get_coef_edificabilidad(edif_max, edif_real):
 
 class TaxCalculator:
     @staticmethod
+    def parse_valuation_zone_response(payload: bytes) -> Optional[str]:
+        """Extrae el código de zona del HTML devuelto por Ponencias WMS."""
+        try:
+            source = payload.decode("utf-8")
+        except UnicodeDecodeError:
+            source = payload.decode("latin-1", errors="replace")
+        text = html.unescape(re.sub(r"<[^>]+>", " ", source))
+        text = re.sub(r"\s+", " ", text)
+        match = re.search(
+            r"Código\s+de\s+zona\b.*?\b([A-Z][0-9]{2}[A-Z]?)\b",
+            text,
+            re.IGNORECASE,
+        )
+        return match.group(1).upper() if match else None
+
+    @staticmethod
     def get_valuation_zone(lat: float, lon: float) -> Optional[str]:
         """
         Consulta el WMS de Valoración del Catastro para obtener la zona.
         """
         try:
             ctx = ssl.create_default_context()
-            ctx.check_hostname = False
-            ctx.verify_mode = ssl.CERT_NONE
             
-            # Formar URL de GetFeatureInfo
-            # Usamos un BBOX pequeño alrededor del punto
-            delta = 0.0001
+            delta = 0.0005
             bbox = f"{lon-delta},{lat-delta},{lon+delta},{lat+delta}"
+            params = urllib.parse.urlencode({
+                "SERVICE": "WMS",
+                "VERSION": "1.1.1",
+                "REQUEST": "GetFeatureInfo",
+                "LAYERS": "Todas",
+                "QUERY_LAYERS": "Todas",
+                "STYLES": "",
+                "INFO_FORMAT": "text/html",
+                "SRS": "EPSG:4326",
+                "BBOX": bbox,
+                "WIDTH": "101",
+                "HEIGHT": "101",
+                "X": "50",
+                "Y": "50",
+                "FEATURE_COUNT": "10",
+                "FORMAT": "image/png",
+            })
             url = (
-                f"https://ovc.catastro.meh.es/cartografia/WMS/ServidorWMS.aspx?"
-                f"SERVICE=WMS&VERSION=1.1.1&REQUEST=GetFeatureInfo&"
-                f"LAYERS=VALORACION&QUERY_LAYERS=VALORACION&"
-                f"INFO_FORMAT=text/xml&SRS=EPSG:4326&"
-                f"BBOX={bbox}&WIDTH=101&HEIGHT=101&X=50&Y=50"
+                "https://ovc.catastro.meh.es/Cartografia/WMS/ponenciasWMS.aspx?"
+                + params
             )
-            
-            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-            with urllib.request.urlopen(req, context=ctx, timeout=10) as response:
-                # El Catastro suele usar latin-1 en sus WMS
-                raw_data = response.read()
-                try: xml_data = raw_data.decode("utf-8")
-                except: xml_data = raw_data.decode("latin-1")
-                
-                # Intentar buscar referencias de valores (Zonas R, U...)
-                import re
-                
-                # Zonas genéricas (R47, U43, etc.)
-                zona_match = re.search(r'Zona:?\s*([A-Z][0-9]{2}[A-Z]?)', xml_data, re.IGNORECASE)
-                zona_encontrada = zona_match.group(1).upper() if zona_match else None
-                
-                # Polígonos de valoración específicos (P04, etc.)
-                poli_match = re.search(r'Pol[ií]gono:?\s*(P[0-9]{2})', xml_data, re.IGNORECASE)
-                
-                if poli_match:
-                    poli = poli_match.group(1).upper()
-                    print(f"DEBUG WMS: Polígono detectado={poli}")
-                    if poli in ANDUJAR_DATA["poligonos"]:
-                        return ANDUJAR_DATA["poligonos"][poli]["vrb"].replace("C", "")
-                
-                # Fallback: devolver la Zona VBR encontrada
-                if zona_encontrada:
-                    return zona_encontrada
-                
-            print(f"DEBUG WMS: No se encontró zona ni polígono en el XML. Texto completo: {xml_data}")
-            return None
-        except Exception as e:
-            print(f"Error detectando zona WMS: {e}")
+            req = urllib.request.Request(
+                url,
+                headers={"User-Agent": "SolucionesCatastrales/1.0"},
+            )
+            with open_url_with_retry(
+                req,
+                context=ctx,
+                timeout=10,
+                service="catastro_ponencias_wms",
+            ) as response:
+                raw_data = response.read(1_000_001)
+                if len(raw_data) > 1_000_000:
+                    return None
+                return TaxCalculator.parse_valuation_zone_response(raw_data)
+        except Exception:
             return None
 
     @staticmethod
@@ -406,22 +408,19 @@ class TaxCalculator:
             import unicodedata
             return ''.join(c for c in unicodedata.normalize('NFD', text) if unicodedata.category(c) != 'Mn').lower()
             
-        muni_key = "Andújar" # Default
+        muni_key = None
         target_norm = normalize(municipio)
         for k in MUNICIPALITIES.keys():
             if normalize(k) == target_norm:
                 muni_key = k
                 break
 
-        data = MUNICIPALITIES.get(muni_key, ANDUJAR_DATA)
+        data = MUNICIPALITIES.get(muni_key)
+        if data is None:
+            return 0.0
         
         if zona in data["zonas_valor"]:
             return data["zonas_valor"][zona].get(uso, 0.0)
-            
-        # Fallback for generic capital zones - simple heuristic based on MBR
-        # If it's a known city but we don't have the exact Euro/m2 table, we use the average MBR as a baseline.
-        if muni_key != "Andújar" and muni_key != "Fuencaliente":
-            return data["mbr"]
             
         return 0.0
 
@@ -429,28 +428,77 @@ class TaxCalculator:
     def calculate(params: Dict[str, Any]) -> Dict[str, Any]:
         import copy
         municipio_name = params.get("municipio", "Andújar")
-        # Load base data from known municipalities or use a default template
-        # Use deepcopy to avoid polluting the global MUNICIPALITIES dict
-        base_data = copy.deepcopy(MUNICIPALITIES.get(municipio_name, ANDUJAR_DATA))
+        # Nunca se reutiliza el perfil de un municipio para otro. Los municipios
+        # sin perfil documentado deben aportar todos los parámetros de ponencia.
+        import unicodedata
+        normalized_name = ''.join(
+            char for char in unicodedata.normalize('NFD', municipio_name)
+            if unicodedata.category(char) != 'Mn'
+        ).split("(", 1)[0].strip().lower()
+        known_profile = next((
+            profile for name, profile in MUNICIPALITIES.items()
+            if ''.join(
+                char for char in unicodedata.normalize('NFD', name)
+                if unicodedata.category(char) != 'Mn'
+            ).lower() == normalized_name
+        ), None)
+        if known_profile is None:
+            required = (
+                "custom_mbc",
+                "custom_mbr",
+                "custom_mbr_rustico",
+                "custom_rm",
+                "custom_gb",
+                "custom_tipo_urbano",
+                "custom_tipo_rustico",
+                "custom_anio_ponencia",
+            )
+            missing = [name for name in required if params.get(name) is None]
+            if missing:
+                raise ValueError(
+                    "El municipio no tiene un perfil documentado; faltan parámetros de ponencia: "
+                    + ", ".join(missing)
+                )
+            base_data = {
+                "municipio": municipio_name,
+                "provincia": "",
+                "anio_ponencia": int(params["custom_anio_ponencia"]),
+                "mbc": float(params["custom_mbc"]),
+                "mbr": float(params["custom_mbr"]),
+                "mbr_rustico": float(params["custom_mbr_rustico"]),
+                "rm": float(params["custom_rm"]),
+                "gb": float(params["custom_gb"]),
+                "tipo_ibi": {
+                    "urbano": float(params["custom_tipo_urbano"]),
+                    "rustico": float(params["custom_tipo_rustico"]),
+                    "bice": 0.0,
+                },
+                "coef_ibi_rustica": 1.0,
+                "poligonos": {},
+                "zonas_valor": {},
+            }
+        else:
+            base_data = copy.deepcopy(known_profile)
         
         # Override with custom parameters if provided (for generic municipality support)
-        if params.get("custom_mbc"): base_data["mbc"] = float(params["custom_mbc"])
-        if params.get("custom_mbr"): base_data["mbr"] = float(params["custom_mbr"])
-        if params.get("custom_rm"): base_data["rm"] = float(params["custom_rm"])
+        if params.get("custom_mbc") is not None: base_data["mbc"] = float(params["custom_mbc"])
+        if params.get("custom_mbr") is not None: base_data["mbr"] = float(params["custom_mbr"])
+        if params.get("custom_mbr_rustico") is not None: base_data["mbr_rustico"] = float(params["custom_mbr_rustico"])
+        if params.get("custom_rm") is not None: base_data["rm"] = float(params["custom_rm"])
         
         # Override IBI types
-        if params.get("custom_tipo_urbano"):
+        if params.get("custom_tipo_urbano") is not None:
             base_data["tipo_ibi"]["urbano"] = float(params["custom_tipo_urbano"])
-        if params.get("custom_tipo_rustico"):
+        if params.get("custom_tipo_rustico") is not None:
             base_data["tipo_ibi"]["rustico"] = float(params["custom_tipo_rustico"])
         
-        if params.get("custom_anio_ponencia"):
+        if params.get("custom_anio_ponencia") is not None:
             base_data["anio_ponencia"] = int(params["custom_anio_ponencia"])
 
         data = base_data
         RM = data["rm"]
         # GB: usa el valor del municipio (ej. Andújar CT=1.30) o el del usuario, o 1.0 por defecto
-        GB = float(params.get("custom_gb") or data.get("gb", 1.0))
+        GB = float(params["custom_gb"] if params.get("custom_gb") is not None else data.get("gb", 1.0))
         clase = params.get("clase", "urbano")
         
         # 1. VALOR SUELO URBANO
@@ -485,10 +533,7 @@ class TaxCalculator:
             suelo_rustico_config = COEF_SUELO_OCUPADO_RUSTICO.get(uso_suelo, {"mbr_type": "rustico", "coef": 0.50})
             coef_suelo = suelo_rustico_config["coef"]
             
-            # TODO: Idealmente tener mbr_rustico en MUNICIPALITIES. Aquí usamos el valor de polígono poblados como aproximación o el parametrizado
-            mbr_aplicar = data["mbr"] if suelo_rustico_config["mbr_type"] == "urbano" else data.get("mbr_rustico", 37.80)
-            if params.get("custom_mbr_rustico"):
-                mbr_aplicar = float(params["custom_mbr_rustico"])
+            mbr_aplicar = data["mbr"] if suelo_rustico_config["mbr_type"] == "urbano" else data["mbr_rustico"]
                 
             suelo_rust_oc = round(sup_oc * (mbr_aplicar * coef_suelo) * RM * GB, 2)
 

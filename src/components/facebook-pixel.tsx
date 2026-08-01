@@ -3,6 +3,13 @@
 import { usePathname } from "next/navigation";
 import Script from "next/script";
 import { useEffect } from "react";
+import { useCookieConsent } from "@/hooks/use-cookie-consent";
+
+declare global {
+    interface Window {
+        fbq: any;
+    }
+}
 
 export const FB_PIXEL_ID = process.env.NEXT_PUBLIC_FACEBOOK_PIXEL_ID;
 
@@ -20,14 +27,14 @@ export const event = (name: string, options = {}) => {
 
 export default function FacebookPixel() {
     const pathname = usePathname();
+    const { consent } = useCookieConsent();
 
     useEffect(() => {
-        if (!FB_PIXEL_ID) return;
+        if (!FB_PIXEL_ID || consent !== "accepted") return;
         pageview();
-    }, [pathname]);
+    }, [consent, pathname]);
 
-    if (!FB_PIXEL_ID) {
-        console.warn("⚠️ Meta Pixel ID no está configurado. Añade NEXT_PUBLIC_FACEBOOK_PIXEL_ID al .env");
+    if (!FB_PIXEL_ID || consent !== "accepted") {
         return null;
     }
 

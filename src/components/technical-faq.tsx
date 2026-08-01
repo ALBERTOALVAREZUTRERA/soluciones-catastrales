@@ -19,7 +19,7 @@ export function TechnicalFaq() {
         "name": "¿Cuál es la diferencia entre el Catastro y el Registro de la Propiedad?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "El Catastro es un registro administrativo (fiscal) que depende de Hacienda para el cobro de impuestos (IBI), mientras que el Registro de la Propiedad da seguridad jurídica sobre quién es el dueño. Es muy común que los metros no coincidan, lo que genera problemas al vender o heredar. Para igualarlos, la Ley 13/2015 exige un archivo GML topográfico."
+          "text": "El Catastro es un registro administrativo con finalidad fiscal, mientras que el Registro de la Propiedad publica la situación jurídica de las fincas. Cuando la representación gráfica debe incorporarse o modificarse, el expediente puede requerir una representación georreferenciada en formato GML."
         }
       },
       {
@@ -27,7 +27,7 @@ export function TechnicalFaq() {
         "name": "¿Cómo puedo reclamar si creo que pago un IBI excesivo?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Muchos recibos de IBI tienen errores porque el Catastro calcula mal la superficie, el año de construcción o no aplica los coeficientes de depreciación (estado de conservación). Se puede realizar una auditoría técnica del Valor Catastral y, si hay error, presentar un recurso para solicitar la devolución de ingresos indebidos con carácter retroactivo (hasta 4 años)."
+          "text": "Una revisión técnica permite contrastar superficies, uso, antigüedad y otros parámetros de valoración. Si se acredita un error, se puede solicitar su corrección y estudiar si procede reclamar ingresos indebidos dentro de los plazos aplicables."
         }
       },
       {
@@ -35,7 +35,7 @@ export function TechnicalFaq() {
         "name": "¿Qué debo hacer si hay un conflicto de lindes con un vecino?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Si un vecino ha invadido su propiedad o hay dudas sobre dónde está el límite real de la finca, la solución legal es realizar un Levantamiento Topográfico de Precisión (georreferenciado en ETRS89). Este informe técnico pericial tiene plena validez ante un juez o notario para establecer el Deslinde definitivo."
+          "text": "Un levantamiento topográfico georreferenciado ayuda a documentar la realidad física y comparar títulos, Catastro y signos de posesión. La delimitación definitiva puede requerir acuerdo entre colindantes o el procedimiento jurídico correspondiente."
         }
       },
       {
@@ -43,14 +43,14 @@ export function TechnicalFaq() {
         "name": "¿Para qué sirve exactamente un archivo GML y el IVGA?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Un GML de Parcela Catastral o de Edificio (ICUC) es un archivo informático que contiene las coordenadas GPS exactas de su propiedad. Es un requisito legal obligatorio desde 2015 para que Notarios y Registradores autoricen segregaciones, agrupaciones, declaraciones de obra nueva o rectificaciones de cabida."
+          "text": "Un GML representa mediante coordenadas el perímetro de una parcela o la huella de una construcción. Se utiliza en determinados expedientes de coordinación, segregación, agrupación, rectificación u obra nueva; la documentación concreta depende de cada operación."
         }
       }
     ]
   };
 
   return (
-    <section className="py-24 bg-white relative">
+    <section id="preguntas-frecuentes" className="py-24 bg-white relative scroll-mt-24">
       {/* Schema Markup for Google SEO */}
       <script
         type="application/ld+json"
@@ -79,7 +79,7 @@ export function TechnicalFaq() {
                   El <strong>Catastro</strong> es un registro administrativo (y fiscal) que depende del Ministerio de Hacienda y sirve fundamentalmente para cobrar impuestos como el IBI. El <strong>Registro de la Propiedad</strong>, por su parte, es el organismo que otorga la seguridad jurídica sobre quién es el dueño real y si existen cargas o hipotecas.
                 </p>
                 <p>
-                  Es extremadamente común (y problemático) que los metros cuadrados de la escritura (Registro) no coincidan con los del recibo del IBI (Catastro). Para solucionar esta <strong>discrepancia</strong> antes de vender o heredar, la Ley 13/2015 exige realizar una medición topográfica y generar un archivo GML de validación.
+                  Cuando la superficie o la geometría no coinciden, conviene revisar la escritura, la cartografía catastral y la realidad física. Si el procedimiento requiere incorporar o modificar la representación gráfica, puede ser necesaria una medición y un archivo GML.
                 </p>
               </AccordionContent>
             </AccordionItem>
@@ -90,7 +90,7 @@ export function TechnicalFaq() {
               </AccordionTrigger>
               <AccordionContent className="text-muted-foreground leading-relaxed pt-2 pb-6 space-y-4 text-base">
                 <p>
-                  Miles de propietarios pagan impuestos de más cada año por errores en la base de datos del Catastro. Los fallos más comunes incluyen:
+                  Algunos inmuebles presentan discrepancias que pueden afectar a su valoración. Entre los puntos que conviene comprobar están:
                 </p>
                 <ul className="list-disc pl-5 space-y-1">
                   <li>Superficies construidas computadas por encima de la realidad.</li>
@@ -98,7 +98,7 @@ export function TechnicalFaq() {
                   <li>No aplicación de coeficientes reductores (por mal estado de conservación o ruina).</li>
                 </ul>
                 <p>
-                  Mediante una <strong>auditoría técnica del Valor Catastral</strong>, podemos demostrar el error ante la Administración, logrando no solo que baje el recibo futuro, sino solicitando la <strong>devolución de ingresos indebidos</strong> de los últimos 4 años con carácter retroactivo.
+                  Mediante una <strong>revisión técnica del valor catastral</strong> se puede documentar el posible error. Si se confirma, se solicita su corrección y se analiza si procede reclamar <strong>ingresos indebidos</strong> conforme a los plazos y circunstancias del caso.
                 </p>
               </AccordionContent>
             </AccordionItem>
@@ -112,7 +112,7 @@ export function TechnicalFaq() {
                   Si un vecino ha movido la valla, ha construido en su terreno o hay dudas históricas sobre dónde termina una parcela rural o urbana, la solución técnica y legal exige un <strong>levantamiento topográfico de precisión</strong>.
                 </p>
                 <p>
-                  Nuestros ingenieros miden la realidad física con GPS milimétrico/estación total en el sistema de referencia oficial (ETRS89). Este dictamen pericial tiene plena validez ante el Catastro, Notarías o Juzgados para establecer el <strong>Deslinde</strong> definitivo de la propiedad.
+                  El levantamiento topográfico georreferenciado documenta la realidad física y permite compararla con títulos, Catastro y signos existentes. La delimitación definitiva puede requerir el acuerdo de los colindantes o el procedimiento notarial, registral o judicial que corresponda.
                 </p>
               </AccordionContent>
             </AccordionItem>
@@ -123,10 +123,10 @@ export function TechnicalFaq() {
               </AccordionTrigger>
               <AccordionContent className="text-muted-foreground leading-relaxed pt-2 pb-6 space-y-4 text-base">
                 <p>
-                  Un <strong>GML</strong> (Geography Markup Language) es un archivo informático que contiene el perímetro exacto de una parcela o la huella de un edificio mediante coordenadas inalterables.
+                  Un <strong>GML</strong> (Geography Markup Language) representa mediante coordenadas el perímetro de una parcela o la huella de una construcción.
                 </p>
                 <p>
-                  El <strong>IVGA</strong> (Informe de Validación Gráfica Alternativa) es el comprobante que da el Catastro de que ese GML es correcto. Ambos documentos técnicos son <strong>requisitos obligatorios por ley</strong> para que un Notario o Registrador le autorice a segregar, agrupar, legalizar una obra nueva (ICUC) o arreglar los metros de su escritura.
+                  El <strong>IVGA</strong> (Informe de Validación Gráfica Alternativa) comprueba la representación frente a la cartografía catastral. Se utiliza en determinados expedientes de segregación, agrupación, rectificación u obra nueva; el notario, registrador o la Administración determinan la documentación exigible en cada caso.
                 </p>
               </AccordionContent>
             </AccordionItem>
@@ -137,8 +137,10 @@ export function TechnicalFaq() {
             <p className="text-base text-muted-foreground max-w-2xl">
               Realizamos un <strong>estudio previo de su expediente catastral y registral</strong> sin compromiso para darle la viabilidad técnica y un presupuesto cerrado.
             </p>
-            <Button className="mt-4 bg-accent hover:bg-accent/90 hover:scale-105 transition-all duration-300 text-white font-bold rounded-full px-8 py-6 text-lg shadow-lg flex items-center gap-3">
-              <PhoneCall className="h-5 w-5" /> Consultar mi caso gratis
+            <Button className="mt-4 bg-accent hover:bg-accent/90 hover:scale-105 transition-all duration-300 text-white font-bold rounded-full px-8 py-6 text-lg shadow-lg flex items-center gap-3" asChild>
+              <a href="/#tramites">
+                <PhoneCall className="h-5 w-5" /> Solicitar orientación inicial
+              </a>
             </Button>
           </div>
 

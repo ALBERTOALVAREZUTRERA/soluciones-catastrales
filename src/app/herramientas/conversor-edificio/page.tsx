@@ -11,7 +11,7 @@ import { Building2 } from "lucide-react";
 
 export default function ConversorEdificioPage() {
     return (
-        <main className="min-h-screen bg-slate-50 font-body">
+        <main id="contenido-principal" tabIndex={-1} className="min-h-screen bg-slate-50 font-body">
             <Navbar />
 
             <div className="container mx-auto py-12 px-4">

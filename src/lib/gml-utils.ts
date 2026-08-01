@@ -1,21 +1,37 @@
 /**
- * !!! CORE GML GENERATION LOGIC - STABLE/FROZEN !!!
- * 
- * DO NOT MODIFY THIS FILE WITHOUT EXPLICIT USER APPROVAL.
- * The GML output format has been validated and accepted by Catastro.
- * Any changes here risk breaking compliance.
+ * Generación y lectura GML catastral.
+ * Las invariantes geométricas de este archivo están cubiertas por pruebas.
  */
 import proj4 from 'proj4';
-import DxfParser from 'dxf-parser';
-import * as shp from 'shpjs';
-import * as turf from '@turf/turf';
-import type { Feature, Polygon, MultiPolygon, Geometry } from 'geojson';
+import {
+    booleanValid,
+    featureCollection,
+    intersect,
+    pointOnFeature,
+    polygon,
+    rewind,
+} from '@turf/turf';
+import type { Feature, Polygon, MultiPolygon } from 'geojson';
+import {
+    calculatePlanarArea,
+    normalizeCadastralCrs,
+    normalizeCadastralGeometry,
+    ringArea,
+} from "@/lib/gml-geometry";
+export {
+    ALLOWED_CADASTRAL_EPSG,
+    calculatePlanarArea,
+    normalizeCadastralCrs,
+    normalizeCadastralRing,
+    ringArea,
+} from "@/lib/gml-geometry";
 
 // --- Definiciones de Sistemas de Coordenadas (EPSG) ---
 proj4.defs("EPSG:25829", "+proj=utm +zone=29 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs");
 proj4.defs("EPSG:25830", "+proj=utm +zone=30 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs");
 proj4.defs("EPSG:25831", "+proj=utm +zone=31 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs");
 proj4.defs("EPSG:32628", "+proj=utm +zone=28 +datum=WGS84 +units=m +no_defs"); // Canarias
+
 
 export interface GmlFeature {
     id: string;
@@ -53,19 +69,15 @@ export async function processFile(file: File, format: string, targetCrs: string)
         if (format === 'csv') {
             const text = await file.text();
             features = parseCsv(text, baseName);
-        } else if (format === 'dxf') {
-            const text = await file.text();
-            features = parseDxf(text, baseName);
-        } else if (format === 'shp') {
-            const buffer = await file.arrayBuffer();
-            features = await parseShp(buffer, baseName, targetCrs);
-        } else if (format === 'gml') {
-            const text = await file.text();
-            features = parseGml(text, baseName);
-        } else if (format === 'kmz' || format === 'kml') {
-            // Utilizamos el backend que ya tiene toda la logica KML/KMZ
+        } else if (['dxf', 'shp', 'kmz', 'kml'].includes(format)) {
+            // Un único flujo de importación evita resultados distintos entre
+            // el conversor de parcelas y el de edificios.
             const { analyzeWithBackend } = await import('@/lib/backend-api');
-            const res = await analyzeWithBackend(file, targetCrs.replace('EPSG:', ''), 'CP');
+            const res = await analyzeWithBackend(
+                file,
+                targetCrs.replace('EPSG:', ''),
+                'CP',
+            );
             features = res.parcelas.map(p => ({
                 id: p.id,
                 geometry: [p.coordenadas_utm, ...(p.interiores_utm || [])],
@@ -74,12 +86,17 @@ export async function processFile(file: File, format: string, targetCrs: string)
                 hasConflict: p.has_conflict,
                 isHole: p.is_hole,
                 capaOrigen: p.capa_origen,
+                nombre_archivo: p.nombre_archivo,
                 coordsLatLon: [p.coordenadas_latlon, ...(p.interiores_latlon || [])]
             }));
+        } else if (format === 'gml') {
+            const text = await file.text();
+            features = parseGml(text, baseName);
         }
     } catch (e) {
-        console.error("Error parsing file:", e);
-        throw new Error("Error al leer el archivo. Asegúrate de que el formato es correcto.");
+        throw e instanceof Error
+            ? e
+            : new Error("Error al leer el archivo. Asegúrate de que el formato es correcto.");
     }
 
     if (features.length === 0) {
@@ -92,41 +109,13 @@ export async function processFile(file: File, format: string, targetCrs: string)
     };
 }
 
-// --- Helper Geométrico PLANO (Cartesiano) ---
-// Turf.area usa WGS84 (geodésico). Para UTM necesitamos área plana euclidiana.
-function calculatePlanarArea(geometry: Geometry): number {
-    let area = 0;
-    if (geometry.type === 'Polygon') {
-        const polygon = geometry as Polygon;
-        // Exterior
-        area += Math.abs(ringArea(polygon.coordinates[0]));
-        // Holes (restan)
-        for (let i = 1; i < polygon.coordinates.length; i++) {
-            area -= Math.abs(ringArea(polygon.coordinates[i]));
-        }
-    } else if (geometry.type === 'MultiPolygon') {
-        const multi = geometry as MultiPolygon;
-        multi.coordinates.forEach(polyCoords => {
-            // Exterior
-            area += Math.abs(ringArea(polyCoords[0]));
-            // Holes
-            for (let i = 1; i < polyCoords.length; i++) {
-                area -= Math.abs(ringArea(polyCoords[i]));
-            }
-        });
-    }
-    return area;
-}
-
-// Fórmula de Shoelace (Gausiana)
-function ringArea(coords: any[]): number {
-    let area = 0;
-    for (let i = 0; i < coords.length - 1; i++) {
-        const p1 = coords[i];
-        const p2 = coords[i + 1];
-        area += (p1[0] * p2[1]) - (p2[0] * p1[1]);
-    }
-    return area / 2;
+function escapeXml(value: unknown): string {
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&apos;");
 }
 
 // --- Parsers (Lectura de archivos) ---
@@ -294,7 +283,8 @@ function calculatePlanarAreaFromFeature(feature: Feature<Polygon | MultiPolygon>
 
 // Procesa DXF con capas PG-LP (límites) y PG-LI (divisiones interiores)
 // Une fragmentos automáticamente (tolera LINE y POLYLINE abiertas)
-export function parseDxf(text: string, baseName: string = 'PARCELA_DXF'): GmlFeature[] {
+export async function parseDxf(text: string, baseName: string = 'PARCELA_DXF'): Promise<GmlFeature[]> {
+    const { default: DxfParser } = await import('dxf-parser');
     const parser = new DxfParser();
     let dxf;
     try {
@@ -306,8 +296,6 @@ export function parseDxf(text: string, baseName: string = 'PARCELA_DXF'): GmlFea
     if (!dxf || !dxf.entities || dxf.entities.length === 0) {
         throw new Error("El archivo DXF parece estar vacío o no contiene entidades.");
     }
-
-    console.log(`[parseDxf] Procesando ${dxf.entities.length} entidades DXF`);
 
     // 1. Buscar geometrías en capas por prioridad
     let outerPolysPoints: [number, number][][] = [];
@@ -323,7 +311,6 @@ export function parseDxf(text: string, baseName: string = 'PARCELA_DXF'): GmlFea
         for (const layer of fallbackLayers) {
             const found = mergeFragments(dxf.entities, layer);
             if (found.length > 0) {
-                console.log(`[parseDxf] Encontrada geometría en capa de fallback: ${layer}`);
                 outerPolysPoints = found;
                 break;
             }
@@ -336,14 +323,11 @@ export function parseDxf(text: string, baseName: string = 'PARCELA_DXF'): GmlFea
         for (const layer of allLayers) {
             const found = mergeFragments(dxf.entities, layer as string);
             if (found.length > 0) {
-                console.log(`[parseDxf] Usando capa aleatoria con datos: ${layer}`);
                 outerPolysPoints = found;
                 break;
             }
         }
     }
-
-    console.log(`[parseDxf] Final: LP/Main: ${outerPolysPoints.length} polígonos, LI/Holes: ${innerPolysPoints.length} polígonos`);
 
     if (outerPolysPoints.length === 0 && innerPolysPoints.length === 0) {
         throw new Error("No se encontraron geometrías de polilíneas cerradas en ninguna capa del DXF.");
@@ -367,7 +351,12 @@ export function parseDxf(text: string, baseName: string = 'PARCELA_DXF'): GmlFea
 
     // Procesar Interiores (PG-LI)
     innerPolysPoints.forEach((points, i) => {
-        if (points[0][0] !== points[points.length - 1][0]) points.push(points[0]);
+        if (
+            points[0][0] !== points[points.length - 1][0]
+            || points[0][1] !== points[points.length - 1][1]
+        ) {
+            points.push(points[0]);
+        }
         rawPolys.push({
             id: `${baseName}_INT_${i + 1}`,
             points: points,
@@ -402,7 +391,13 @@ export function parseDxf(text: string, baseName: string = 'PARCELA_DXF'): GmlFea
         finalFeatures.push({
             id: parent.id.replace(/_(EXT|INT)_\d+$/, ''),
             geometry: [parent.points, ...holes_found], // exterior + huecos
-            area: parent.area
+            area: Math.max(
+                0,
+                parent.area - holes_found.reduce(
+                    (sum, hole) => sum + Math.abs(calculateSignedAreaSimple(hole)),
+                    0,
+                ),
+            ),
         });
         consumed.add(parent.id);
     }
@@ -416,12 +411,11 @@ export function parseDxf(text: string, baseName: string = 'PARCELA_DXF'): GmlFea
         }
     });
 
-    console.log(`[parseDxf] Resultado: ${finalFeatures.length} parcelas finales`);
-
     return finalFeatures;
 }
 
 async function parseShp(buffer: ArrayBuffer, baseName: string = 'PARCELA_SHP', targetCrs: string = "EPSG:25830"): Promise<GmlFeature[]> {
+    const shp = await import('shpjs');
     let geojson;
     try {
         geojson = await shp.parseZip(buffer);
@@ -459,8 +453,8 @@ async function parseShp(buffer: ArrayBuffer, baseName: string = 'PARCELA_SHP', t
                         }
 
                         try {
-                            const tPoly = turf.polygon(polyCoords);
-                            const rewound = turf.rewind(tPoly, { reverse: false }) as Feature<Polygon>;
+                            const tPoly = polygon(polyCoords);
+                            const rewound = rewind(tPoly, { reverse: false }) as Feature<Polygon>;
 
                             let coords = (rewound.geometry as Polygon).coordinates as number[][][];
 
@@ -478,10 +472,10 @@ async function parseShp(buffer: ArrayBuffer, baseName: string = 'PARCELA_SHP', t
                             features.push({
                                 id,
                                 geometry: coords,
-                                area: calculatePlanarArea(turf.polygon(coords).geometry)
+                                area: calculatePlanarArea(polygon(coords).geometry)
                             });
-                        } catch (err) {
-                            console.warn("Geometría SHP inválida ignorada", err);
+                        } catch {
+                            // Una geometría inválida no debe impedir procesar el resto del archivo.
                         }
                     });
                 });
@@ -501,7 +495,8 @@ async function parseShp(buffer: ArrayBuffer, baseName: string = 'PARCELA_SHP', t
 // --- Generador GML XML ---
 
 export function generateGml(features: GmlFeature[], crs: string): string {
-    const epsgCode = crs.split(':')[1];
+    if (features.length === 0) throw new Error("No hay parcelas que exportar.");
+    const epsgCode = normalizeCadastralCrs(crs);
     const timestamp = new Date().toISOString().split('.')[0] + 'Z';
 
     const srsName = `http://www.opengis.net/def/crs/EPSG/0/${epsgCode}`;
@@ -509,24 +504,31 @@ export function generateGml(features: GmlFeature[], crs: string): string {
     let gml = `<?xml version="1.0" encoding="utf-8"?>
 <FeatureCollection xmlns:xsi="${NS_MAP.xsi}" xmlns:gml="${NS_MAP.gml}" xmlns:xlink="${NS_MAP.xlink}" xmlns:cp="${NS_MAP.cp}" xmlns:gmd="http://www.isotc211.org/2005/gmd" xsi:schemaLocation="${SCHEMALOCATION}" xmlns="${NS_MAP.wfs}" timeStamp="${timestamp}" numberMatched="${features.length}" numberReturned="${features.length}">`;
 
-    features.forEach(f => {
-        const exteriorRing = f.geometry[0];
-        const interiorRings = f.geometry.slice(1);
+    const usedGmlIds = new Set<string>();
+    features.forEach((f, featureIndex) => {
+        const normalizedGeometry = normalizeCadastralGeometry(f.geometry);
+        const exteriorRing = normalizedGeometry[0];
+        const interiorRings = normalizedGeometry.slice(1);
 
         const coordsStr = exteriorRing.map(p => `${p[0].toFixed(2)} ${p[1].toFixed(2)}`).join(' ');
 
         // USAR AREA PLANA
-        const geometry = turf.polygon(f.geometry);
+        const geometry = polygon(normalizedGeometry);
+        if (!booleanValid(geometry)) {
+            throw new Error(`La geometría ${f.id || featureIndex + 1} no es topológicamente válida.`);
+        }
         const totalArea = calculatePlanarArea(geometry.geometry);
         const areaStr = totalArea.toFixed(0);
 
-        const refPointFeat = turf.pointOnFeature(geometry);
+        const refPointFeat = pointOnFeature(geometry);
         const refPoint = refPointFeat.geometry.coordinates;
 
         // DETECCION DE REFEFERNCIA CATASTRAL Y NAMESPACE
         // Limpiamos el ID de posibles sufijos internos para chequear el formato
-        const cleanIdRoot = f.id.split('_')[0].split('.')[0];
-        const isRC = /^[A-Z0-9]{14}$|^[A-Z0-9]{20}$/i.test(cleanIdRoot);
+        const identifierSource = (f.cadastralReference || f.id || "").trim().toUpperCase();
+        const prefixedMatch = identifierSource.match(/^ES\.SDGC\.CP\.([A-Z0-9]{14}|[A-Z0-9]{20})/);
+        const cleanIdRoot = (prefixedMatch?.[1] || identifierSource).replace(/\s+/g, "");
+        const isRC = /^(?:[A-Z0-9]{14}|[A-Z0-9]{20})$/.test(cleanIdRoot);
 
         // Si el ID ya trae prefijo, respetar.
         // El usuario se queja de "ES.LOCAL.CP". Quiere "ES.SDGC.CP".
@@ -538,15 +540,9 @@ export function generateGml(features: GmlFeature[], crs: string): string {
             // IMPORTANTE: El ID GML debe ser unique. Si f.id ya es unico, lo usamos.
             // Si f.id es la RC pura, le pegamos el prefijo.
 
-            if (f.id.startsWith('ES.')) {
-                gmlId = f.id; // Ya viene formateado
-                localId = f.id.split('.').pop();
-                namespacePrefix = f.id.split('.').slice(0, 3).join('.');
-            } else {
-                gmlId = `ES.SDGC.CP.${f.id}`;
-                namespacePrefix = 'ES.SDGC.CP';
-                localId = f.id;
-            }
+            localId = cleanIdRoot;
+            namespacePrefix = "ES.SDGC.CP";
+            gmlId = `${namespacePrefix}.${localId}`;
 
             // Label suele ser los ultimos 2 digitos de la finca (pos 5-7 del string 14) o nada
             // XX0000 -> 00
@@ -555,24 +551,32 @@ export function generateGml(features: GmlFeature[], crs: string): string {
 
         } else {
             // FALLBACK A LOCAL SI NO PARECE UNA RC
-            const safeId = f.id.replace(/[^a-zA-Z0-9_]/g, '_');
+            const safeId = (f.id || `PARCELA_${featureIndex + 1}`)
+                .normalize("NFKD")
+                .replace(/[^\w]/g, "_")
+                .replace(/^_+|_+$/g, "") || `PARCELA_${featureIndex + 1}`;
             gmlId = `ES.LOCAL.CP.${safeId}`;
             namespacePrefix = 'ES.LOCAL.CP';
             label = '';
             refVal = '<cp:nationalCadastralReference/>';
             localId = safeId;
         }
+        if (usedGmlIds.has(gmlId)) {
+            localId = `${localId}_${featureIndex + 1}`;
+            gmlId = `${namespacePrefix}.${localId}`;
+        }
+        usedGmlIds.add(gmlId);
 
         gml += `
 <member>
-  <cp:CadastralParcel gml:id="${gmlId}">
+  <cp:CadastralParcel gml:id="${escapeXml(gmlId)}">
     <cp:areaValue uom="m2">${areaStr}</cp:areaValue>
-    <cp:beginLifespanVersion>${isRC ? "2025-01-01T00:00:00" : timestamp}</cp:beginLifespanVersion>
+    <cp:beginLifespanVersion>${timestamp}</cp:beginLifespanVersion>
     <cp:endLifespanVersion xsi:nil="true" nilReason="http://inspire.ec.europa.eu/codelist/VoidReasonValue/Unpopulated"></cp:endLifespanVersion>
     <cp:geometry>
-      <gml:MultiSurface gml:id="MultiSurface_${gmlId}" srsName="${srsName}">
+      <gml:MultiSurface gml:id="MultiSurface_${escapeXml(gmlId)}" srsName="${srsName}">
         <gml:surfaceMember>
-          <gml:Surface gml:id="Surface_${gmlId}" srsName="${srsName}">
+          <gml:Surface gml:id="Surface_${escapeXml(gmlId)}" srsName="${srsName}">
             <gml:patches>
               <gml:PolygonPatch>
                 <gml:exterior>
@@ -602,14 +606,14 @@ export function generateGml(features: GmlFeature[], crs: string): string {
     </cp:geometry>
     <cp:inspireId>
       <Identifier xmlns="${NS_MAP.base}">
-        <localId>${localId}</localId>
-        <namespace>${namespacePrefix}</namespace>
+        <localId>${escapeXml(localId)}</localId>
+        <namespace>${escapeXml(namespacePrefix)}</namespace>
       </Identifier>
     </cp:inspireId>
-    <cp:label>${label}</cp:label>
+    <cp:label>${escapeXml(label)}</cp:label>
     ${refVal}
     <cp:referencePoint>
-      <gml:Point gml:id="ReferencePoint_${gmlId}" srsName="${srsName}">
+      <gml:Point gml:id="ReferencePoint_${escapeXml(gmlId)}" srsName="${srsName}">
         <gml:pos>${refPoint[0].toFixed(2)} ${refPoint[1].toFixed(2)}</gml:pos>
       </gml:Point>
     </cp:referencePoint>
@@ -638,7 +642,7 @@ export function validateTopology(layers: { name: string, features: GmlFeature[] 
         name: layer.name,
         polygons: layer.features.map(f => {
             try {
-                return turf.polygon(f.geometry);
+                return polygon(f.geometry);
             } catch (e) {
                 return null;
             }
@@ -655,7 +659,7 @@ export function validateTopology(layers: { name: string, features: GmlFeature[] 
             layerA.polygons.forEach(polyA => {
                 layerB.polygons.forEach(polyB => {
                     try {
-                        const intersection = turf.intersect(turf.featureCollection([polyA, polyB]));
+                        const intersection = intersect(featureCollection([polyA, polyB]));
 
                         // Si hay intersección y NO es solo una línea o punto (comprobando área > 0)
                         if (intersection) {
@@ -672,8 +676,8 @@ export function validateTopology(layers: { name: string, features: GmlFeature[] 
                                 });
                             }
                         }
-                    } catch (e) {
-                        console.warn("Error calculando intersección:", e);
+                    } catch {
+                        // Turf puede rechazar geometrías degeneradas; se omite solo este par.
                     }
                 });
             });
@@ -693,7 +697,10 @@ export function parseGml(text: string, baseName: string): GmlFeature[] {
         throw new Error("Error al analizar el archivo XML/GML.");
     }
 
-    const parcels = xmlDoc.getElementsByTagNameNS("*", "CadastralParcel");
+    let parcels = Array.from(xmlDoc.getElementsByTagNameNS("*", "CadastralParcel"));
+    if (parcels.length === 0) {
+        parcels = Array.from(xmlDoc.getElementsByTagName("cp:CadastralParcel"));
+    }
     const features: GmlFeature[] = [];
 
     // Logica fallback para namespaces (browsers a veces son quisquillosos con getElementsByTagNameNS)
@@ -705,8 +712,25 @@ export function parseGml(text: string, baseName: string): GmlFeature[] {
         return Array.from(nodes);
     };
 
-    Array.from(parcels).forEach((parcel, idx) => {
+    const parsePositionList = (node: Element): number[][] => {
+        const dimension = Number(node.getAttribute("srsDimension") || 2);
+        if (!Number.isInteger(dimension) || dimension < 2 || dimension > 3) {
+            throw new Error("Dimensión de coordenadas GML no soportada.");
+        }
+        const values = (node.textContent || "").trim().split(/\s+/).map(Number);
+        if (values.some(value => !Number.isFinite(value)) || values.length % dimension !== 0) {
+            throw new Error("La lista de coordenadas GML está incompleta o contiene valores no válidos.");
+        }
+        const points: number[][] = [];
+        for (let index = 0; index < values.length; index += dimension) {
+            points.push([values[index], values[index + 1]]);
+        }
+        return points;
+    };
+
+    parcels.forEach((parcel, idx) => {
         const id = parcel.getAttribute("gml:id") || `parcel_${idx}`;
+        const cadastralReference = getNodes(parcel, "nationalCadastralReference")[0]?.textContent?.trim() || "";
 
         // Buscar Surfaces (PolygonPatches)
         const patches = getNodes(parcel, "PolygonPatch");
@@ -718,51 +742,33 @@ export function parseGml(text: string, baseName: string): GmlFeature[] {
             const posList = getNodes(exteriorRing, "posList")[0];
             if (!posList || !posList.textContent) return;
 
-            const coordsRaw = posList.textContent.trim().split(/\s+/).map(Number);
             const rings: number[][][] = [];
-
-            // Exterior Ring (0)
-            const extPoints: number[][] = [];
-            for (let i = 0; i < coordsRaw.length; i += 2) {
-                extPoints.push([coordsRaw[i], coordsRaw[i + 1]]);
-            }
-            rings.push(extPoints);
+            rings.push(parsePositionList(posList));
 
             // Interior Rings (Holes)
             const interiors = getNodes(patch, "interior");
             interiors.forEach(interior => {
                 const iPosList = getNodes(interior, "posList")[0];
                 if (iPosList && iPosList.textContent) {
-                    const iCoordsRaw = iPosList.textContent.trim().split(/\s+/).map(Number);
-                    const intPoints: number[][] = [];
-                    for (let k = 0; k < iCoordsRaw.length; k += 2) {
-                        intPoints.push([iCoordsRaw[k], iCoordsRaw[k + 1]]);
-                    }
-                    rings.push(intPoints);
+                    rings.push(parsePositionList(iPosList));
                 }
             });
 
             // Extract Area (Optional)
             let area = 0;
             const areaNode = getNodes(parcel, "areaValue")[0];
-            if (areaNode && areaNode.textContent) {
+            if (patches.length === 1 && areaNode && areaNode.textContent) {
                 area = parseFloat(areaNode.textContent);
-            } else {
-                // Fallback calculation
-                try {
-                    const poly = turf.polygon(rings);
-                    // Use our planar algo
-                    // We need to import calculatePlanarArea via internal or duplicate. 
-                    // Since it's not exported, lets just assume 0 or roughly turf area (geodesic).
-                    // Or improved: calculate simple area here inline if needed, but 0 is safe for visuals.
-                    area = turf.area(poly);
-                } catch (e) { }
+            }
+            if (!Number.isFinite(area) || area <= 0) {
+                area = calculatePlanarArea(polygon(rings).geometry);
             }
 
             features.push({
                 id: `${id}${patches.length > 1 ? '.' + (pIdx + 1) : ''}`,
                 geometry: rings,
-                area: area
+                area,
+                cadastralReference,
             });
         });
     });

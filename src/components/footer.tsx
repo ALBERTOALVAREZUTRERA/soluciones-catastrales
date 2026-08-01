@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Landmark, Mail, Phone, MapPin, Linkedin, Facebook, Twitter } from "lucide-react";
+import { Landmark, Mail, Phone, MapPin } from "lucide-react";
 import { useState, useEffect } from "react";
 
 export function Footer() {
@@ -26,22 +26,20 @@ export function Footer() {
             <p className="text-gray-300 text-sm">
               Ingeniería técnica especializada en archivos GML, coordinación Catastro-Registro y regularización técnica de la propiedad en Jaén.
             </p>
-            <div className="flex gap-4">
-              <Linkedin className="h-5 w-5 text-gray-400 hover:text-accent cursor-pointer" />
-              <Facebook className="h-5 w-5 text-gray-400 hover:text-accent cursor-pointer" />
-              <Twitter className="h-5 w-5 text-gray-400 hover:text-accent cursor-pointer" />
-            </div>
+            <p className="text-xs text-gray-400">
+              Atención directa por Alberto Álvarez Utrera.
+            </p>
           </div>
 
           {/* Links */}
           <div>
             <h4 className="text-lg font-bold mb-6 font-headline">Servicios</h4>
             <ul className="space-y-4 text-sm text-gray-300">
-              <li><Link href="#servicios" className="hover:text-accent">Archivos GML Parcela/Edificio</Link></li>
-              <li><Link href="#servicios" className="hover:text-accent">Cambios de Titularidad</Link></li>
-              <li><Link href="#servicios" className="hover:text-accent">Revisión de Valor e IBI</Link></li>
-              <li><Link href="#servicios" className="hover:text-accent">Informes de Validación (IVGA)</Link></li>
-              <li><Link href="#servicios" className="hover:text-accent">Obra Nueva y Segregación</Link></li>
+              <li><Link href="/servicios" className="hover:text-accent">Topografía y georreferenciación</Link></li>
+              <li><Link href="/herramientas/conversor-gml" className="hover:text-accent">Archivos GML de parcela</Link></li>
+              <li><Link href="/herramientas/conversor-edificio" className="hover:text-accent">GML de construcción</Link></li>
+              <li><Link href="/tramites-catastrales" className="hover:text-accent">Trámites catastrales</Link></li>
+              <li><Link href="/tramites-registrales" className="hover:text-accent">Trámites registrales</Link></li>
             </ul>
           </div>
 
@@ -49,11 +47,11 @@ export function Footer() {
           <div>
             <h4 className="text-lg font-bold mb-6 font-headline">Recursos</h4>
             <ul className="space-y-4 text-sm text-gray-300">
-              <li><a href="https://www.sedecatastro.gob.es/" target="_blank" className="hover:text-accent">Sede Electrónica Catastro</a></li>
-              <li><a href="https://www1.sedecatastro.gob.es/Cartografia/mapa.aspx?historica=SI" target="_blank" className="hover:text-accent underline decoration-accent/30 font-semibold text-accent/90">Visor Cartografía Histórica</a></li>
-              <li><Link href="#" className="hover:text-accent">Guía de Trámites GML</Link></li>
-              <li><Link href="#" className="hover:text-accent">Normativa Ley 13/2015</Link></li>
-              <li><Link href="#" className="hover:text-accent">Preguntas Frecuentes</Link></li>
+              <li><a href="https://www.sedecatastro.gob.es/" target="_blank" rel="noopener noreferrer" className="hover:text-accent">Sede Electrónica Catastro</a></li>
+              <li><a href="https://www1.sedecatastro.gob.es/Cartografia/mapa.aspx?historica=SI" target="_blank" rel="noopener noreferrer" className="hover:text-accent underline decoration-accent/30 font-semibold text-accent/90">Visor Cartografía Histórica</a></li>
+              <li><a href="/descargas/guia-supervivencia-catastral.pdf" download className="hover:text-accent">Guía catastral en PDF</a></li>
+              <li><a href="https://www.boe.es/buscar/act.php?id=BOE-A-2015-7046" target="_blank" rel="noopener noreferrer" className="hover:text-accent">Ley 13/2015 en el BOE</a></li>
+              <li><Link href="/#preguntas-frecuentes" className="hover:text-accent">Preguntas frecuentes</Link></li>
             </ul>
           </div>
 
@@ -67,7 +65,7 @@ export function Footer() {
               </li>
               <li className="flex items-center gap-3">
                 <Phone className="h-5 w-5 text-accent" />
-                +34 665 890 608
+                <a href="tel:+34665890608" className="hover:text-accent">+34 665 890 608</a>
               </li>
               <li className="flex items-center gap-3">
                 <Mail className="h-5 w-5 text-accent" />

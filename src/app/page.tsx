@@ -12,11 +12,23 @@ import { Footer } from "@/components/footer";
 import { WhatsAppButton } from "@/components/whatsapp-button";
 import { Toaster } from "@/components/ui/toaster";
 import Link from "next/link";
-import { Scale, Landmark, ArrowRight, CheckCircle2, Calculator, Map, TrendingDown } from "lucide-react";
+import {
+  Scale,
+  Landmark,
+  ArrowRight,
+  CheckCircle2,
+  Calculator,
+  Map,
+  TrendingDown,
+  ClipboardCheck,
+  UserRoundCheck,
+  ShieldCheck,
+  MapPinned,
+} from "lucide-react";
 
 export default function Home() {
   return (
-    <main className="min-h-screen font-body selection:bg-accent selection:text-white">
+    <main id="contenido-principal" tabIndex={-1} className="min-h-screen font-body selection:bg-accent selection:text-white">
       <Navbar />
       <Hero />
       <ServicesSection />
@@ -46,7 +58,7 @@ export default function Home() {
                   <Calculator className="h-8 w-8" />
                 </div>
                 <h3 className="text-xl font-bold text-blue-950 mb-2">Calculadora Urbana</h3>
-                <p className="text-blue-800/80 text-sm mb-4">Simulador oficial del RD 1020/1993 para calcular el valor exacto de pisos, solares y naves.</p>
+                <p className="text-blue-800/80 text-sm mb-4">Estimación orientativa basada en el RD 1020/1993 para revisar pisos, solares y naves.</p>
                 <div className="mt-auto text-blue-600 font-bold text-sm flex items-center gap-2">
                   Simular Valor <ArrowRight className="h-4 w-4" />
                 </div>
@@ -60,7 +72,7 @@ export default function Home() {
                   <Map className="h-8 w-8" />
                 </div>
                 <h3 className="text-xl font-bold text-purple-950 mb-2">GML Catastral Gratis</h3>
-                <p className="text-purple-800/80 text-sm mb-4">Motor de conversión instantánea. Transforma KML, DXF y SHP al formato oficial del Catastro.</p>
+                <p className="text-purple-800/80 text-sm mb-4">Convierte KML, DXF y SHP a GML para preparar su comprobación en la Sede del Catastro.</p>
                 <div className="mt-auto text-purple-600 font-bold text-sm flex items-center gap-2">
                   Crear GML <ArrowRight className="h-4 w-4" />
                 </div>
@@ -79,7 +91,7 @@ export default function Home() {
             </h2>
             <div className="h-1 w-20 bg-accent mx-auto mb-6" />
             <p className="text-muted-foreground text-lg">
-              Solucionamos discrepancias inmobiliarias de forma integral. Levantamientos topográficos, informes técnicos y gestión jurídica ante Catastro, Ayuntamientos y Registro de la Propiedad en Andalucía.
+              Preparamos la documentación técnica para resolver discrepancias inmobiliarias: levantamientos topográficos, informes y apoyo en expedientes ante Catastro, Ayuntamientos y Registro de la Propiedad.
             </p>
           </div>
 
@@ -150,25 +162,25 @@ export default function Home() {
       <CatastroTimeWrapper />
       <HistoricalCartography />
 
-      {/* Sección de Estadísticas y Confianza */}
+      {/* Compromisos de servicio verificables */}
       <section className="py-20 bg-primary text-white">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-            <div className="animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
-              <p className="text-4xl md:text-5xl font-bold text-accent mb-2">15+</p>
-              <p className="text-sm uppercase tracking-wider font-semibold">Años de Experiencia</p>
+            <div className="animate-fade-in-up flex flex-col items-center" style={{ animationDelay: '0.1s' }}>
+              <UserRoundCheck className="h-10 w-10 text-accent mb-4" />
+              <p className="text-sm uppercase tracking-wider font-semibold">Revisión técnica personal</p>
             </div>
-            <div className="animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-              <p className="text-4xl md:text-5xl font-bold text-accent mb-2">5.000+</p>
-              <p className="text-sm uppercase tracking-wider font-semibold">Parcelas Regularizadas</p>
+            <div className="animate-fade-in-up flex flex-col items-center" style={{ animationDelay: '0.2s' }}>
+              <ClipboardCheck className="h-10 w-10 text-accent mb-4" />
+              <p className="text-sm uppercase tracking-wider font-semibold">Alcance y presupuesto previos</p>
             </div>
-            <div className="animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
-              <p className="text-4xl md:text-5xl font-bold text-accent mb-2">98%</p>
-              <p className="text-sm uppercase tracking-wider font-semibold">Casos de Éxito</p>
+            <div className="animate-fade-in-up flex flex-col items-center" style={{ animationDelay: '0.3s' }}>
+              <ShieldCheck className="h-10 w-10 text-accent mb-4" />
+              <p className="text-sm uppercase tracking-wider font-semibold">Datos tratados con privacidad</p>
             </div>
-            <div className="animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
-              <p className="text-4xl md:text-5xl font-bold text-accent mb-2">24h</p>
-              <p className="text-sm uppercase tracking-wider font-semibold">Respuesta Técnica</p>
+            <div className="animate-fade-in-up flex flex-col items-center" style={{ animationDelay: '0.4s' }}>
+              <MapPinned className="h-10 w-10 text-accent mb-4" />
+              <p className="text-sm uppercase tracking-wider font-semibold">Servicio en Jaén y Andalucía</p>
             </div>
           </div>
         </div>

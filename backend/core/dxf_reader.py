@@ -82,27 +82,15 @@ class DXFReader:
                 textos_m = msp.query(f'MTEXT[layer=="{capa_textos}"]')
                 todos_textos = list(textos) + list(textos_m)
             
-            print(f"DEBUG: Candidatos Textos -> {len(todos_textos)} ent.")
-
             # Iterar sobre las capas de geometría
-            count_total_polys = 0
-            
             for capa in capas_parcelas:
                 # CORRECCIÓN CRÍTICA: PG-LI son divisiones interiores VÁLIDAS
                 # NO ignorar, son parte importante de la parcela
-                capa_upper = capa.upper()
-                tipo_capa = "LP" if "LP" in capa_upper else ("LI" if "LI" in capa_upper else "OTRA")
-                
-                print(f"DEBUG: Procesando capa '{capa}' [Tipo: {tipo_capa}]")
-
                 # Extraer Polilíneas de esta capa
                 lw_polys = msp.query(f'LWPOLYLINE[layer=="{capa}"]')
                 legacy_polys = msp.query(f'POLYLINE[layer=="{capa}"]')
                 polilineas = list(lw_polys) + list(legacy_polys)
                 
-                print(f"DEBUG: Capa '{capa}' -> {len(polilineas)} geometrías")
-                count_total_polys += len(polilineas)
-            
                 # Procesar cada polilínea
                 for i, poly in enumerate(polilineas):
                     # Verificar si está cerrada
@@ -115,16 +103,21 @@ class DXFReader:
                     else:
                        coordenadas = [(v.dxf.location.x, v.dxf.location.y) for v in poly.vertices]
                     
-                    # Intento de cerrar manualmente si coincide start/end
+                    # Solo admitir anillos declarados como cerrados o cuyos
+                    # extremos coincidan dentro de una tolerancia topográfica.
                     if len(coordenadas) > 2:
                         start = coordenadas[0]
                         end = coordenadas[-1]
-                        if start != end:
-                            coordenadas.append(start)
-                        is_closed = True
-                    
-                    if not is_closed or len(coordenadas) < 3:
-                        if i < 5: print(f"DEBUG: Polilínea {i} ignorada en {capa}. Puntos: {len(coordenadas)}")
+                        endpoint_distance = (
+                            (end[0] - start[0]) ** 2
+                            + (end[1] - start[1]) ** 2
+                        ) ** 0.5
+                        if is_closed or endpoint_distance <= 0.05:
+                            if start != end:
+                                coordenadas.append(start)
+                            is_closed = True
+
+                    if not is_closed or len(set(coordenadas[:-1])) < 3:
                         continue
                     
                     # Crear parcela preliminar
@@ -139,7 +132,7 @@ class DXFReader:
                     
                     if referencia:
                         referencia_limpia = referencia.replace(" ", "").upper()
-                        if len(referencia_limpia) in [14, 20] and referencia_limpia.isalnum():
+                        if len(referencia_limpia) in [14, 18, 20] and referencia_limpia.isalnum():
                             parcela.referencia_catastral = referencia_limpia
                             parcela.nombre_archivo = referencia_limpia
                         else:
@@ -150,7 +143,10 @@ class DXFReader:
                         # 1. Intentar usar el nombre del archivo si parece una RC (14 caracteres)
                         nombre_limpio = nombre_base_dxf.strip().upper()
                         # Validación simple de RC: 14 caracteres alfanuméricos (o 20)
-                        es_rc_valida = (len(nombre_limpio) == 14 and nombre_limpio.isalnum())
+                        es_rc_valida = (
+                            len(nombre_limpio) in (14, 18, 20)
+                            and nombre_limpio.isalnum()
+                        )
                         
                         if es_rc_valida:
                              parcela.referencia_catastral = nombre_limpio
@@ -182,20 +178,29 @@ class DXFReader:
             raise Exception(f"Error al leer DXF: {str(e)}")
 
     @staticmethod
-    def calcular_area(coordenadas: List[Tuple[float, float]]) -> float:
+    def calcular_area(
+        coordenadas: List[Tuple[float, float]],
+        interiores: Optional[List[List[Tuple[float, float]]]] = None,
+    ) -> float:
         """Calcula el área usando la fórmula de Gauss (Shoelace format)"""
-        x = [c[0] for c in coordenadas]
-        y = [c[1] for c in coordenadas]
-        return 0.5 * abs(sum(x[i]*y[i+1] - x[i+1]*y[i] for i in range(len(coordenadas)-1)))
+        from shapely.geometry import Polygon
+
+        try:
+            return float(Polygon(coordenadas, interiores or []).area)
+        except Exception:
+            return 0.0
 
     @staticmethod
     def calcular_centroide(coordenadas: List[Tuple[float, float]]) -> Tuple[float, float]:
-        """Calcula un centroide aproximado (promedio de coordenadas)"""
+        """Calcula un punto representativo situado dentro del polígono."""
         if not coordenadas:
             return (0.0, 0.0)
-        x = [c[0] for c in coordenadas]
-        y = [c[1] for c in coordenadas]
-        return (sum(x) / len(x), sum(y) / len(y))
+        try:
+            from shapely.geometry import Polygon
+            point = Polygon(coordenadas).representative_point()
+            return (point.x, point.y)
+        except Exception:
+            return (0.0, 0.0)
 
     @staticmethod
     def buscar_texto_dentro(parcela: ParcelaInfo, textos_dxf) -> Optional[str]:
@@ -233,62 +238,71 @@ class DXFReader:
         Devuelve un diccionario: {indice_padre: [indices_hijos]}
         Las parcelas hijas se consideran agujeros potenciales.
         """
-        anidamientos = {}
-        
-        # Ordenar por área descendente (los contenedores son más grandes)
-        # Esto cumple la lógica del usuario: El más grande es la finca (Exterior), los menores dentro son huecos.
-        indices_ordenados = sorted(range(len(parcelas)), key=lambda i: parcelas[i].area, reverse=True)
-        
-        for i in range(len(indices_ordenados)):
-            idx_padre = indices_ordenados[i]
-            padre = parcelas[idx_padre]
-            
-            # Nota: Al ser el más grande de los restantes, asumimos que es Exterior candidata
-            # Si tuviera padres, ya habría sido procesada en el bucle interior de una iteración anterior
-            # (siempre que los padres sean más grandes, que es geometría básica).
-            
-            # Bounding box del padre
-            if not padre.coordenadas: continue
-            px = [c[0] for c in padre.coordenadas]
-            py = [c[1] for c in padre.coordenadas]
-            min_xp, max_xp = min(px), max(px)
-            min_yp, max_yp = min(py), max(py)
+        from shapely.geometry import Polygon
 
-            for j in range(i + 1, len(indices_ordenados)):
-                idx_hijo = indices_ordenados[j]
-                hijo = parcelas[idx_hijo]
-                
-                # REGLA: Un PG-LP no suele estar dentro de otro PG-LP (salvo error topológico o islas)
-                # PERO un PG-LI SIEMPRE debe estar dentro de un PG-LP.
-                # Si tenemos source layer, podemos priorizar.
-                
-                # Si ya ha sido asignado como hijo de otro, saltar
-                es_hijo_de_alguien = False
-                for hijos in anidamientos.values():
-                    if idx_hijo in hijos:
-                        es_hijo_de_alguien = True
-                        break
-                if es_hijo_de_alguien:
+        polygons = []
+        for parcela in parcelas:
+            try:
+                polygon = Polygon(parcela.coordenadas, parcela.interiores)
+                polygons.append(polygon if polygon.is_valid else None)
+            except Exception:
+                polygons.append(None)
+
+        has_explicit_interior_layers = any(
+            "LI" in (parcela.capa_origen or "").upper()
+            for parcela in parcelas
+        )
+        immediate_parent: Dict[int, int] = {}
+
+        for child_index, child_polygon in enumerate(polygons):
+            if child_polygon is None or child_polygon.is_empty:
+                continue
+            child_layer = (parcelas[child_index].capa_origen or "").upper()
+            if has_explicit_interior_layers and "LI" not in child_layer:
+                continue
+
+            possible_parents = []
+            for parent_index, parent_polygon in enumerate(polygons):
+                if parent_index == child_index or parent_polygon is None:
                     continue
+                parent_layer = (parcelas[parent_index].capa_origen or "").upper()
+                if has_explicit_interior_layers and "LI" in parent_layer:
+                    continue
+                if (
+                    parent_polygon.area > child_polygon.area
+                    and parent_polygon.contains(child_polygon)
+                ):
+                    possible_parents.append(parent_index)
 
-                if not hijo.coordenadas: continue
-                
-                # Check rápido de Bounding Box: El hijo debe estar DENTRO del padre
-                hx = [c[0] for c in hijo.coordenadas]
-                hy = [c[1] for c in hijo.coordenadas]
-                min_xh, max_xh = min(hx), max(hx)
-                min_yh, max_yh = min(hy), max(hy)
-                
-                if (min_xh >= min_xp and max_xh <= max_xp and 
-                    min_yh >= min_yp and max_yh <= max_yp):
-                    
-                    # Check preciso usando CENTROIDE (más robusto que el primer vértice)
-                    cx, cy = hijo.punto_referencia
-                    if DXFReader.punto_en_poligono(cx, cy, padre.coordenadas):
-                        if idx_padre not in anidamientos:
-                            anidamientos[idx_padre] = []
-                        anidamientos[idx_padre].append(idx_hijo)
-                        
+            if possible_parents:
+                parent_index = min(
+                    possible_parents,
+                    key=lambda index: polygons[index].area,
+                )
+                immediate_parent[child_index] = parent_index
+
+        # Sin capas LI explícitas, los anillos concéntricos alternan superficie:
+        # profundidad impar = hueco; profundidad par = isla/exterior independiente.
+        if not has_explicit_interior_layers:
+            depth_cache: Dict[int, int] = {}
+
+            def nesting_depth(index: int) -> int:
+                if index not in immediate_parent:
+                    return 0
+                if index not in depth_cache:
+                    depth_cache[index] = 1 + nesting_depth(immediate_parent[index])
+                return depth_cache[index]
+
+            immediate_parent = {
+                child: parent
+                for child, parent in immediate_parent.items()
+                if nesting_depth(child) % 2 == 1
+            }
+
+        anidamientos: Dict[int, List[int]] = {}
+        for child_index, parent_index in immediate_parent.items():
+            anidamientos.setdefault(parent_index, []).append(child_index)
+
         return anidamientos
 
     @staticmethod
@@ -324,54 +338,37 @@ class DXFReader:
             Lista de ParcelaInfo con geometrías limpias
         """
         from shapely.geometry import Polygon
-        from shapely import make_valid, simplify
+        from shapely import make_valid
+        from shapely.validation import explain_validity
         
         for parcela in parcelas:
             if not parcela.coordenadas or len(parcela.coordenadas) < 3:
-                continue
+                raise ValueError("Se encontró una geometría con menos de tres vértices")
             
             try:
-                # Crear polígono shapely
-                poly = Polygon(parcela.coordenadas)
-                
-                # Cerrar si está abierto (snap último punto al primero si dist < 0.05m)
-                if not poly.is_closed:
-                    coords_list = list(parcela.coordenadas)
-                    if len(coords_list) >= 3:
-                        start = coords_list[0]
-                        end = coords_list[-1]
-                        dist = ((end[0]-start[0])**2 + (end[1]-start[1])**2)**0.5
-                        
-                        if dist < 0.05:
-                            # Cerrar el polígono
-                            coords_list.append(start)
-                            poly = Polygon(coords_list)
-                            print(f"DEBUG: Polígono cerrado automáticamente (dist={dist:.3f}m)")
-                
-                # Simplificar (elimina duplicados con tolerancia 0.001m)
-                poly_simplified = simplify(poly, tolerance=0.001, preserve_topology=True)
-                
-                # Validar y reparar si es necesario
-                if not poly_simplified.is_valid:
-                    print(f"DEBUG: Geometría inválida detectada, reparando...")
-                    poly_simplified = make_valid(poly_simplified)
-                
-                # Actualizar coordenadas limpias
-                if poly_simplified.geom_type == 'Polygon':
-                    parcela.coordenadas = list(poly_simplified.exterior.coords)
-                    
-                    # Actualizar huecos si existen
-                    if len(poly_simplified.interiors) > 0:
-                        parcela.interiores = [list(interior.coords) for interior in poly_simplified.interiors]
-                    
-                    # Recalcular área
-                    parcela.area = DXFReader.calcular_area(parcela.coordenadas)
-                else:
-                    print(f"WARN: Geometría compleja después de validación: {poly_simplified.geom_type}")
-                
+                poly = Polygon(parcela.coordenadas, parcela.interiores)
+                if not poly.is_valid:
+                    invalid_reason = explain_validity(poly)
+                    repaired = make_valid(poly)
+                    if repaired.geom_type != "Polygon" or repaired.is_empty:
+                        raise ValueError(
+                            "La geometría no puede repararse sin dividirse o perder partes: "
+                            + invalid_reason
+                        )
+                    poly = repaired
+                if poly.is_empty or poly.area <= 0:
+                    raise ValueError("Se encontró una geometría sin superficie")
+
+                parcela.coordenadas = list(poly.exterior.coords)
+                parcela.interiores = [
+                    list(interior.coords) for interior in poly.interiors
+                ]
+                parcela.area = float(poly.area)
+                point = poly.representative_point()
+                parcela.punto_referencia = (point.x, point.y)
+            except ValueError:
+                raise
             except Exception as e:
-                print(f"ERROR limpiando topología de parcela: {e}")
-                # Mantener coordenadas originales en caso de error
-                continue
+                raise ValueError("No se pudo normalizar una geometría importada") from e
         
         return parcelas

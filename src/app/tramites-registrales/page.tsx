@@ -15,12 +15,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export const metadata = {
-    title: "Trámites Registrales | Soluciones Catastrales",
-    description:
-        "Especialistas en rectificación de cabida (Art. 199.2 LH), expedientes de dominio, segregaciones, declaración de obra nueva e inmatriculación. Asesoramiento técnico integral.",
-};
-
 const tramites = [
     {
         id: "art-199",
@@ -154,7 +148,7 @@ const colorMap: Record<string, { border: string; bg: string; text: string; badge
 
 export default function TramitesRegistralesPage() {
     return (
-        <main className="min-h-screen font-body selection:bg-accent selection:text-white">
+        <main id="contenido-principal" tabIndex={-1} className="min-h-screen font-body selection:bg-accent selection:text-white">
             <Navbar />
 
             {/* Hero */}
@@ -291,12 +285,12 @@ export default function TramitesRegistralesPage() {
                                             ))}
                                         </ol>
                                         <div className="mt-8 pt-6 border-t border-slate-100">
-                                            <Link href="#contacto">
-                                                <Button className={`w-full gap-2 font-bold`}>
+                                            <Button className="w-full gap-2 font-bold" asChild>
+                                                <Link href="#contacto">
                                                     Solicitar información sobre {tramite.titulo}
                                                     <ArrowRight className="h-4 w-4" />
-                                                </Button>
-                                            </Link>
+                                                </Link>
+                                            </Button>
                                         </div>
                                     </div>
                                 </div>
@@ -322,21 +316,21 @@ export default function TramitesRegistralesPage() {
                         y los honorarios sin compromiso.
                     </p>
                     <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                        <a
-                            href="https://wa.me/34665890608?text=Hola,%20necesito%20información%20sobre%20un%20trámite%20registral"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                        >
-                            <Button size="lg" className="bg-accent hover:bg-accent/90 text-white font-bold px-8 gap-2">
+                        <Button size="lg" className="bg-accent hover:bg-accent/90 text-white font-bold px-8 gap-2" asChild>
+                            <a
+                                href="https://wa.me/34665890608?text=Hola,%20necesito%20información%20sobre%20un%20trámite%20registral"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
                                 Consultar por WhatsApp
                                 <ArrowRight className="h-5 w-5" />
-                            </Button>
-                        </a>
-                        <Link href="/servicios">
-                            <Button size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10 font-bold px-8">
+                            </a>
+                        </Button>
+                        <Button size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10 font-bold px-8" asChild>
+                            <Link href="/servicios">
                                 Ver todos los Servicios
-                            </Button>
-                        </Link>
+                            </Link>
+                        </Button>
                     </div>
                 </div>
             </section>
