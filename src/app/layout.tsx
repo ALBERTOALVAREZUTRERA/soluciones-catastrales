@@ -47,6 +47,12 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${inter.variable} scroll-smooth`}>
       <head>
+        <link
+          rel="preload"
+          as="image"
+          href="/servicios/hero_servicios.webp"
+          media="(min-width: 768px)"
+        />
         <JsonLd
           data={{
             '@context': 'https://schema.org',

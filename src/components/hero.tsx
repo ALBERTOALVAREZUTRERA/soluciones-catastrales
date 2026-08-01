@@ -1,10 +1,8 @@
 
 "use client";
 
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, FileCode, Loader2, MessageCircle } from "lucide-react";
-import { PlaceHolderImages } from "@/app/lib/placeholder-images";
 import {
   Dialog,
   DialogContent,
@@ -24,7 +22,6 @@ import {
 } from "@/components/shared/privacy-consent";
 
 export function Hero() {
-  const heroImage = PlaceHolderImages?.find((img) => img.id === "hero-bg");
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -79,18 +76,7 @@ export function Hero() {
 
   return (
     <section className="relative h-[85vh] min-h-[600px] w-full overflow-hidden flex items-center">
-      <div className="absolute inset-0 z-0">
-        <Image
-          src={heroImage?.imageUrl || "https://picsum.photos/seed/catastral-hero/1920/1080"}
-          alt=""
-          fill
-          sizes="100vw"
-          fetchPriority="high"
-          className="object-cover brightness-[0.25]"
-          priority
-          data-ai-hint="aerial landscape"
-        />
-      </div>
+      <div className="hero-visual absolute inset-0 z-0" aria-hidden="true" />
 
       <div className="container relative z-10 mx-auto px-4 md:px-8">
         <div className="max-w-4xl animate-fade-in-up">
