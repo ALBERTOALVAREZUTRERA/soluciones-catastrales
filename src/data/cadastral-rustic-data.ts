@@ -1,0 +1,494 @@
+// =====================================================
+// TIPOS EVALUATORIOS OFICIALES — PROVINCIA DE JAÉN
+// BOE nº 227, 22 septiembre 1998
+// Fuente primaria: https://www.boe.es/boe/dias/1998/09/22/pdfs/B14655-14663.pdf
+// Acuerdo 8/1998, Consejo Territorial de la Propiedad
+// Inmobiliaria de Jaén. Quinquenio 1983-1987.
+// =====================================================
+
+// Pesetas → Euros: dividir por 166,386
+const PTS_TO_EUR = 166.386;
+
+// ── COEFICIENTES DE ACTUALIZACIÓN ANUALES ──
+// Serie de trabajo 1990-2012. Debe verificarse y completarse con la normativa
+// presupuestaria aplicable al ejercicio que se quiera simular.
+// Acumulado = producto de los coeficientes incluidos en esta serie.
+// Valor_actualizado = Superficie(Ha) × Tipo(€/Ha) × Coef_Acumulado
+export const COEFS_ACTUALIZACION_ANUALES: { anio: number; coef: number; acumulado: number }[] = [
+    { anio: 1990, coef: 17.500, acumulado: 17.500 },
+    { anio: 1991, coef: 1.500, acumulado: 26.250 },
+    { anio: 1992, coef: 1.050, acumulado: 27.5625 },
+    { anio: 1993, coef: 1.050, acumulado: 28.940625 },
+    { anio: 1994, coef: 1.035, acumulado: 29.953547 },
+    { anio: 1995, coef: 1.035, acumulado: 31.001921 },
+    { anio: 1996, coef: 1.035, acumulado: 32.066988 },
+    { anio: 1997, coef: 1.026, acumulado: 32.92125 },
+    { anio: 1998, coef: 1.021, acumulado: 33.612546 },
+    { anio: 1999, coef: 1.018, acumulado: 34.217023 },
+    { anio: 2000, coef: 1.020, acumulado: 34.901975 },
+    { anio: 2001, coef: 1.020, acumulado: 35.600015 },
+    { anio: 2002, coef: 1.020, acumulado: 36.312015 },
+    { anio: 2003, coef: 1.020, acumulado: 37.038255 },
+    { anio: 2004, coef: 1.020, acumulado: 37.779021 },
+    { anio: 2005, coef: 1.020, acumulado: 38.534601 },
+    { anio: 2006, coef: 1.020, acumulado: 39.305293 },
+    { anio: 2007, coef: 1.020, acumulado: 40.091399 },
+    { anio: 2008, coef: 1.020, acumulado: 40.893227 },
+    { anio: 2009, coef: 1.020, acumulado: 41.711091 },
+    { anio: 2010, coef: 1.010, acumulado: 42.128202 },
+    { anio: 2011, coef: 1.000, acumulado: 42.128202 },
+    { anio: 2012, coef: 1.000, acumulado: 42.128202 },
+];
+
+// Valor precargado de la última fila disponible en esta serie.
+export const COEF_ACTUALIZACION_DEFAULT = 42.128;
+
+// ----- TIPOS EVALUATORIOS (en pesetas/Ha) -----
+// Cada cultivo tiene intensidades productivas (1ª = mejor, progresivamente menor)
+// Formato: { clave, nombre, clase, intensidades: [{int, pts}] }
+
+export interface IntensidadTipo {
+    intensidad: number;
+    pts_ha: number;     // tipo evaluatorio en pesetas/Ha (BOE original)
+    eur_ha: number;     // tipo en €/Ha (pts / 166,386)
+}
+
+export interface CultivoTipo {
+    clave: string;
+    nombre: string;
+    clase: string;       // "secano" | "regadío" | "ambos"
+    intensidades: IntensidadTipo[];
+}
+
+function buildIntensidades(entries: [number, number][]): IntensidadTipo[] {
+    return entries.map(([intensidad, pts]) => ({
+        intensidad,
+        pts_ha: pts,
+        eur_ha: Math.round((pts / PTS_TO_EUR) * 1000000) / 1000000
+    }));
+}
+
+export const dbTiposEvaluatorios: CultivoTipo[] = [
+    // ───── ALMENDROS SECANO (AM) ─────
+    {
+        clave: "AM", nombre: "Almendros secano", clase: "secano",
+        intensidades: buildIntensidades([
+            [1, 3800], [2, 3300], [3, 3000], [4, 2900], [5, 2800],
+            [6, 2600], [7, 2300], [8, 2000], [9, 1800], [10, 1500],
+            [11, 1300], [12, 1000], [13, 750], [14, 550], [15, 350], [16, 100]
+        ])
+    },
+    // ───── ATOCHAR (AT) ─────
+    {
+        clave: "AT", nombre: "Atochar", clase: "secano",
+        intensidades: buildIntensidades([
+            [1, 114], [2, 109], [3, 104], [4, 95], [5, 91], [6, 86],
+            [7, 82], [8, 77], [9, 72], [10, 68], [11, 59], [12, 54],
+            [13, 50], [14, 45], [15, 39]
+        ])
+    },
+    // ───── CAZA MAYOR (CA) ─────
+    {
+        clave: "CA", nombre: "Cantera", clase: "secano",
+        intensidades: buildIntensidades([
+            [0, 53700]  // Única intensidad
+        ])
+    },
+    // ───── LABOR SECANO (C) ─────
+    {
+        clave: "C-", nombre: "Labor secano (Tierra arable)", clase: "secano",
+        intensidades: buildIntensidades([
+            [1, 2900], [2, 2750], [3, 2600], [4, 2450], [5, 2300],
+            [6, 2100], [7, 1950], [8, 1800], [9, 1650], [10, 1500],
+            [11, 1350], [12, 1200], [13, 1050], [14, 900], [15, 750],
+            [16, 600], [17, 500], [18, 450], [19, 350], [20, 300],
+            [21, 250], [22, 225], [23, 200], [24, 175], [25, 150],
+            [26, 130], [27, 120], [28, 100], [29, 90], [30, 70]
+        ])
+    },
+    // ───── LABOR REGADÍO (CR) ─────
+    {
+        clave: "CR", nombre: "Labor regadío", clase: "regadío",
+        intensidades: buildIntensidades([
+            [1, 18450], [2, 17250], [3, 16600], [4, 16000], [5, 15400],
+            [6, 14800], [7, 14200], [8, 13600], [9, 12950], [10, 11750],
+            [11, 11150], [12, 10550], [13, 9900], [14, 8700], [15, 8100],
+            [16, 7600], [17, 7100], [18, 6050], [19, 5250], [20, 4850],
+            [21, 4050], [22, 3200], [23, 2400], [24, 2000], [25, 1200]
+        ])
+    },
+    // ───── PASTOS (E-) ─────
+    {
+        clave: "E-", nombre: "Pastos", clase: "secano",
+        intensidades: buildIntensidades([
+            [1, 250], [2, 230], [3, 200], [4, 170], [5, 150],
+            [6, 130], [7, 110], [8, 100], [9, 80], [10, 60], [11, 40]
+        ])
+    },
+    // ───── ENCINAR (FE) ─────
+    {
+        clave: "FE", nombre: "Encinar", clase: "secano",
+        intensidades: buildIntensidades([
+            [1, 800], [2, 700], [3, 600], [4, 500], [5, 400],
+            [6, 350], [7, 300], [8, 250], [9, 220], [10, 200],
+            [11, 180], [12, 160], [13, 140], [14, 120], [15, 100], [16, 80]
+        ])
+    },
+    // ───── FRUTALES REGADÍO (FR) ─────
+    {
+        clave: "FR", nombre: "Frutales regadío", clase: "regadío",
+        intensidades: buildIntensidades([
+            [1, 15000], [2, 13900], [3, 12700], [4, 12100], [5, 10900],
+            [6, 9700], [7, 9200], [8, 8000], [9, 6800], [10, 6200],
+            [11, 5000], [12, 3800], [13, 3300], [14, 2200], [15, 1200]
+        ])
+    },
+    // ───── ALCORNOCAL (FS) ─────
+    {
+        clave: "FS", nombre: "Alcornocal", clase: "secano",
+        intensidades: buildIntensidades([
+            [1, 1950], [2, 1900], [3, 1700], [4, 1600], [5, 1450],
+            [6, 1350], [7, 1250], [8, 1100], [9, 1000], [10, 950],
+            [11, 750], [12, 650], [13, 500], [14, 400]
+        ])
+    },
+    // ───── HUERTA REGADÍO (HR) ─────
+    {
+        clave: "HR", nombre: "Huerta regadío", clase: "regadío",
+        intensidades: buildIntensidades([
+            [1, 22050], [2, 21400], [3, 20100], [4, 18850], [5, 17550],
+            [6, 16950], [7, 15650], [8, 14400], [9, 13750], [10, 13100],
+            [11, 12450], [12, 11850], [13, 11200], [14, 10550], [15, 9900],
+            [16, 9300], [17, 8650], [18, 8000], [19, 7350], [20, 6750],
+            [21, 6100], [22, 5600], [23, 5100], [24, 4550], [25, 4050],
+            [26, 3550], [27, 3050], [28, 2250], [29, 1750], [30, 1250]
+        ])
+    },
+    // ───── PINAR MADERABLE (MM) ─────
+    {
+        clave: "MM", nombre: "Pinar maderable", clase: "secano",
+        intensidades: buildIntensidades([
+            [1, 950], [2, 850], [3, 750], [4, 650], [5, 550],
+            [6, 450], [7, 350], [8, 300], [9, 250], [10, 220],
+            [11, 190], [12, 170], [13, 150], [14, 130], [15, 110], [16, 90]
+        ])
+    },
+    // ───── MATORRAL (MT) ─────
+    {
+        clave: "MT", nombre: "Matorral", clase: "secano",
+        intensidades: buildIntensidades([
+            [1, 170], [2, 150], [3, 140], [4, 120], [5, 100],
+            [6, 80], [7, 70], [8, 50], [9, 40], [10, 30], [11, 20]
+        ])
+    },
+    // ───── OLIVAR SECANO (O-) ─────
+    {
+        clave: "O-", nombre: "Olivar secano", clase: "secano",
+        intensidades: buildIntensidades([
+            [1, 8200], [2, 7900], [3, 7600], [4, 7000], [5, 6500],
+            [6, 6300], [7, 5800], [8, 5600], [9, 5100], [10, 4600],
+            [11, 4200], [12, 3900], [13, 3500], [14, 3000], [15, 2600],
+            [16, 2300], [17, 2100], [18, 1900], [19, 1800], [20, 1600],
+            [21, 1500], [22, 1400], [23, 1200], [24, 1100], [25, 900],
+            [26, 800], [27, 700], [28, 450], [29, 400], [30, 250]
+        ])
+    },
+    // ───── OLIVAR REGADÍO (OR) ─────
+    {
+        clave: "OR", nombre: "Olivar regadío", clase: "regadío",
+        intensidades: buildIntensidades([
+            [1, 10700], [2, 10100], [3, 9500], [4, 8400], [5, 7600],
+            [6, 7000], [7, 6200], [8, 5900], [9, 4800], [10, 4200],
+            [11, 3800], [12, 3200], [13, 2300], [14, 1900], [15, 1100], [16, 600]
+        ])
+    },
+    // ───── VIÑA SECANO (V-) ─────
+    {
+        clave: "V-", nombre: "Viña secano", clase: "secano",
+        intensidades: buildIntensidades([
+            [1, 3450], [2, 3300], [3, 3000], [4, 2750], [5, 2450],
+            [6, 2300], [7, 2050], [8, 1750], [9, 1500], [10, 1350],
+            [11, 1050], [12, 850], [13, 600], [14, 400], [15, 100]
+        ])
+    },
+    // ───── ÁRBOLES DE RIBERA (RI) ─────
+    {
+        clave: "RI", nombre: "Árboles de ribera", clase: "regadío",
+        intensidades: buildIntensidades([
+            [1, 5600], [2, 5300], [3, 5100], [4, 4800], [5, 4600],
+            [6, 4300], [7, 4100], [8, 3900], [9, 3400], [10, 3100],
+            [11, 2900], [12, 2600], [13, 2400], [14, 2100], [15, 1900],
+            [16, 1700], [17, 1400], [18, 1000], [19, 800], [20, 600], [21, 400]
+        ])
+    },
+    // ───── SALINAS CONTINENTALES (ST) ─────
+    {
+        clave: "ST", nombre: "Salinas continentales", clase: "secano",
+        intensidades: buildIntensidades([
+            [1, 76000], [2, 69500], [3, 64000], [4, 58500], [5, 53000],
+            [6, 47500], [7, 42000], [8, 36500], [9, 31000], [10, 23500],
+            [11, 18500]
+        ])
+    },
+    // ───── CAZA MENOR (VC) ─────
+    {
+        clave: "VC", nombre: "Caza mayor", clase: "secano",
+        intensidades: buildIntensidades([
+            [1, 345], [2, 295], [3, 245], [4, 195], [5, 175],
+            [6, 135], [7, 115]
+        ])
+    },
+    // ───── FRUTALES SECANO (FS-) ─────
+    // Note: These share clave with Alcornocal in some docs; using "FRS" to differentiate
+    // ───── IMPRODUCTIVO (I-) ─────
+    {
+        clave: "I-", nombre: "Improductivo", clase: "secano",
+        intensidades: buildIntensidades([
+            [0, 0]   // Siempre valor 0
+        ])
+    },
+];
+
+// =====================================================
+// COEFICIENTES DE USO — SUELO OCUPADO POR CONSTRUCCIÓN
+// (verificados con Hojas Informativas reales de Andújar)
+// =====================================================
+
+export interface CoefUsoSueloOcupado {
+    id: string;
+    nombre: string;
+    coeficiente: number;
+    mbr_tipo: "urbano" | "rustico";  // qué MBR usar (450 ó 37.80 en Andújar)
+}
+
+export const dbCoefUsoSueloOcupado: CoefUsoSueloOcupado[] = [
+    // Fuente: PVCR Cuadro marco de valores, columna MBR 4 (Andújar)
+    { id: "residencial_1_2", nombre: "Residencial (categorías 1-2)", coeficiente: 0.187, mbr_tipo: "urbano" },
+    { id: "residencial", nombre: "Residencial (categorías 3-9)", coeficiente: 0.070, mbr_tipo: "urbano" },
+    { id: "terciario", nombre: "Terciario, dotacional y equipamientos", coeficiente: 0.070, mbr_tipo: "urbano" },
+    { id: "industrial", nombre: "Industrial y almacén no agrario", coeficiente: 0.047, mbr_tipo: "urbano" },
+    { id: "deportivo", nombre: "Deportivo", coeficiente: 0.023, mbr_tipo: "urbano" },
+    { id: "agricola", nombre: "Agrícola, ganadero, forestal", coeficiente: 0.100, mbr_tipo: "rustico" },
+    { id: "extensiva", nombre: "Extensiva", coeficiente: 0.015, mbr_tipo: "rustico" },
+];
+
+// =====================================================
+// TIPOLOGÍAS CONSTRUCTIVAS RÚSTICAS
+// (verificadas con Hojas Informativas reales de Andújar)
+// Coef. tipología × MBC × Sup × Coef_H × Coef_I × RM
+// =====================================================
+
+export interface TipologiaConstructiva {
+    id: string;
+    nombre: string;
+    clase: string;       // código de clase base (ej. "01215")
+    // Coeficientes por categoría (1=lujo → 9=básico) — RD 1020/1993
+    categorias: Record<number, number>;
+}
+
+export const dbTipologiasRusticas: TipologiaConstructiva[] = [
+    // Fuente: RD 1020/1993, Cuadro de Coeficientes del Valor de las Construcciones
+    {
+        // 1.2.1 EDIFICACIÓN AISLADA O PAREADA (Vivienda unifamiliar)
+        id: "V", nombre: "Vivienda unifamiliar aislada", clase: "01215",
+        categorias: { 1: 2.15, 2: 1.80, 3: 1.45, 4: 1.25, 5: 1.10, 6: 1.00, 7: 0.90, 8: 0.80, 9: 0.70 }
+    },
+    {
+        // 1.3.1 USO EXCLUSIVO DE VIVIENDA (Edificación rural)
+        id: "VR", nombre: "Vivienda rural (uso exclusivo)", clase: "01310",
+        categorias: { 1: 1.35, 2: 1.20, 3: 1.05, 4: 0.90, 5: 0.80, 6: 0.70, 7: 0.60, 8: 0.50, 9: 0.40 }
+    },
+    {
+        // 1.3.2 ANEXOS
+        id: "ANX", nombre: "Anexos a vivienda rural", clase: "01320",
+        categorias: { 1: 0.70, 2: 0.60, 3: 0.50, 4: 0.45, 5: 0.35, 6: 0.30, 7: 0.25, 8: 0.20, 9: 0.15 }
+    },
+    {
+        // 2.1.3 ALMACENAMIENTO
+        id: "AAL", nombre: "Almacén / almacenamiento", clase: "02135",
+        categorias: { 1: 0.85, 2: 0.70, 3: 0.60, 4: 0.45, 5: 0.35, 6: 0.30, 7: 0.25, 8: 0.25, 9: 0.20 }
+    },
+    {
+        // 2.1.1 FABRICACIÓN EN UNA PLANTA (Nave)
+        id: "BIG", nombre: "Nave / cobertizo / granero", clase: "02110",
+        categorias: { 1: 1.05, 2: 0.90, 3: 0.75, 4: 0.60, 5: 0.50, 6: 0.45, 7: 0.40, 8: 0.37, 9: 0.35 }
+    },
+    {
+        // 2.2.1 GARAJES
+        id: "GAR", nombre: "Garaje / aparcamiento", clase: "02210",
+        categorias: { 1: 1.15, 2: 1.00, 3: 0.85, 4: 0.70, 5: 0.60, 6: 0.50, 7: 0.40, 8: 0.30, 9: 0.20 }
+    },
+    {
+        // 2.2.2 APARCAMIENTOS (descubiertos)
+        id: "KPS", nombre: "Piscina / deportivo / descubierto", clase: "05224",
+        categorias: { 1: 0.60, 2: 0.50, 3: 0.45, 4: 0.40, 5: 0.50, 6: 0.30, 7: 0.20, 8: 0.10, 9: 0.05 }
+    },
+    {
+        // Estimación: corrales/establos similares a almacenamiento bajo
+        id: "COR", nombre: "Corral / establo ganadero", clase: "02215",
+        categorias: { 1: 0.85, 2: 0.70, 3: 0.60, 4: 0.45, 5: 0.35, 6: 0.30, 7: 0.25, 8: 0.20, 9: 0.20 }
+    },
+    {
+        // 3. Obras de urbanización y jardinería (Balsa, etc)
+        id: "BAL", nombre: "Balsa / Obra de urbanización", clase: "10328",
+        categorias: { 1: 0.80, 2: 0.60, 3: 0.50, 4: 0.30, 5: 0.20, 6: 0.10, 7: 0.05, 8: 0.04, 9: 0.02 }
+    }
+];
+
+// =====================================================
+// MUNICIPIOS CON DATOS RÚSTICOS
+// MBR rústico = 37,80 (poblados), MBR urbano = 450, MBC = 550
+// =====================================================
+
+// Estos municipios sirven para identificar referencias de la provincia.
+// Los módulos adjuntos son un perfil de trabajo común basado en Andújar y no
+// acreditan que la ponencia de cada municipio contenga esos mismos valores.
+export const dbMunicipiosRustica = [
+    { id_municipio: "23001", Nombre: "Albanchez de Mágina", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23002", Nombre: "Alcalá la Real", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23003", Nombre: "Alcaudete", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23004", Nombre: "Aldeaquemada", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23005", Nombre: "Andújar", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23006", Nombre: "Arjona", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23007", Nombre: "Arjonilla", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23008", Nombre: "Arquillos", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23905", Nombre: "Arroyo del Ojanco", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23009", Nombre: "Baeza", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23010", Nombre: "Bailén", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23011", Nombre: "Baños de la Encina", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23012", Nombre: "Beas de Segura", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23902", Nombre: "Bedmar y Garcíez", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23014", Nombre: "Begíjar", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23016", Nombre: "Benatae", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23015", Nombre: "Bélmez de la Moraleda", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23017", Nombre: "Cabra del Santo Cristo", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23018", Nombre: "Cambil", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23019", Nombre: "Campillo de Arenas", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23020", Nombre: "Canena", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23021", Nombre: "Carboneros", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23025", Nombre: "Castellar", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23026", Nombre: "Castillo de Locubín", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23027", Nombre: "Cazalilla", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23028", Nombre: "Cazorla", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23029", Nombre: "Chiclana de Segura", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23030", Nombre: "Chilluévar", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23901", Nombre: "Cárcheles", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23031", Nombre: "Escañuela", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23032", Nombre: "Espeluy", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23033", Nombre: "Frailes", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23034", Nombre: "Fuensanta de Martos", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23035", Nombre: "Fuerte del Rey", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23039", Nombre: "Guarromán", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23037", Nombre: "Génave", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23041", Nombre: "Higuera de Calatrava", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23042", Nombre: "Hinojares", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23043", Nombre: "Hornos", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23044", Nombre: "Huelma", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23045", Nombre: "Huesa", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23046", Nombre: "Ibros", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23048", Nombre: "Iznatoraf", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23049", Nombre: "Jabalquinto", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23051", Nombre: "Jamilena", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23050", Nombre: "Jaén", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23052", Nombre: "Jimena", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23053", Nombre: "Jódar", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23024", Nombre: "La Carolina", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23038", Nombre: "La Guardia de Jaén", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23047", Nombre: "La Iruela", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23072", Nombre: "La Puerta de Segura", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23040", Nombre: "Lahiguera", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23054", Nombre: "Larva", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23055", Nombre: "Linares", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23056", Nombre: "Lopera", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23099", Nombre: "Los Villares", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23057", Nombre: "Lupión", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23058", Nombre: "Mancha Real", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23059", Nombre: "Marmolejo", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23060", Nombre: "Martos", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23061", Nombre: "Mengíbar", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23062", Nombre: "Montizón", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23063", Nombre: "Navas de San Juan", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23064", Nombre: "Noalejo", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23065", Nombre: "Orcera", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23066", Nombre: "Peal de Becerro", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23067", Nombre: "Pegalajar", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23069", Nombre: "Porcuna", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23070", Nombre: "Pozo Alcón", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23071", Nombre: "Puente de Génave", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23073", Nombre: "Quesada", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23074", Nombre: "Rus", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23075", Nombre: "Sabiote", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23076", Nombre: "Santa Elena", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23077", Nombre: "Santiago de Calatrava", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23904", Nombre: "Santiago-Pontones", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23079", Nombre: "Santisteban del Puerto", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23080", Nombre: "Santo Tomé", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23081", Nombre: "Segura de la Sierra", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23082", Nombre: "Siles", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23084", Nombre: "Sorihuela del Guadalimar", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23085", Nombre: "Torreblascopedro", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23086", Nombre: "Torredelcampo", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23087", Nombre: "Torredonjimeno", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23088", Nombre: "Torreperogil", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23090", Nombre: "Torres", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23091", Nombre: "Torres de Albanchez", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23093", Nombre: "Valdepeñas de Jaén", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23094", Nombre: "Vilches", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23095", Nombre: "Villacarrillo", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23096", Nombre: "Villanueva de la Reina", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23097", Nombre: "Villanueva del Arzobispo", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23098", Nombre: "Villardompardo", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23101", Nombre: "Villarrodrigo", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23903", Nombre: "Villatorres", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+    { id_municipio: "23092", Nombre: "Úbeda", MBC: 550, MBR_urbano: 450, MBR_rustico: 37.80, RM: 0.50, Tipo_IBI: 0.50 },
+];
+
+
+// =====================================================
+// COEFICIENTES DE ANTIGÜEDAD (Coef. H) — Simplificados
+// Para rústica se usa la tabla abreviada
+// =====================================================
+
+export const coeficientesAntiguedad = [
+    { label: "0-4 años", maxAge: 4, coef: 1.00 },
+    { label: "5-9 años", maxAge: 9, coef: 0.93 },
+    { label: "10-14 años", maxAge: 14, coef: 0.87 },
+    { label: "15-19 años", maxAge: 19, coef: 0.82 },
+    { label: "20-24 años", maxAge: 24, coef: 0.77 },
+    { label: "25-29 años", maxAge: 29, coef: 0.72 },
+    { label: "30-34 años", maxAge: 34, coef: 0.68 },
+    { label: "35-39 años", maxAge: 39, coef: 0.64 },
+    { label: "40-44 años", maxAge: 44, coef: 0.61 },
+    { label: "45-49 años", maxAge: 49, coef: 0.58 },
+    { label: "50-54 años", maxAge: 54, coef: 0.55 },
+    { label: "55-59 años", maxAge: 59, coef: 0.52 },
+    { label: "60-64 años", maxAge: 64, coef: 0.50 },
+    { label: "65-69 años", maxAge: 69, coef: 0.47 },
+    { label: "70-74 años", maxAge: 74, coef: 0.45 },
+    { label: "75-79 años", maxAge: 79, coef: 0.43 },
+    { label: "80-84 años", maxAge: 84, coef: 0.41 },
+    { label: "85-89 años", maxAge: 89, coef: 0.40 },
+    { label: "90+ años", maxAge: 999, coef: 0.39 },
+];
+
+// =====================================================
+// COEFICIENTES DE CONSERVACIÓN (Coef. I)
+// =====================================================
+
+export const coeficientesConservacion = [
+    { label: "Normal (N)", value: "N", coef: 1.00 },
+    { label: "Regular (R)", value: "R", coef: 0.85 },
+    { label: "Deficiente (D)", value: "D", coef: 0.50 },
+    { label: "Ruinoso (U)", value: "U", coef: 0.00 },
+];
+
+// =====================================================
+// LEGACY EXPORTS (para compatibilidad)
+// =====================================================
+
+export const dbCultivos = dbTiposEvaluatorios.map(t => ({
+    id: t.clave,
+    Nombre: t.nombre,
+    Renta_Hectarea: t.intensidades[0]?.eur_ha ?? 0  // fallback: intensidad 1
+}));
+

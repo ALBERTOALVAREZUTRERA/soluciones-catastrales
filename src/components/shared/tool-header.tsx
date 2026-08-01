@@ -1,9 +1,9 @@
-import { LucideIcon } from "lucide-react";
+import React from "react";
 
 interface ToolHeaderProps {
     title: string;
     description: string;
-    Icon: LucideIcon;
+    Icon: React.ComponentType<any>;
 }
 
 export function ToolHeader({ title, description, Icon }: ToolHeaderProps) {

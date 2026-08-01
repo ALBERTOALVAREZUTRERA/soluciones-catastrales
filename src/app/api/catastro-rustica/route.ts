@@ -1,18 +1,31 @@
-import { NextResponse } from 'next/server'
 import { XMLParser } from 'fast-xml-parser'
+import {
+    apiError,
+    apiJson,
+    getRequestId,
+    logApiError,
+} from '@/lib/api-observability'
+import {
+    isValidCadastralReference,
+    normalizeCadastralReference,
+} from '@/lib/catastro-reference'
+import { fetchWithRetry } from '@/lib/server-fetch'
 
 // ── API Route: Consultar datos de parcela rústica del Catastro ──
 // Proxy server-side al servicio DNPRC del Catastro
 // GET /api/catastro-rustica?rc=23005A01700312
 
 export async function GET(request: Request) {
+    const requestId = getRequestId(request)
     const { searchParams } = new URL(request.url)
-    const rc = searchParams.get('rc')?.trim().toUpperCase()
+    const rc = normalizeCadastralReference(searchParams.get('rc') || '')
 
-    if (!rc || rc.length < 14) {
-        return NextResponse.json(
-            { error: 'La referencia catastral debe tener al menos 14 caracteres' },
-            { status: 400 }
+    if (!isValidCadastralReference(rc)) {
+        return apiError(
+            'La referencia catastral debe tener 14, 18 o 20 caracteres alfanuméricos',
+            'invalid_cadastral_reference',
+            400,
+            requestId,
         )
     }
 
@@ -21,25 +34,45 @@ export async function GET(request: Request) {
 
     try {
         // 1. Consultar DNPRC del Catastro
-        const url = `https://ovc.catastro.meh.es/ovcservweb/OVCSWLocalizacionRC/OVCCallejero.asmx/Consulta_DNPRC?Provincia=&Municipio=&RC=${rc14}`
-        const response = await fetch(url, {
-            headers: { 'User-Agent': 'Mozilla/5.0' },
+        const url = `https://ovc.catastro.meh.es/OVCServWeb/OVCWcfCallejero/COVCCallejero.svc/rest/Consulta_DNPRC?RefCat=${encodeURIComponent(rc14)}`
+        const response = await fetchWithRetry(url, {
+            headers: {
+                Accept: 'application/xml',
+                'User-Agent': 'SolucionesCatastrales/1.0',
+            },
+            next: { revalidate: 86_400 },
+        }, {
+            attempts: 2,
+            requestId,
+            service: 'catastro_wcf',
+            timeoutMs: 8_000,
         })
 
         if (!response.ok) {
-            return NextResponse.json(
-                { error: `Error del Catastro: HTTP ${response.status}` },
-                { status: 502 }
+            return apiError(
+                'El servicio del Catastro ha respondido con un error',
+                'catastro_upstream_error',
+                502,
+                requestId,
             )
         }
 
         const xmlText = await response.text()
+        if (xmlText.length > 2_000_000) {
+            return apiError(
+                'La respuesta del Catastro supera el límite admitido',
+                'catastro_response_too_large',
+                502,
+                requestId,
+            )
+        }
 
         // 2. Parsear XML de Forma Segura usando fast-xml-parser
         const parser = new XMLParser({
             ignoreAttributes: false,
             parseAttributeValue: true,
             trimValues: true,
+            processEntities: false,
             isArray: (name) => {
                 // Forzar que estas etiquetas siempre sean Array para evitar lógica condicional
                 return ['ssp', 'cons', 'rcdnp'].includes(name);
@@ -49,26 +82,35 @@ export async function GET(request: Request) {
         let jsonObj;
         try {
             jsonObj = parser.parse(xmlText);
-        } catch (e) {
-            return NextResponse.json(
-                { error: `Catastro XML Malformed` },
-                { status: 502 }
+        } catch {
+            return apiError(
+                'La respuesta del Catastro no tiene un formato válido',
+                'catastro_invalid_response',
+                502,
+                requestId,
             )
         }
 
         const root = jsonObj?.consulta_dnp || jsonObj?.['rcdnp'];
 
         if (!root) {
-            return NextResponse.json({ error: `Formato de respuesta desconocido de Catastro` }, { status: 502 })
+            return apiError(
+                'Formato de respuesta desconocido de Catastro',
+                'catastro_invalid_response',
+                502,
+                requestId,
+            )
         }
 
         // 3. Comprobar errores del Catastro
         const control = root.control;
         if (control?.cuerr && control.cuerr !== 0) {
             const errName = root.lerr?.err?.des || 'Error en Catastro';
-            return NextResponse.json(
-                { error: `Catastro: ${errName}` },
-                { status: 404 }
+            return apiError(
+                `Catastro: ${errName}`,
+                'cadastral_property_not_found',
+                404,
+                requestId,
             )
         }
 
@@ -89,12 +131,17 @@ export async function GET(request: Request) {
 
         // Suelo
         const luso = birc.debi?.luso || birc.luso || '';
-        const lsuelo = birc.debi?.sfc || birc.lsuelo || root.lsuelo || {};
+        const lsuelo = root.bico?.finca?.dff || birc.lsuelo || root.lsuelo || {};
         let superficieParcela = 0;
         if (typeof lsuelo === 'number' || typeof lsuelo === 'string') {
             superficieParcela = parseFloat(lsuelo.toString().replace(',', '.'));
         } else {
-            superficieParcela = parseFloat(lsuelo.spt?.toString().replace(',', '.') || lsuelo.supf?.toString().replace(',', '.') || '0');
+            superficieParcela = parseFloat(
+                lsuelo.ss?.toString().replace(',', '.')
+                || lsuelo.spt?.toString().replace(',', '.')
+                || lsuelo.supf?.toString().replace(',', '.')
+                || '0'
+            );
         }
 
         // 5. Extraer SUBPARCELAS (cultivos)
@@ -197,7 +244,7 @@ export async function GET(request: Request) {
         const headers = new Headers();
         headers.set('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=604800');
 
-        return NextResponse.json({
+        return apiJson({
             encontrado: true,
             rc: rc14,
             esRustica,
@@ -208,16 +255,18 @@ export async function GET(request: Request) {
             superficieParcela,
             subparcelas,
             construcciones
-        }, {
+        }, requestId, {
             status: 200,
             headers: headers
         })
 
     } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Error desconocido'
-        return NextResponse.json(
-            { error: `Error conectando con el Catastro: ${message}` },
-            { status: 502 }
+        logApiError('catastro_proxy_failed', requestId, err)
+        return apiError(
+            'El servicio del Catastro no está disponible temporalmente',
+            'catastro_unavailable',
+            502,
+            requestId,
         )
     }
 }

@@ -3,32 +3,47 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Download, BookOpen, CheckCircle2, ArrowRight } from "lucide-react";
-import Image from "next/link"; // Not used currently, using standard img
+import {
+    HoneypotField,
+    PrivacyConsent,
+} from "@/components/shared/privacy-consent";
 
 export function LeadMagnet() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
     const [formData, setFormData] = useState({ name: "", contact: "" });
+    const [privacyAccepted, setPrivacyAccepted] = useState(false);
+    const [website, setWebsite] = useState("");
+    const [submitError, setSubmitError] = useState("");
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
+        setSubmitError("");
 
         try {
             const res = await fetch('/api/lead-magnet', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData),
+                body: JSON.stringify({
+                    ...formData,
+                    privacyAccepted,
+                    website,
+                }),
             });
 
             if (!res.ok) {
-                console.warn("Posible falta de credenciales SMTP en servidor, asumiendo envío exitoso o guardado local.");
+                const result = await res.json().catch(() => ({}));
+                throw new Error(result.error || "No se pudo procesar la solicitud.");
             }
 
             setIsSuccess(true);
         } catch (error) {
-            console.error("Error conectando con la API Lead Magnet:", error);
-            setIsSuccess(true); // Mostrar éxito para no romper UX
+            setSubmitError(
+                error instanceof Error
+                    ? error.message
+                    : "No se pudo procesar la solicitud. Inténtelo de nuevo.",
+            );
         } finally {
             setIsSubmitting(false);
         }
@@ -54,7 +69,7 @@ export function LeadMagnet() {
                         </h2>
 
                         <p className="text-lg text-muted-foreground mb-8 leading-relaxed">
-                            El 85% de los recibos de IBI tienen errores a favor de la Administración y miles de compraventas se bloquean en el Notario por problemas de lindes. Descubre cómo proteger tu propiedad.
+                            Los errores de superficie, uso, antigüedad o linderos pueden aumentar el IBI y bloquear operaciones ante Notaría. Descubre cómo revisar la información de tu propiedad.
                         </p>
 
                         <ul className="space-y-4 mb-10">
@@ -71,10 +86,8 @@ export function LeadMagnet() {
                             ))}
                         </ul>
 
-                        {/* Testimonio pequeño integrado */}
-                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 italic text-slate-600 text-sm border-l-4 border-l-primary">
-                            "Gracias a esta guía descubrí que el Catastro catalogaba mi porche como vivienda cerrada. Reclamé y recuperé 1.200€ de IBI cobrado de más."
-                            <div className="font-bold text-slate-900 mt-2 not-italic text-xs">— María L. (Málaga)</div>
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-slate-600 text-sm border-l-4 border-l-primary">
+                            Una revisión técnica permite comparar la realidad física, el recibo del IBI y la descripción catastral antes de iniciar una reclamación.
                         </div>
                     </div>
 
@@ -87,7 +100,7 @@ export function LeadMagnet() {
                                 <>
                                     <div className="text-center mb-8">
                                         <h3 className="text-2xl font-bold mb-2">Descarga Inmediata</h3>
-                                        <p className="text-blue-200 text-sm">Rellena el formulario para recibir el PDF en tu correo o WhatsApp al instante.</p>
+                                        <p className="text-blue-200 text-sm">Rellena el formulario para desbloquear la descarga inmediata del PDF.</p>
                                     </div>
 
                                     <form onSubmit={handleSubmit} className="space-y-4">
@@ -96,7 +109,9 @@ export function LeadMagnet() {
                                             <input
                                                 type="text"
                                                 id="name"
+                                                autoComplete="name"
                                                 required
+                                                maxLength={100}
                                                 className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white placeholder-blue-300/50 focus:outline-none focus:ring-2 focus:ring-accent transition-all"
                                                 placeholder="Ej: Laura García"
                                                 value={formData.name}
@@ -109,7 +124,9 @@ export function LeadMagnet() {
                                             <input
                                                 type="text"
                                                 id="contact"
+                                                autoComplete="email"
                                                 required
+                                                maxLength={254}
                                                 className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white placeholder-blue-300/50 focus:outline-none focus:ring-2 focus:ring-accent transition-all"
                                                 placeholder="600 000 000 o email@ejemplo.com"
                                                 value={formData.contact}
@@ -117,12 +134,26 @@ export function LeadMagnet() {
                                             />
                                         </div>
 
-                                        <p className="text-[10px] text-blue-200/60 mt-2 mb-6">
-                                            Tus datos están seguros. No enviamos spam, solo soluciones.
-                                        </p>
+                                        <HoneypotField
+                                            id="lead-website"
+                                            value={website}
+                                            onChange={setWebsite}
+                                        />
+                                        <PrivacyConsent
+                                            id="lead-privacy"
+                                            checked={privacyAccepted}
+                                            onCheckedChange={setPrivacyAccepted}
+                                            tone="dark"
+                                        />
+                                        {submitError && (
+                                            <p role="alert" className="text-sm text-red-200">
+                                                {submitError}
+                                            </p>
+                                        )}
 
                                         <Button
                                             disabled={isSubmitting}
+                                            aria-busy={isSubmitting}
                                             className="w-full bg-accent hover:bg-emerald-400 text-primary font-bold shadow-lg shadow-accent/20 h-14 text-base transition-all group"
                                         >
                                             {isSubmitting ? (
@@ -158,7 +189,11 @@ export function LeadMagnet() {
                                         <Button
                                             variant="outline"
                                             className="border-white/20 text-white hover:bg-white inline-flex items-center font-bold px-8 pt-6 pb-6"
-                                            onClick={() => setIsSuccess(false)}
+                                            onClick={() => {
+                                                setIsSuccess(false);
+                                                setPrivacyAccepted(false);
+                                                setWebsite("");
+                                            }}
                                         >
                                             ⬅ Volver atrás
                                         </Button>

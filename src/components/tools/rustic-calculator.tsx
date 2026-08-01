@@ -11,12 +11,21 @@ import {
     dbTiposEvaluatorios,
     dbTipologiasRusticas,
     dbCoefUsoSueloOcupado,
-    coeficientesAntiguedad,
     coeficientesConservacion,
     COEF_ACTUALIZACION_DEFAULT,
     COEFS_ACTUALIZACION_ANUALES,
     type CultivoTipo,
-} from "@/data/mock-db-rustica"
+} from "@/data/cadastral-rustic-data"
+import {
+    finiteNonNegative,
+    getAgeCoefficient,
+    getUsageGroup,
+    getValuationAge,
+} from "@/lib/cadastral-valuation"
+import {
+    isValidCadastralReference,
+    normalizeCadastralReference,
+} from "@/lib/catastro-reference"
 
 // ── Subparcela de cultivo ──
 interface SubparcelaCultivo {
@@ -46,11 +55,22 @@ interface SueloOcupado {
 let subparcelaCounter = 1;
 let unidadCounter = 1;
 let sueloOcupadoCounter = 1;
+const DEFAULT_RUSTIC_PROFILE = dbMunicipiosRustica.find(
+    municipio => municipio.id_municipio === "23005",
+) ?? dbMunicipiosRustica[0];
 
 export function RusticCalculator() {
-    const [municipioId, setMunicipioId] = useState(dbMunicipiosRustica[0].id_municipio)
+    const [municipioId, setMunicipioId] = useState(DEFAULT_RUSTIC_PROFILE.id_municipio)
     const [rc, setRc] = useState<string>("")
     const [coefActualizacion, setCoefActualizacion] = useState<number>(COEF_ACTUALIZACION_DEFAULT)
+    const [anioReferencia, setAnioReferencia] = useState<number>(2010)
+    const [parametrosMunicipales, setParametrosMunicipales] = useState({
+        MBC: DEFAULT_RUSTIC_PROFILE.MBC,
+        MBR_urbano: DEFAULT_RUSTIC_PROFILE.MBR_urbano,
+        MBR_rustico: DEFAULT_RUSTIC_PROFILE.MBR_rustico,
+        RM: DEFAULT_RUSTIC_PROFILE.RM,
+    })
+    const [parametrosConfirmados, setParametrosConfirmados] = useState(false)
     const [buscando, setBuscando] = useState(false)
     const [msgBusqueda, setMsgBusqueda] = useState<string>("")
     const [esFueraDeJaen, setEsFueraDeJaen] = useState<boolean>(false)
@@ -109,9 +129,9 @@ export function RusticCalculator() {
 
     // ── AUTO-RELLENO DESDE CATASTRO API ──
     const buscarRC = useCallback(async (refCatastral?: string) => {
-        const rcToSearch = (refCatastral || rc).trim().toUpperCase()
-        if (rcToSearch.length < 14) {
-            setMsgBusqueda("La RC debe tener al menos 14 caracteres")
+        const rcToSearch = normalizeCadastralReference(refCatastral || rc)
+        if (!isValidCadastralReference(rcToSearch)) {
+            setMsgBusqueda("La RC debe tener 14, 18 o 20 caracteres alfanuméricos")
             return
         }
         setBuscando(true)
@@ -229,6 +249,16 @@ export function RusticCalculator() {
 
             if (municipioEncontrado) {
                 setMunicipioId(idMunicipioRC)
+                const perfil = dbMunicipiosRustica.find(m => m.id_municipio === idMunicipioRC)
+                if (perfil) {
+                    setParametrosMunicipales({
+                        MBC: perfil.MBC,
+                        MBR_urbano: perfil.MBR_urbano,
+                        MBR_rustico: perfil.MBR_rustico,
+                        RM: perfil.RM,
+                    })
+                }
+                setParametrosConfirmados(false)
                 setEsFueraDeJaen(false)
             } else {
                 setEsFueraDeJaen(true)
@@ -308,7 +338,8 @@ export function RusticCalculator() {
             const cultivo = dbTiposEvaluatorios.find(c => c.clave === sp.cultivoClave)
             const intensidadData = cultivo?.intensidades.find(i => i.intensidad === sp.intensidad)
             const tipoEurHa = intensidadData?.eur_ha ?? 0
-            const valor = sp.superficieHa * tipoEurHa
+            const superficieHa = finiteNonNegative(sp.superficieHa)
+            const valor = superficieHa * tipoEurHa
             valorSueloBase += valor
             return {
                 ...sp,
@@ -323,10 +354,10 @@ export function RusticCalculator() {
         let valorSueloOcupado = 0
         const detallesSueloOcupado = suelosOcupados.map(so => {
             const usoData = dbCoefUsoSueloOcupado.find(u => u.id === so.usoId)
-            const mbr = usoData?.mbr_tipo === "urbano" ? municipio.MBR_urbano : municipio.MBR_rustico
+            const mbr = usoData?.mbr_tipo === "urbano" ? parametrosMunicipales.MBR_urbano : parametrosMunicipales.MBR_rustico
             const coef = usoData?.coeficiente ?? 0
             const importeMBR = mbr * coef
-            const valor = so.superficieM2 * importeMBR * municipio.RM
+            const valor = finiteNonNegative(so.superficieM2) * importeMBR * parametrosMunicipales.RM
             valorSueloOcupado += valor
             return {
                 ...so,
@@ -343,10 +374,17 @@ export function RusticCalculator() {
         const detallesConstrucciones = construcciones.map(uc => {
             const tipologia = dbTipologiasRusticas.find(t => t.id === uc.tipologiaId)
             const coefTipo = tipologia?.categorias[uc.categoria] ?? 1.0
-            const aniosDesdeConst = (municipio.id_municipio === "23005" ? 2010 : 2010) + 1 - uc.anioConstruccion
-            const coefH = coeficientesAntiguedad.find(c => aniosDesdeConst <= c.maxAge)?.coef ?? 0.39
+            const aniosDesdeConst = getValuationAge(
+                anioReferencia,
+                Math.trunc(finiteNonNegative(uc.anioConstruccion, anioReferencia)),
+            )
+            const coefH = getAgeCoefficient(
+                aniosDesdeConst,
+                getUsageGroup(uc.tipologiaId),
+                uc.categoria,
+            )
             const coefI = coeficientesConservacion.find(c => c.value === uc.conservacion)?.coef ?? 1.0
-            const valor = uc.superficieM2 * municipio.MBC * coefTipo * coefH * coefI * municipio.RM
+            const valor = finiteNonNegative(uc.superficieM2) * parametrosMunicipales.MBC * coefTipo * coefH * coefI * parametrosMunicipales.RM
             valorConstruccion += valor
             return {
                 ...uc,
@@ -370,7 +408,7 @@ export function RusticCalculator() {
             detallesSueloOcupado,
             detallesConstrucciones
         }
-    }, [subparcelas, suelosOcupados, construcciones, municipioId, coefActualizacion, municipio])
+    }, [subparcelas, suelosOcupados, construcciones, coefActualizacion, anioReferencia, parametrosMunicipales])
 
     const formatEuros = (value: number) =>
         new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(value)
@@ -387,7 +425,7 @@ export function RusticCalculator() {
                     Calculadora de Valor Catastral Rústico
                 </h2>
                 <p className="text-muted-foreground max-w-2xl mx-auto">
-                    Estima el valor catastral de tu parcela rústica con los tipos evaluatorios oficiales (BOE — Jaén) y las fórmulas del Catastro (RD 1020/1993).
+                    Estima el valor de tu parcela rústica a partir de los tipos evaluatorios publicados para Jaén y de los parámetros que introduzcas.
                 </p>
             </div>
 
@@ -398,9 +436,9 @@ export function RusticCalculator() {
                         <Zap className="w-5 h-5" />
                     </div>
                     <div>
-                        <h4 className="font-semibold text-emerald-900 dark:text-emerald-300 text-sm mb-1">1. Magia Catastral</h4>
+                        <h4 className="font-semibold text-emerald-900 dark:text-emerald-300 text-sm mb-1">1. Consulta catastral</h4>
                         <p className="text-emerald-700 dark:text-emerald-400/80 text-xs leading-relaxed">
-                            Escribe o pega tu referencia y dale a la lupa. Conectaremos con los servidores públicos en milisegundos y nos traeremos el mapa completo de tus cultivos y de la huella de los edificios al instante.
+                            Introduce la referencia para consultar los datos públicos disponibles. La respuesta y su detalle dependen del servicio oficial del Catastro.
                         </p>
                     </div>
                 </div>
@@ -420,9 +458,9 @@ export function RusticCalculator() {
                         <ShieldCheck className="w-5 h-5" />
                     </div>
                     <div>
-                        <h4 className="font-semibold text-purple-900 dark:text-purple-300 text-sm mb-1">3. Valor Oficial Rápido</h4>
+                        <h4 className="font-semibold text-purple-900 dark:text-purple-300 text-sm mb-1">3. Simulación controlada</h4>
                         <p className="text-purple-700 dark:text-purple-400/80 text-xs leading-relaxed">
-                            El panel derecho actúa como un simulador financiero. Usando los métodos del RD 1020/1993, verás cómo cada ajuste recalcula tu valor base, tu valor de las construcciones y tu Valor Catastral Total.
+                            El panel aplica las fórmulas configuradas y muestra una estimación. No reproduce una valoración oficial ni sustituye la ponencia aplicable.
                         </p>
                     </div>
                 </div>
@@ -447,10 +485,12 @@ export function RusticCalculator() {
                                             onChange={(e) => setRc(e.target.value)}
                                             onKeyDown={(e) => e.key === 'Enter' && buscarRC()} />
                                         <button
+                                            type="button"
                                             onClick={() => buscarRC()}
-                                            disabled={buscando || rc.length < 14}
+                                            disabled={buscando || !isValidCadastralReference(rc)}
                                             className="flex items-center justify-center h-10 w-10 rounded-md bg-primary text-white hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0"
-                                            title="Consultar Catastro">
+                                            title="Consultar Catastro"
+                                            aria-label="Consultar referencia en Catastro">
                                             {buscando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                                         </button>
                                         <div className="relative">
@@ -462,8 +502,10 @@ export function RusticCalculator() {
                                                 disabled={kmzBuscando}
                                             />
                                             <button
+                                                type="button"
                                                 className="flex items-center justify-center h-10 w-10 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0"
                                                 title="Importar desde KMZ/KML"
+                                                aria-label="Importar geometría desde KMZ o KML"
                                             >
                                                 {kmzBuscando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                                             </button>
@@ -476,24 +518,93 @@ export function RusticCalculator() {
                                     )}
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-sm font-medium">Municipio</label>
+                                    <label className="text-sm font-medium">Municipio de la parcela</label>
                                     <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                                        value={municipioId} onChange={(e) => setMunicipioId(e.target.value)}>
+                                        value={municipioId} onChange={(e) => {
+                                            const id = e.target.value
+                                            const perfil = dbMunicipiosRustica.find(m => m.id_municipio === id)
+                                            setMunicipioId(id)
+                                            if (perfil) setParametrosMunicipales({
+                                                MBC: perfil.MBC,
+                                                MBR_urbano: perfil.MBR_urbano,
+                                                MBR_rustico: perfil.MBR_rustico,
+                                                RM: perfil.RM,
+                                            })
+                                            setParametrosConfirmados(false)
+                                        }}>
                                         {dbMunicipiosRustica.map(m => (
                                             <option key={m.id_municipio} value={m.id_municipio}>{m.Nombre}</option>
                                         ))}
                                     </select>
+                                    <p className="text-xs text-muted-foreground">
+                                        La lista identifica la RC; los módulos precargados son comunes y debes contrastarlos.
+                                    </p>
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium flex items-center gap-1">
                                         Coef. Actualización
-                                        <span className="text-xs text-muted-foreground">(Ej.1989→hoy)</span>
+                                        <span className="text-xs text-muted-foreground">(serie de trabajo)</span>
                                     </label>
                                     <input type="number" step="0.001" min="1"
                                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                                         value={coefActualizacion}
                                         onChange={(e) => setCoefActualizacion(Number(e.target.value) || 1)} />
                                 </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">Año de referencia de la ponencia</label>
+                                    <input
+                                        type="number"
+                                        min="1900"
+                                        max={new Date().getFullYear() + 1}
+                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                        value={anioReferencia}
+                                        onChange={(e) => {
+                                            const value = Number(e.target.value)
+                                            if (Number.isInteger(value)) setAnioReferencia(value)
+                                        }}
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                        Se usa para calcular la antigüedad H. Confírmalo en la ponencia aplicable.
+                                    </p>
+                                </div>
+                                {(["MBC", "MBR_urbano", "MBR_rustico", "RM"] as const).map((field) => (
+                                    <div className="space-y-2" key={field}>
+                                        <label className="text-sm font-medium" htmlFor={`rustic-${field}`}>
+                                            {field.replace("_", " ")}
+                                        </label>
+                                        <input
+                                            id={`rustic-${field}`}
+                                            type="number"
+                                            min="0.001"
+                                            step="0.01"
+                                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                            value={parametrosMunicipales[field]}
+                                            onChange={(event) => {
+                                                setParametrosMunicipales(prev => ({
+                                                    ...prev,
+                                                    [field]: Number(event.target.value),
+                                                }))
+                                                setParametrosConfirmados(false)
+                                            }}
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                                <label className="flex cursor-pointer items-start gap-3" htmlFor="rustic-parameters-confirmed">
+                                    <input
+                                        id="rustic-parameters-confirmed"
+                                        type="checkbox"
+                                        checked={parametrosConfirmados}
+                                        onChange={(event) => setParametrosConfirmados(event.target.checked)}
+                                        className="mt-0.5 h-4 w-4 rounded border-amber-400"
+                                    />
+                                    <span>He contrastado MBC, MBR urbano, MBR rústico, RM, año de ponencia y coeficiente de actualización para esta parcela.</span>
+                                </label>
+                                {!parametrosConfirmados && (
+                                    <p className="mt-2 font-medium">Resultado provisional: se muestran parámetros de trabajo de Andújar, no valores acreditados para el municipio seleccionado.</p>
+                                )}
                             </div>
 
                             {esFueraDeJaen && (
@@ -502,7 +613,7 @@ export function RusticCalculator() {
                                     <div>
                                         <p className="font-semibold mb-1">Referencia fuera de la provincia de Jaén detectada</p>
                                         <p>Por defecto, la herramienta ha obtenido tu huella constructiva y tus cultivos correctamente. Sin embargo, no dispone del <strong>Valor de Repercusión (RM)</strong> exacto de tu municipio.</p>
-                                        <p className="mt-1">Selecciona en el desplegable superior el municipio de Jaén que valores que pueda tener unas características urbanísticas (RM y MBC) parecidas al tuyo para obtener una estimación aproximada.</p>
+                                        <p className="mt-1">La geometría puede conservarse, pero debes sustituir los módulos, el RM y los tipos evaluatorios por los que correspondan a la ubicación real.</p>
                                     </div>
                                 </div>
                             )}
@@ -517,7 +628,10 @@ export function RusticCalculator() {
                                 <Sprout className="w-5 h-5 text-emerald-600" />
                                 1. Suelo Rústico — Cultivos
                             </CardTitle>
-                            <CardDescription>Tipos evaluatorios oficiales del BOE (Jaén, quinquenio 1983-1987)</CardDescription>
+                            <CardDescription>
+                                Tipos evaluatorios del BOE para Jaén, quinquenio 1983-1987 · {" "}
+                                <a className="underline" href="https://www.boe.es/boe/dias/1998/09/22/pdfs/B14655-14663.pdf" target="_blank" rel="noreferrer">fuente oficial</a>
+                            </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             {subparcelas.map((sp, idx) => {
@@ -566,8 +680,9 @@ export function RusticCalculator() {
                                         </div>
                                         <div className="col-span-1 flex items-end justify-center">
                                             {subparcelas.length > 1 && (
-                                                <button onClick={() => removeSubparcela(sp.id)}
-                                                    className="h-9 w-9 flex items-center justify-center rounded-md text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors">
+                                                <button type="button" onClick={() => removeSubparcela(sp.id)}
+                                                    aria-label={`Eliminar subparcela ${idx + 1}`}
+                                                    className="h-11 w-11 flex items-center justify-center rounded-md text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors">
                                                     <Trash2 className="w-4 h-4" />
                                                 </button>
                                             )}
@@ -575,7 +690,7 @@ export function RusticCalculator() {
                                     </div>
                                 )
                             })}
-                            <button onClick={addSubparcela}
+                            <button type="button" onClick={addSubparcela}
                                 className="flex items-center gap-2 text-sm font-medium text-emerald-600 hover:text-emerald-800 transition-colors px-3 py-2 rounded-lg hover:bg-emerald-50">
                                 <Plus className="w-4 h-4" /> Añadir subparcela
                             </button>
@@ -592,7 +707,7 @@ export function RusticCalculator() {
                                     2. Suelo Ocupado por Construcción
                                 </CardTitle>
                                 {suelosOcupados.length === 0 && (
-                                    <button onClick={addSueloOcupado}
+                                    <button type="button" onClick={addSueloOcupado}
                                         className="flex items-center gap-1.5 text-sm font-medium text-sky-600 hover:text-sky-800 px-3 py-1.5 rounded-lg hover:bg-sky-50 transition-colors">
                                         <Plus className="w-4 h-4" /> Añadir
                                     </button>
@@ -602,7 +717,7 @@ export function RusticCalculator() {
                         </CardHeader>
                         {suelosOcupados.length > 0 && (
                             <CardContent className="space-y-3">
-                                {suelosOcupados.map(so => (
+                                {suelosOcupados.map((so, idx) => (
                                     <div key={so.id} className="grid grid-cols-12 gap-2 items-end p-3 rounded-lg bg-sky-50/50 border border-sky-100">
                                         <div className="col-span-5 space-y-1">
                                             <label className="text-xs font-medium text-sky-800">Uso</label>
@@ -630,14 +745,15 @@ export function RusticCalculator() {
                                             </div>
                                         </div>
                                         <div className="col-span-1 flex items-end justify-center">
-                                            <button onClick={() => removeSueloOcupado(so.id)}
-                                                className="h-9 w-9 flex items-center justify-center rounded-md text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors">
+                                            <button type="button" onClick={() => removeSueloOcupado(so.id)}
+                                                aria-label={`Eliminar suelo ocupado ${idx + 1}`}
+                                                className="h-11 w-11 flex items-center justify-center rounded-md text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors">
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
                                         </div>
                                     </div>
                                 ))}
-                                <button onClick={addSueloOcupado}
+                                <button type="button" onClick={addSueloOcupado}
                                     className="flex items-center gap-2 text-sm font-medium text-sky-600 hover:text-sky-800 transition-colors px-3 py-2 rounded-lg hover:bg-sky-50">
                                     <Plus className="w-4 h-4" /> Añadir suelo ocupado
                                 </button>
@@ -655,7 +771,7 @@ export function RusticCalculator() {
                                     3. Construcciones Rústicas
                                 </CardTitle>
                                 {construcciones.length === 0 && (
-                                    <button onClick={addConstruccion}
+                                    <button type="button" onClick={addConstruccion}
                                         className="flex items-center gap-1.5 text-sm font-medium text-amber-600 hover:text-amber-800 px-3 py-1.5 rounded-lg hover:bg-amber-50 transition-colors">
                                         <Plus className="w-4 h-4" /> Añadir
                                     </button>
@@ -665,7 +781,7 @@ export function RusticCalculator() {
                         </CardHeader>
                         {construcciones.length > 0 && (
                             <CardContent className="space-y-3">
-                                {construcciones.map(uc => (
+                                {construcciones.map((uc, idx) => (
                                     <div key={uc.id} className="p-3 rounded-lg bg-amber-50/50 border border-amber-100 space-y-2">
                                         <div className="grid grid-cols-12 gap-2 items-end">
                                             <div className="col-span-4 space-y-1">
@@ -713,15 +829,16 @@ export function RusticCalculator() {
                                                 </select>
                                             </div>
                                             <div className="col-span-1 flex items-end justify-center">
-                                                <button onClick={() => removeConstruccion(uc.id)}
-                                                    className="h-9 w-9 flex items-center justify-center rounded-md text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors">
+                                                <button type="button" onClick={() => removeConstruccion(uc.id)}
+                                                    aria-label={`Eliminar construcción ${idx + 1}`}
+                                                    className="h-11 w-11 flex items-center justify-center rounded-md text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors">
                                                     <Trash2 className="w-4 h-4" />
                                                 </button>
                                             </div>
                                         </div>
                                         <div className="flex justify-between items-center px-1">
                                             <span className="text-xs text-amber-600">
-                                                {municipio.MBC}€/m² × Tipo({calc.detallesConstrucciones.find(d => d.id === uc.id)?.coefTipo ?? "?"}) × H({calc.detallesConstrucciones.find(d => d.id === uc.id)?.coefH ?? "?"}) × I({calc.detallesConstrucciones.find(d => d.id === uc.id)?.coefI ?? "?"}) × RM({municipio.RM})
+                                                {parametrosMunicipales.MBC}€/m² × Tipo({calc.detallesConstrucciones.find(d => d.id === uc.id)?.coefTipo ?? "?"}) × H({calc.detallesConstrucciones.find(d => d.id === uc.id)?.coefH ?? "?"}) × I({calc.detallesConstrucciones.find(d => d.id === uc.id)?.coefI ?? "?"}) × RM({parametrosMunicipales.RM})
                                             </span>
                                             <span className="text-sm font-bold text-amber-700">
                                                 {formatEuros(calc.detallesConstrucciones.find(d => d.id === uc.id)?.valor ?? 0)}
@@ -729,7 +846,7 @@ export function RusticCalculator() {
                                         </div>
                                     </div>
                                 ))}
-                                <button onClick={addConstruccion}
+                                <button type="button" onClick={addConstruccion}
                                     className="flex items-center gap-2 text-sm font-medium text-amber-600 hover:text-amber-800 transition-colors px-3 py-2 rounded-lg hover:bg-amber-50">
                                     <Plus className="w-4 h-4" /> Añadir construcción
                                 </button>
@@ -748,7 +865,7 @@ export function RusticCalculator() {
                                     <Euro className="w-5 h-5 text-indigo-600" />
                                     Valor Catastral Rústico
                                 </CardTitle>
-                                <CardDescription>Desglose oficial de la valoración</CardDescription>
+                                <CardDescription>Desglose de la estimación</CardDescription>
                             </CardHeader>
                             <CardContent className="pt-5 space-y-5">
 
@@ -775,7 +892,7 @@ export function RusticCalculator() {
                                             <span className="text-lg font-semibold text-sky-600">{formatEuros(calc.valorSueloOcupado)}</span>
                                         </div>
                                         <p className="text-xs text-muted-foreground">
-                                            MBR × Coef.Uso × RM({municipio.RM})
+                                            MBR × Coef.Uso × RM({parametrosMunicipales.RM})
                                         </p>
                                     </div>
                                 )}
@@ -788,7 +905,7 @@ export function RusticCalculator() {
                                             <span className="text-lg font-semibold text-amber-600">{formatEuros(calc.valorConstruccion)}</span>
                                         </div>
                                         <p className="text-xs text-muted-foreground">
-                                            MBC({municipio.MBC}€) × Tipo × H × I × RM({municipio.RM})
+                                            MBC({parametrosMunicipales.MBC}€) × Tipo × H × I × RM({parametrosMunicipales.RM})
                                         </p>
                                     </div>
                                 )}
@@ -804,8 +921,8 @@ export function RusticCalculator() {
                                 {/* ── Info módulos ── */}
                                 <div className="pt-4 border-t text-xs text-muted-foreground space-y-1">
                                     <p><strong>Municipio:</strong> {municipio.Nombre}</p>
-                                    <p><strong>MBC:</strong> {municipio.MBC} €/m² | <strong>MBR urb:</strong> {municipio.MBR_urbano} | <strong>MBR rúst:</strong> {municipio.MBR_rustico}</p>
-                                    <p><strong>RM:</strong> {municipio.RM} | <strong>Coef. act.:</strong> ×{coefActualizacion}</p>
+                                    <p><strong>MBC:</strong> {parametrosMunicipales.MBC} €/m² | <strong>MBR urb:</strong> {parametrosMunicipales.MBR_urbano} | <strong>MBR rúst:</strong> {parametrosMunicipales.MBR_rustico}</p>
+                                    <p><strong>RM:</strong> {parametrosMunicipales.RM} | <strong>Coef. act.:</strong> ×{coefActualizacion}</p>
                                 </div>
                             </CardContent>
                         </Card>
@@ -817,7 +934,7 @@ export function RusticCalculator() {
             <div className="text-center text-xs text-muted-foreground mt-8 pb-8">
                 <p className="flex items-center justify-center gap-1.5">
                     <Info className="w-3.5 h-3.5" />
-                    <strong>Aviso:</strong> Esta calculadora es una estimación basada en los tipos evaluatorios oficiales del BOE y la normativa catastral vigente.
+                    <strong>Aviso:</strong> Esta calculadora es una estimación basada en tipos evaluatorios publicados y parámetros configurables.
                     No sustituye a la valoración oficial del Catastro.
                 </p>
             </div>

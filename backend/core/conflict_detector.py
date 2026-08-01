@@ -24,49 +24,41 @@ class ConflictDetector:
         Returns:
             Lista de ParcelaInfo con flags has_conflict actualizados
         """
+        for parcela in parcelas:
+            parcela.has_conflict = False
+
         for i, p1 in enumerate(parcelas):
             # Los huecos no generan conflictos
             if p1.is_hole:
                 continue
             
             try:
-                poly1 = Polygon(p1.coordenadas)
-                
-                # Validar geometría
-                if not poly1.is_valid:
-                    from shapely import make_valid
-                    poly1 = make_valid(poly1)
-                
-            except Exception as e:
-                print(f"Error creando polígono para parcela {i}: {e}")
-                continue
-            
-            for j, p2 in enumerate(parcelas):
-                if i == j or p2.is_hole:
+                poly1 = Polygon(p1.coordenadas, p1.interiores)
+                if not poly1.is_valid or poly1.is_empty:
+                    p1.has_conflict = True
                     continue
-                
+            except Exception:
+                p1.has_conflict = True
+                continue
+
+            for j in range(i + 1, len(parcelas)):
+                p2 = parcelas[j]
+                if p2.is_hole:
+                    continue
+
                 try:
-                    poly2 = Polygon(p2.coordenadas)
-                    
-                    if not poly2.is_valid:
-                        from shapely import make_valid
-                        poly2 = make_valid(poly2)
-                    
-                    # Calcular intersección
+                    poly2 = Polygon(p2.coordenadas, p2.interiores)
+                    if not poly2.is_valid or poly2.is_empty:
+                        p2.has_conflict = True
+                        continue
                     intersection = poly1.intersection(poly2)
-                    
-                    # Si área > 0.1m² y NO es contenido totalmente -> Conflicto
+
                     if intersection.area > 0.1:
-                        # Verificar si p2 está totalmente dentro de p1 (hueco válido)
-                        # Si poly1.contains(poly2) es True, entonces p2 es un hueco de p1 (válido)
-                        if not poly1.contains(poly2) and not poly2.contains(poly1):
-                            # Solape parcial: CONFLICTO
-                            p1.has_conflict = True
-                            p2.has_conflict = True
-                            print(f"CONFLICTO detectado entre parcelas {i} y {j}: {intersection.area:.2f}m²")
-                
-                except Exception as e:
-                    print(f"Error detectando conflicto entre {i} y {j}: {e}")
+                        p1.has_conflict = True
+                        p2.has_conflict = True
+                except Exception:
+                    p1.has_conflict = True
+                    p2.has_conflict = True
                     continue
         
         return parcelas
@@ -87,6 +79,5 @@ class ConflictDetector:
             for hijo_idx in hijos_idx:
                 if hijo_idx < len(parcelas):
                     parcelas[hijo_idx].is_hole = True
-                    print(f"Marcada parcela {hijo_idx} como hueco interior de {padre_idx}")
-        
+
         return parcelas

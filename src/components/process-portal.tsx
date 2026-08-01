@@ -8,18 +8,19 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { FileUp, CheckCircle, AlertCircle, Phone, Mail, MapPin, Loader2 } from "lucide-react";
+import { CheckCircle, AlertCircle, Phone, Mail, MapPin, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useFirestore } from "@/firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
+import {
+  HoneypotField,
+  PrivacyConsent,
+} from "@/components/shared/privacy-consent";
 
 export function ProcessPortal() {
   const { toast } = useToast();
-  const db = useFirestore();
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  const [website, setWebsite] = useState("");
   const [formData, setFormData] = useState({
     type: "",
     name: "",
@@ -35,9 +36,12 @@ export function ProcessPortal() {
     const emailData = {
       name: formData.name,
       email: formData.email,
+      phone: "",
       type: formData.type,
       ref: formData.ref,
       message: formData.message,
+      privacyAccepted,
+      website,
     };
 
     try {
@@ -51,29 +55,19 @@ export function ProcessPortal() {
       });
 
       if (!res.ok) {
-        throw new Error('Server error: Failed to dispatch email');
-      }
-
-      // 2. Intentar guardar en historial (No bloqueante)
-      if (db) {
-        addDoc(collection(db, 'expedients'), {
-          ...emailData,
-          refCatastral: formData.ref,
-          status: 'pendiente',
-          createdAt: serverTimestamp(),
-        }).catch(err => {
-          console.warn("No se pudo guardar en Base de Datos por permisos/configuración. El email sí fue enviado.", err);
-        });
+        const result = await res.json().catch(() => ({}));
+        throw new Error(result.error || 'No se pudo enviar el formulario');
       }
 
       setSubmitted(true);
+      setPrivacyAccepted(false);
+      setWebsite("");
       toast({
-        title: "¡Expediente Registrado y Notificado!",
-        description: "Su caso ha sido enviado correctamente al correo de Alberto.",
+        title: "Solicitud enviada",
+        description: "Alberto ha recibido la información para revisar su caso.",
       });
 
-    } catch (error) {
-      console.error("Submission failed:", error);
+    } catch {
       toast({
         title: "Error de Envío",
         description: "Ocurrió un error al enviar su solicitud. Por favor, contáctenos directamente al 665 890 608.",
@@ -94,7 +88,7 @@ export function ProcessPortal() {
             </div>
             <h2 className="text-3xl font-bold font-headline text-primary">¡Solicitud Recibida!</h2>
             <p className="text-muted-foreground text-lg">
-              Gracias por confiar en nosotros. El ingeniero <strong>Alberto Álvarez</strong> revisará su caso personalmente. Recibirá una respuesta técnica en menos de 24 horas.
+              Gracias por confiar en nosotros. <strong>Alberto Álvarez</strong> revisará personalmente la información y contactará con usted para concretar los siguientes pasos.
             </p>
             <Button onClick={() => setSubmitted(false)} variant="outline" className="border-accent text-accent hover:bg-accent hover:text-white transition-all">
               Realizar otra Consulta Técnica
@@ -115,7 +109,7 @@ export function ProcessPortal() {
                 Gestión de <span className="text-accent">Trámites</span> y Contacto Directo
               </h2>
               <p className="text-lg text-muted-foreground mb-8">
-                Inicie su expediente de forma digital para agilizar los plazos legales. Realizamos un estudio previo gratuito de su referencia catastral para determinar la viabilidad técnica de su caso.
+                Envíe los datos básicos de su caso para una primera orientación sin compromiso. Antes de iniciar cualquier trabajo confirmaremos el alcance, la documentación necesaria y el presupuesto.
               </p>
             </div>
 
@@ -155,9 +149,9 @@ export function ProcessPortal() {
 
           <Card className="border-none shadow-2xl overflow-hidden ring-1 ring-black/5">
             <CardHeader className="bg-primary text-white p-8">
-              <CardTitle className="text-2xl font-headline uppercase tracking-wide">Portal de Envío Técnico</CardTitle>
+              <CardTitle className="text-2xl font-headline uppercase tracking-wide">Cuéntenos su caso</CardTitle>
               <CardDescription className="text-gray-300 text-base">
-                Adjunte su información para recibir una evaluación técnica sin compromiso.
+                Facilite la información de su caso para recibir una evaluación técnica sin compromiso.
               </CardDescription>
             </CardHeader>
             <form onSubmit={handleSubmit}>
@@ -187,9 +181,11 @@ export function ProcessPortal() {
                     <Label htmlFor="name" className="text-primary font-semibold">Nombre Completo</Label>
                     <Input
                       id="name"
+                      autoComplete="name"
                       placeholder="Ej: Juan Pérez"
                       className="h-12"
                       required
+                      maxLength={100}
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     />
@@ -199,9 +195,11 @@ export function ProcessPortal() {
                     <Input
                       id="email"
                       type="email"
+                      autoComplete="email"
                       placeholder="suemail@ejemplo.com"
                       className="h-12"
                       required
+                      maxLength={254}
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     />
@@ -214,6 +212,7 @@ export function ProcessPortal() {
                     id="ref"
                     placeholder="14 o 20 caracteres alfanuméricos"
                     className="h-12"
+                    maxLength={20}
                     value={formData.ref}
                     onChange={(e) => setFormData({ ...formData, ref: e.target.value })}
                   />
@@ -225,23 +224,38 @@ export function ProcessPortal() {
                     id="message"
                     placeholder="Explique brevemente su necesidad técnica..."
                     className="min-h-[120px] resize-none"
+                    required
+                    minLength={5}
+                    maxLength={4000}
                     value={formData.message}
                     onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                   />
                 </div>
+                <HoneypotField
+                  id="portal-website"
+                  value={website}
+                  onChange={setWebsite}
+                />
               </CardContent>
               <CardFooter className="bg-muted/30 p-8 flex flex-col sm:flex-row items-center justify-between gap-6 border-t">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground leading-snug">
-                  <AlertCircle className="h-5 w-5 text-accent shrink-0" />
-                  <p>Sus datos están protegidos por el RGPD y se tratarán con absoluta confidencialidad técnica.</p>
+                <div className="space-y-3">
+                  <PrivacyConsent
+                    id="portal-privacy"
+                    checked={privacyAccepted}
+                    onCheckedChange={setPrivacyAccepted}
+                  />
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground leading-snug">
+                    <AlertCircle className="h-5 w-5 text-accent shrink-0" />
+                    <p>Los datos se utilizarán exclusivamente para estudiar y responder su solicitud.</p>
+                  </div>
                 </div>
-                <Button type="submit" className="bg-accent hover:bg-accent/90 px-10 h-14 text-lg font-bold w-full sm:w-auto shadow-lg shadow-accent/20" disabled={loading}>
+                <Button type="submit" className="bg-accent hover:bg-accent/90 px-10 h-14 text-lg font-bold w-full sm:w-auto shadow-lg shadow-accent/20" disabled={loading} aria-busy={loading}>
                   {loading ? (
                     <>
                       <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                       Procesando...
                     </>
-                  ) : "Enviar Expediente"}
+                  ) : "Solicitar evaluación"}
                 </Button>
               </CardFooter>
             </form>

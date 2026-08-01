@@ -1,8 +1,14 @@
-"use client";
+import { createPageMetadata } from "@/lib/site-config";
+
+export const metadata = createPageMetadata({
+    title: "Política de cookies",
+    description: "Información sobre las cookies técnicas y de medición utilizadas por Soluciones Catastrales y Registrales y cómo gestionar el consentimiento.",
+    path: "/legal/cookies",
+});
 
 export default function Cookies() {
     return (
-        <div className="max-w-4xl mx-auto px-6 py-20 font-sans text-slate-800">
+        <main id="contenido-principal" tabIndex={-1} className="max-w-4xl mx-auto px-6 py-20 font-sans text-slate-800">
             <h1 className="text-3xl font-bold mb-8 border-b pb-4 text-primary">Política de Cookies</h1>
 
             <section className="mb-8">
@@ -22,13 +28,20 @@ export default function Cookies() {
                         <strong>Cookies de Personalización:</strong> Permiten al usuario configurar aspectos como el idioma o el sistema de coordenadas preferido.
                     </li>
                     <li>
-                        <strong>Cookies de Análisis:</strong> (Si se añade Google Analytics u otros): Utilizadas para cuantificar el número de usuarios y realizar el análisis estadístico del uso que hacen los usuarios de la web.
+                        <strong>Cookies de análisis y publicidad:</strong> Google Analytics y Meta Pixel pueden utilizarse para medir el uso del sitio y la eficacia de campañas. Estas tecnologías solo se cargan después de que el usuario las acepte expresamente.
                     </li>
                 </ul>
             </section>
 
             <section className="mb-8">
-                <h2 className="text-xl font-bold mb-4">3. Cómo desactivar las cookies</h2>
+                <h2 className="text-xl font-bold mb-4">3. Consentimiento y retirada</h2>
+                <p>
+                    Al acceder por primera vez puede aceptar o rechazar las cookies opcionales. La decisión se almacena localmente en su navegador. Puede volver a abrir el panel mediante el botón “Cookies” situado en la esquina inferior izquierda y modificar su elección en cualquier momento.
+                </p>
+            </section>
+
+            <section className="mb-8">
+                <h2 className="text-xl font-bold mb-4">4. Cómo desactivar las cookies</h2>
                 <p className="mb-4">
                     Usted puede permitir, bloquear o eliminar las cookies instaladas en su equipo mediante la configuración de las opciones del navegador instalado en su ordenador:
                 </p>
@@ -37,6 +50,6 @@ export default function Cookies() {
                     <li>Para más información sobre Firefox <a href="https://support.mozilla.org/es/kb/cookies-informacion-que-los-sitios-web-guardan-en-" target="_blank" className="text-accent underline">pulse aquí</a>.</li>
                 </ul>
             </section>
-        </div>
+        </main>
     );
 }

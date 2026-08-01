@@ -20,7 +20,7 @@ export default function VisorCatastralPage() {
         <div className="min-h-screen bg-slate-50 font-body">
             <Navbar />
 
-            <main className="container mx-auto py-12 px-4 md:px-8">
+            <main id="contenido-principal" tabIndex={-1} className="container mx-auto py-12 px-4 md:px-8">
                 <div className="max-w-6xl mx-auto space-y-12">
 
                     <ToolHeader

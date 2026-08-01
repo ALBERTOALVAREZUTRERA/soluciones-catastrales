@@ -1,14 +1,20 @@
-"use client";
+import { createPageMetadata } from "@/lib/site-config";
+
+export const metadata = createPageMetadata({
+    title: "Términos y condiciones de uso",
+    description: "Condiciones de uso de las herramientas y contenidos técnicos ofrecidos por Soluciones Catastrales y Registrales.",
+    path: "/legal/terminos",
+});
 
 export default function Terminos() {
     return (
-        <div className="max-w-4xl mx-auto px-6 py-20 font-sans text-slate-800">
+        <main id="contenido-principal" tabIndex={-1} className="max-w-4xl mx-auto px-6 py-20 font-sans text-slate-800">
             <h1 className="text-3xl font-bold mb-8 border-b pb-4 text-primary">Términos y Condiciones de Uso</h1>
 
             <section className="mb-8">
                 <h2 className="text-xl font-bold mb-4">1. Objeto del Servicio</h2>
                 <p>
-                    La plataforma **Soluciones Catastrales** ofrece herramientas técnicas de conversión y validación de archivos GML de forma gratuita para colectivos profesionales y usuarios particulares interesados en el Catastro y Registro de la Propiedad.
+                    La plataforma <strong>Soluciones Catastrales</strong> ofrece herramientas técnicas de conversión y comprobación de archivos GML para profesionales y particulares interesados en el Catastro y el Registro de la Propiedad.
                 </p>
             </section>
 
@@ -38,6 +44,6 @@ export default function Terminos() {
                     Los algoritmos de conversión y validación son propiedad intelectual de Alberto Álvarez Utrera. Se prohíbe el uso de técnicas de ingeniería inversa o el "scraping" automatizado de las herramientas sin consentimiento expreso por escrito.
                 </p>
             </section>
-        </div>
+        </main>
     );
 }

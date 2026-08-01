@@ -18,43 +18,42 @@ import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
-import { API_BASE_URL } from "@/lib/backend-api";
-import { generatePDFReport, generateWordReport, ReportData } from "@/lib/report-generator";
+import { queryCatastro } from "@/lib/backend-api";
+import {
+    isValidCadastralReference,
+    normalizeCadastralReference,
+} from "@/lib/catastro-reference";
+import type { ReportData } from "@/lib/valuation-report";
 import { UrbanCalculator } from "@/components/tools/urban-calculator";
+import { Toaster } from "@/components/ui/toaster";
+
+const ANDUJAR_VALUATION_PROFILE = {
+    mbc: 550,
+    mbr: 450,
+    mbrRustico: 37.8,
+    rm: 0.5,
+    gb: 1.3,
+    tipoUrbano: 0.00593,
+    tipoRustico: 0.01068,
+    anioPonencia: 2010,
+} as const;
+
+function getDocumentedUrbanProfile(municipio: string) {
+    const normalized = municipio.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    return normalized.startsWith("andujar") ? ANDUJAR_VALUATION_PROFILE : null;
+}
 
 export default function CalculadoraPage() {
     const { toast } = useToast();
     const [loading, setLoading] = useState(false);
 
-    // Base de Datos Simulada (JSON) de Municipios y Años de Ponencia
-    const mockPonencias: Record<string, number> = {
-        "Andújar (Jaén)": 2010,
-        "Madrid": 2012,
-        "Barcelona": 2017,
-        "Valencia": 2015,
-        "Sevilla": 2001,
-        "Zaragoza": 2013,
-        "Málaga": 2016,
-        "Murcia": 2015,
-        "Palma de Mallorca": 2012,
-        "Bilbao": 2016,
-        "Valladolid": 2017,
-        "Fuencaliente": 1990
-    };
-
-    // CT/GB (Coeficiente de Gastos y Beneficio) por municipio
-    // Verificado en Hojas Informativas reales: Andújar CT=1.30
-    const mockGB: Record<string, number> = {
-        "Andújar (Jaén)": 1.30,
-    };
-
-    const [municipios, setMunicipios] = useState(Object.keys(mockPonencias));
+    const [municipios, setMunicipios] = useState(["Andújar (Jaén)"]);
     const [result, setResult] = useState<any>(null);
     const [searchStatus, setSearchStatus] = useState<{ type: 'success' | 'error' | 'info' | null, message: string }>({ type: null, message: "" });
     const [advancedOpen, setAdvancedOpen] = useState(false);
 
     const [formData, setFormData] = useState({
-        municipio: "Andújar",
+        municipio: "Andújar (Jaén)",
         clase: "urbano",
         rc: "",
         sup_parcela: 0,
@@ -62,11 +61,11 @@ export default function CalculadoraPage() {
         edif_real: 0,
         valor_rep: 0,
         zona_valor: "",
-        uso_const: "vivienda",
+        uso_const: "AAP",
         categoria: 5,
         sup_const: 0,
         anio_const: 2000,
-        estado: "normal",
+        estado: "N",
         ha: 0,
         tipo_eval: 0,
         uso_suelo_rust: "residencial",
@@ -76,10 +75,11 @@ export default function CalculadoraPage() {
         custom_mbr: 200,
         custom_mbr_rustico: 37.8,
         custom_rm: 0.50,
-        custom_gb: 1.30,   // CT/GB Andújar verificado = 1.30
+        custom_gb: 1.30,
         custom_tipo_urbano: 0.006,
         custom_tipo_rustico: 0.010,
-        custom_anio_ponencia: 2010
+        custom_anio_ponencia: 2010,
+        parameters_confirmed: false,
     });
 
     // Leer Referencia Catastral de la URL si venimos del Visor Catastral
@@ -91,18 +91,22 @@ export default function CalculadoraPage() {
         }
     }, []);
 
-    // Actualizar ponencia Y CT/GB cuando el usuario elige un municipio conocido
+    // No se reutilizan parámetros de un municipio para otro. Solo existe un
+    // perfil documentado; el resto exige introducir y confirmar la ponencia.
     useEffect(() => {
-        const updates: Record<string, number> = {};
-        if (formData.municipio && mockPonencias[formData.municipio]) {
-            updates.custom_anio_ponencia = mockPonencias[formData.municipio];
-        }
-        if (formData.municipio && mockGB[formData.municipio]) {
-            updates.custom_gb = mockGB[formData.municipio];
-        }
-        if (Object.keys(updates).length > 0) {
-            setFormData(prev => ({ ...prev, ...updates }));
-        }
+        const profile = getDocumentedUrbanProfile(formData.municipio);
+        setFormData(prev => ({
+            ...prev,
+            custom_mbc: profile?.mbc ?? 0,
+            custom_mbr: profile?.mbr ?? 0,
+            custom_mbr_rustico: profile?.mbrRustico ?? 0,
+            custom_rm: profile?.rm ?? 0,
+            custom_gb: profile?.gb ?? 0,
+            custom_tipo_urbano: profile?.tipoUrbano ?? 0,
+            custom_tipo_rustico: profile?.tipoRustico ?? 0,
+            custom_anio_ponencia: profile?.anioPonencia ?? 0,
+            parameters_confirmed: false,
+        }));
     }, [formData.municipio]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -156,17 +160,29 @@ export default function CalculadoraPage() {
         };
     };
 
-    const handleExportPDF = () => {
+    const handleExportPDF = async () => {
         const data = getReportData();
-        if (data) generatePDFReport(data);
+        if (!data) return;
+
+        try {
+            const { generatePDFReport } = await import("@/lib/report-generator");
+            generatePDFReport(data);
+        } catch {
+            toast({
+                variant: "destructive",
+                title: "Error de Exportación",
+                description: "No se pudo generar el documento PDF.",
+            });
+        }
     };
 
     const handleExportWord = async () => {
         const data = getReportData();
         if (data) {
             try {
+                const { generateWordReport } = await import("@/lib/word-report-generator");
                 await generateWordReport(data);
-            } catch (error) {
+            } catch {
                 toast({
                     variant: "destructive",
                     title: "Error de Exportación",
@@ -183,12 +199,13 @@ export default function CalculadoraPage() {
     };
 
     const buscarRC = async () => {
-        if (!formData.rc || formData.rc.length < 14) {
-            setSearchStatus({ type: 'error', message: 'Referencia incompleta. Introduce al menos 14 caracteres.' });
+        const reference = normalizeCadastralReference(formData.rc);
+        if (!isValidCadastralReference(reference)) {
+            setSearchStatus({ type: 'error', message: 'La referencia debe tener 14, 18 o 20 caracteres alfanuméricos.' });
             toast({
                 variant: "destructive",
-                title: "Referencia incompleta",
-                description: "Introduce al menos 14 caracteres de la RC.",
+                title: "Referencia no válida",
+                description: "Introduce una referencia catastral de 14, 18 o 20 caracteres.",
             });
             return;
         }
@@ -197,12 +214,9 @@ export default function CalculadoraPage() {
         setSearchStatus({ type: 'info', message: 'Conectando con el Catastro... Buscando parcela.' });
         try {
             // Intentar buscar datos de la parcela
-            const response = await fetch(`${API_BASE_URL}/catastro/buscar-rc`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ referencia_catastral: formData.rc })
+            const data = await queryCatastro<any>("/catastro/buscar-rc", {
+                referencia_catastral: reference,
             });
-            const data = await response.json();
 
             if (data.encontrado) {
                 // Capitalize and clean municipality name
@@ -224,20 +238,29 @@ export default function CalculadoraPage() {
                         : (data.superficie_parcela || prev.sup_parcela),
                     ha: data.uso?.toLowerCase().includes("rústico") ? (data.superficie_parcela / 10000 || prev.ha) : prev.ha,
                     anio_const: data.anio_const || prev.anio_const,
-                    uso_const: data.uso?.toLowerCase().includes("industrial") ? "industrial" : "vivienda",
+                    uso_const: data.uso?.toLowerCase().includes("industrial") ? "IAL" : "AAP",
                     sup_const: data.superficie_construida || prev.sup_const,
                     zona_valor: data.zona_valor || prev.zona_valor,
                     valor_rep: data.valor_rep || prev.valor_rep,
                     edif_real: data.superficie_construida || prev.edif_real,
                     edif_max: data.superficie_construida || prev.edif_max
                 }));
+                const selectionMessage = data.seleccion_aproximada
+                    ? ` La referencia de finca agrupa ${data.num_inmuebles} inmuebles; introduce la referencia completa de 20 caracteres para cargar datos constructivos.`
+                    : "";
                 const vrcMsg = data.valor_rep > 0 && data.zona_info
                     ? ` Valor repercusión auto-detectado: ${data.zona_info}.`
                     : " Valor de repercusión de suelo no detectado automáticamente — introdúcelo manualmente.";
-                setSearchStatus({ type: 'success', message: `¡Parcela Localizada! ${data.direccion}.${vrcMsg}` });
+                setSearchStatus({ type: 'success', message: `¡Parcela localizada! ${data.direccion}.${selectionMessage}${vrcMsg}` });
                 toast({
-                    title: data.valor_rep > 0 ? "✅ Inmueble encontrado — Zona detectada" : "Inmueble encontrado",
-                    description: data.valor_rep > 0
+                    title: data.seleccion_aproximada
+                        ? "Finca con varios inmuebles"
+                        : data.valor_rep > 0
+                            ? "✅ Inmueble encontrado — Zona detectada"
+                            : "Inmueble encontrado",
+                    description: data.seleccion_aproximada
+                        ? `Introduce la referencia completa. Catastro devuelve ${data.num_inmuebles} inmuebles para esta finca.`
+                        : data.valor_rep > 0
                         ? `${data.direccion} | ${data.zona_info}`
                         : `${data.direccion}. Introduce el valor de repercusión de suelo manualmente.`,
                 });
@@ -257,7 +280,7 @@ export default function CalculadoraPage() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 font-body">
+        <main id="contenido-principal" tabIndex={-1} className="min-h-screen bg-slate-50 font-body">
             <Navbar />
 
             <div className="container mx-auto py-12 px-4">
@@ -279,7 +302,9 @@ export default function CalculadoraPage() {
                                         <CardTitle className="text-2xl font-bold tracking-tight">Calculadora de Valor Catastral</CardTitle>
                                         <CardDescription className="text-slate-400 font-medium">Estimación aproximada (Urbana / Rústica)</CardDescription>
                                         <Badge variant="outline" className="mt-4 border-accent text-accent bg-accent/10 px-3 py-1 text-xs">
-                                            {mockPonencias[formData.municipio] ? `${formData.municipio} (Ponencia ${mockPonencias[formData.municipio]})` : "Municipio Personalizado / Sin Datos"}
+                                            {getDocumentedUrbanProfile(formData.municipio)
+                                                ? `${formData.municipio} · perfil de referencia documentado`
+                                                : "Sin perfil municipal · introduce la ponencia aplicable"}
                                         </Badge>
                                     </div>
                                 </CardHeader>
@@ -335,9 +360,9 @@ export default function CalculadoraPage() {
                                         <div className="p-8 text-center bg-green-50 rounded-lg border border-green-200">
                                             <h3 className="text-green-800 font-bold text-lg mb-2">Calculadora Rústica Integrada</h3>
                                             <p className="text-green-700 mb-4">La calculadora rústica ha sido optimizada en su propia página especializada.</p>
-                                            <Link href="/herramientas/calculadora-rustica">
-                                                <Button className="bg-green-600 hover:bg-green-700 text-white">Ir a Calculadora Rústica</Button>
-                                            </Link>
+                                            <Button className="bg-green-600 hover:bg-green-700 text-white" asChild>
+                                                <Link href="/herramientas/calculadora-rustica">Ir a Calculadora Rústica</Link>
+                                            </Button>
                                         </div>
                                     )}
 
@@ -356,9 +381,9 @@ export default function CalculadoraPage() {
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     <div className="space-y-2">
 
-                                                        <Label>Municipio</Label>
+                                                        <Label htmlFor="valuation-municipality">Municipio</Label>
                                                         <Select value={formData.municipio} onValueChange={(v: string) => handleSelectChange("municipio", v)}>
-                                                            <SelectTrigger>
+                                                            <SelectTrigger id="valuation-municipality">
                                                                 <SelectValue placeholder="Selecciona municipio" />
                                                             </SelectTrigger>
                                                             <SelectContent>
@@ -368,9 +393,9 @@ export default function CalculadoraPage() {
                                                     </div>
 
                                                     <div className="space-y-2">
-                                                        <Label>Clase de Inmueble</Label>
+                                                        <Label htmlFor="valuation-property-class">Clase de Inmueble</Label>
                                                         <Select value={formData.clase} onValueChange={(v: string) => handleSelectChange("clase", v)}>
-                                                            <SelectTrigger>
+                                                            <SelectTrigger id="valuation-property-class">
                                                                 <SelectValue placeholder="Urbano / Rústico" />
                                                             </SelectTrigger>
                                                             <SelectContent>
@@ -382,11 +407,12 @@ export default function CalculadoraPage() {
 
                                                     {/* CT/GB — visible siempre, pre-cargado del municipio */}
                                                     <div className="space-y-2 lg:col-span-2">
-                                                        <Label className="flex items-center gap-1">
+                                                        <Label htmlFor="valuation-gb" className="flex items-center gap-1">
                                                             Coef. CT / G+B
-                                                            <span className="text-[10px] text-slate-400 font-normal ml-1">(opcional — de la Ponencia)</span>
+                                                            <span className="text-[10px] text-slate-400 font-normal ml-1">(obligatorio — de la Ponencia)</span>
                                                         </Label>
                                                         <Input
+                                                            id="valuation-gb"
                                                             type="number"
                                                             name="custom_gb"
                                                             step="0.01"
@@ -396,14 +422,14 @@ export default function CalculadoraPage() {
                                                             placeholder="Ej: 1.30"
                                                         />
                                                         <p className="text-[10px] text-slate-400">
-                                                            {mockGB[formData.municipio]
-                                                                ? `✓ Verificado ${formData.municipio}: ${mockGB[formData.municipio]}`
-                                                                : "Déjalo en 1.00 si no lo conoces"}
+                                                            {getDocumentedUrbanProfile(formData.municipio)
+                                                                ? `Perfil de referencia: ${getDocumentedUrbanProfile(formData.municipio)?.gb}. Debes contrastarlo.`
+                                                                : "Sin valor municipal precargado: introdúcelo desde la ponencia."}
                                                         </p>
                                                     </div>
 
                                                     {/* CONFIGURACIÓN EXPERTA (Solo si es Personalizado) */}
-                                                    {formData.municipio === "Personalizado" && (
+                                                    {!getDocumentedUrbanProfile(formData.municipio) && (
                                                         <div className="lg:col-span-3 p-4 bg-accent/5 border border-accent/20 rounded-xl space-y-4 animate-in fade-in duration-300">
                                                             <h4 className="font-bold text-primary flex items-center gap-2 text-sm uppercase">
                                                                 <Landmark className="h-4 w-4" />
@@ -411,39 +437,39 @@ export default function CalculadoraPage() {
                                                             </h4>
                                                             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
                                                                 <div className="space-y-1">
-                                                                    <Label className="text-[10px]">MBC (€/m²)</Label>
-                                                                    <Input type="number" name="custom_mbc" value={formData.custom_mbc} onChange={handleInputChange} className="h-8 text-xs" />
+                                                                    <Label htmlFor="valuation-mbc" className="text-[10px]">MBC (€/m²)</Label>
+                                                                    <Input id="valuation-mbc" type="number" name="custom_mbc" value={formData.custom_mbc} onChange={handleInputChange} className="h-8 text-xs" />
                                                                 </div>
                                                                 <div className="space-y-1">
-                                                                    <Label className="text-[10px]">MBR Urbano</Label>
-                                                                    <Input type="number" name="custom_mbr" value={formData.custom_mbr} onChange={handleInputChange} className="h-8 text-xs" />
+                                                                    <Label htmlFor="valuation-mbr-urban" className="text-[10px]">MBR Urbano</Label>
+                                                                    <Input id="valuation-mbr-urban" type="number" name="custom_mbr" value={formData.custom_mbr} onChange={handleInputChange} className="h-8 text-xs" />
                                                                 </div>
                                                                 <div className="space-y-1">
-                                                                    <Label className="text-[10px]">MBR Rústico</Label>
-                                                                    <Input type="number" name="custom_mbr_rustico" value={formData.custom_mbr_rustico} onChange={handleInputChange} className="h-8 text-xs" />
+                                                                    <Label htmlFor="valuation-mbr-rustic" className="text-[10px]">MBR Rústico</Label>
+                                                                    <Input id="valuation-mbr-rustic" type="number" name="custom_mbr_rustico" value={formData.custom_mbr_rustico} onChange={handleInputChange} className="h-8 text-xs" />
                                                                 </div>
                                                                 <div className="space-y-1">
-                                                                    <Label className="text-[10px]">Coef. RM</Label>
-                                                                    <Input type="number" name="custom_rm" step="0.1" value={formData.custom_rm} onChange={handleInputChange} className="h-8 text-xs" />
+                                                                    <Label htmlFor="valuation-rm" className="text-[10px]">Coef. RM</Label>
+                                                                    <Input id="valuation-rm" type="number" name="custom_rm" step="0.1" value={formData.custom_rm} onChange={handleInputChange} className="h-8 text-xs" />
                                                                 </div>
                                                                 <div className="space-y-1">
-                                                                    <Label className="text-[10px]">Coef. G+B</Label>
-                                                                    <Input type="number" name="custom_gb" step="0.1" value={formData.custom_gb} onChange={handleInputChange} className="h-8 text-xs" />
+                                                                    <Label htmlFor="valuation-gb-custom" className="text-[10px]">Coef. G+B</Label>
+                                                                    <Input id="valuation-gb-custom" type="number" name="custom_gb" step="0.1" value={formData.custom_gb} onChange={handleInputChange} className="h-8 text-xs" />
                                                                 </div>
                                                                 <div className="space-y-1">
-                                                                    <Label className="text-[10px]">Tipo Urbano</Label>
-                                                                    <Input type="number" name="custom_tipo_urbano" step="0.001" value={formData.custom_tipo_urbano} onChange={handleInputChange} className="h-8 text-xs" />
+                                                                    <Label htmlFor="valuation-tax-urban" className="text-[10px]">Tipo Urbano</Label>
+                                                                    <Input id="valuation-tax-urban" type="number" name="custom_tipo_urbano" step="0.001" value={formData.custom_tipo_urbano} onChange={handleInputChange} className="h-8 text-xs" />
                                                                 </div>
                                                                 <div className="space-y-1">
-                                                                    <Label className="text-[10px]">Tipo Rústico</Label>
-                                                                    <Input type="number" name="custom_tipo_rustico" step="0.001" value={formData.custom_tipo_rustico} onChange={handleInputChange} className="h-8 text-xs" />
+                                                                    <Label htmlFor="valuation-tax-rustic" className="text-[10px]">Tipo Rústico</Label>
+                                                                    <Input id="valuation-tax-rustic" type="number" name="custom_tipo_rustico" step="0.001" value={formData.custom_tipo_rustico} onChange={handleInputChange} className="h-8 text-xs" />
                                                                 </div>
                                                                 <div className="space-y-1">
-                                                                    <Label className="text-[10px]">Año Ponencia</Label>
-                                                                    <Input type="number" name="custom_anio_ponencia" value={formData.custom_anio_ponencia} onChange={handleInputChange} className="h-8 text-xs" />
+                                                                    <Label htmlFor="valuation-assessment-year" className="text-[10px]">Año Ponencia</Label>
+                                                                    <Input id="valuation-assessment-year" type="number" name="custom_anio_ponencia" value={formData.custom_anio_ponencia} onChange={handleInputChange} className="h-8 text-xs" />
                                                                 </div>
                                                             </div>
-                                                            <p className="text-[9px] text-slate-500 italic">Nota: Los módulos MBC (Construcción) y MBR (Repercusión Suelo) se obtienen de la Ponencia de Valores. G+B suele ser 1.00 hasta revisar la ponencia exacta.</p>
+                                                            <p className="text-[9px] text-slate-500 italic">Los módulos MBC/MBR, RM, G+B, el año de ponencia y el tipo de IBI deben copiarse de la ponencia o recibo aplicable. La búsqueda catastral no acredita esos parámetros.</p>
                                                         </div>
                                                     )}
 
@@ -451,16 +477,16 @@ export default function CalculadoraPage() {
                                                     {formData.clase === "urbano" && (
                                                         <>
                                                             <div className="space-y-2">
-                                                                <Label>Superficie de Parcela (m²)</Label>
-                                                                <Input type="number" name="sup_parcela" value={formData.sup_parcela} onChange={handleInputChange} />
+                                                                <Label htmlFor="valuation-land-area">Superficie de Parcela (m²)</Label>
+                                                                <Input id="valuation-land-area" type="number" name="sup_parcela" value={formData.sup_parcela} onChange={handleInputChange} />
                                                             </div>
                                                             <div className="space-y-2">
-                                                                <Label>Valor Repercusión Suelo (€/m²)</Label>
-                                                                <Input type="number" name="valor_rep" value={formData.valor_rep} onChange={handleInputChange} />
+                                                                <Label htmlFor="valuation-land-value">Valor Repercusión Suelo (€/m²)</Label>
+                                                                <Input id="valuation-land-value" type="number" name="valor_rep" value={formData.valor_rep} onChange={handleInputChange} />
                                                             </div>
                                                             <div className="space-y-2">
-                                                                <Label>Edificabilidad Max (m²)</Label>
-                                                                <Input type="number" name="edif_max" value={formData.edif_max} onChange={handleInputChange} />
+                                                                <Label htmlFor="valuation-max-buildability">Edificabilidad Max (m²)</Label>
+                                                                <Input id="valuation-max-buildability" type="number" name="edif_max" value={formData.edif_max} onChange={handleInputChange} />
                                                             </div>
                                                         </>
                                                     )}
@@ -469,21 +495,21 @@ export default function CalculadoraPage() {
                                                     {formData.clase === "rustico" && (
                                                         <>
                                                             <div className="space-y-2">
-                                                                <Label>Superficie (ha)</Label>
-                                                                <Input type="number" name="ha" value={formData.ha} onChange={handleInputChange} />
+                                                                <Label htmlFor="valuation-rustic-area">Superficie (ha)</Label>
+                                                                <Input id="valuation-rustic-area" type="number" name="ha" value={formData.ha} onChange={handleInputChange} />
                                                             </div>
                                                             <div className="space-y-2">
-                                                                <Label>Tipo Evaluatorio (€/ha)</Label>
-                                                                <Input type="number" name="tipo_eval" value={formData.tipo_eval} onChange={handleInputChange} />
+                                                                <Label htmlFor="valuation-assessment-rate">Tipo Evaluatorio (€/ha)</Label>
+                                                                <Input id="valuation-assessment-rate" type="number" name="tipo_eval" value={formData.tipo_eval} onChange={handleInputChange} />
                                                             </div>
                                                             <div className="space-y-2">
-                                                                <Label>Superficie Ocupada por Const. (m²)</Label>
-                                                                <Input type="number" name="sup_ocupada" value={formData.sup_ocupada} onChange={handleInputChange} />
+                                                                <Label htmlFor="valuation-occupied-area">Superficie Ocupada por Const. (m²)</Label>
+                                                                <Input id="valuation-occupied-area" type="number" name="sup_ocupada" value={formData.sup_ocupada} onChange={handleInputChange} />
                                                             </div>
                                                             <div className="space-y-2">
-                                                                <Label>Uso Bajo Const.</Label>
+                                                                <Label htmlFor="valuation-rustic-use">Uso Bajo Const.</Label>
                                                                 <Select value={formData.uso_suelo_rust} onValueChange={(v: string) => handleSelectChange("uso_suelo_rust", v)}>
-                                                                    <SelectTrigger>
+                                                                    <SelectTrigger id="valuation-rustic-use">
                                                                         <SelectValue />
                                                                     </SelectTrigger>
                                                                     <SelectContent>
@@ -513,7 +539,7 @@ export default function CalculadoraPage() {
                                 <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
                                     <h3 className="text-xl font-bold text-primary mb-3">📄 Resumen de Datos Analizados</h3>
                                     <p className="text-slate-600">
-                                        Se ha calculado el valor para una <strong>Superficie de {formData.sup_const} m²</strong>, con un uso <strong>{formData.uso_const === 'vivienda' ? 'Residencial' : 'Industrial'}</strong> y una <strong>Antigüedad estimada de {new Date().getFullYear() - formData.anio_const} años</strong>.
+                                        Se ha calculado el valor para una <strong>superficie de {formData.sup_const} m²</strong>, con la tipología <strong>{result.detalles?.construccion?.tipologia ?? formData.uso_const}</strong> y una <strong>antigüedad de valoración de {result.detalles?.construccion?.age ?? 0} años</strong>.
                                     </p>
                                 </div>
 
@@ -594,22 +620,22 @@ export default function CalculadoraPage() {
                             <div className="h-12 w-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
                                 <MapIcon className="h-6 w-6 text-primary" />
                             </div>
-                            <h4 className="font-bold text-lg mb-2">Zonificación Automática</h4>
-                            <p className="text-slate-500 text-sm">Detectamos el Polígono de Valoración y aplicamos los módulos de repercusión de suelo de forma automática.</p>
+                            <h4 className="font-bold text-lg mb-2">Datos de parcela</h4>
+                            <p className="text-slate-500 text-sm">El buscador intenta recuperar datos descriptivos y, cuando el servicio los facilita, una referencia de zona. Los parámetros no detectados quedan para revisión manual.</p>
                         </div>
                         <div className="p-6 bg-white rounded-xl shadow-sm border border-slate-100">
                             <div className="h-12 w-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
                                 <Landmark className="h-6 w-6 text-primary" />
                             </div>
-                            <h4 className="font-bold text-lg mb-2">IBI Actualizado</h4>
-                            <p className="text-slate-500 text-sm">Cálculo basado en las cuotas y tipos impositivos municipales vigentes para el presente ejercicio fiscal.</p>
+                            <h4 className="font-bold text-lg mb-2">IBI configurable</h4>
+                            <p className="text-slate-500 text-sm">La cuota se calcula con el tipo introducido. Debes contrastarlo con la ordenanza fiscal municipal del ejercicio correspondiente.</p>
                         </div>
                         <div className="p-6 bg-white rounded-xl shadow-sm border border-slate-100">
                             <div className="h-12 w-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
                                 <Calculator className="h-6 w-6 text-primary" />
                             </div>
                             <h4 className="font-bold text-lg mb-2">Garantía Técnica</h4>
-                            <p className="text-slate-500 text-sm">Cumplimos estrictamente con la normativa de valoración catastral (RD 1020/1993) y las ponencias locales.</p>
+                            <p className="text-slate-500 text-sm">La estimación aplica criterios del RD 1020/1993 con los parámetros que introduzcas; confirma los módulos y coeficientes en la ponencia de valores aplicable.</p>
                         </div>
                     </div>
                     {/* CROSS-SELLING / ENLACES TÉCNICOS */}
@@ -618,6 +644,7 @@ export default function CalculadoraPage() {
             </div>
 
             <Footer />
-        </div>
+            <Toaster />
+        </main>
     );
 }

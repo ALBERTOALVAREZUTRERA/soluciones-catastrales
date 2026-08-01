@@ -11,14 +11,14 @@ import { Map as MapIcon } from "lucide-react";
 
 export default function GmlConverterPage() {
     return (
-        <main className="min-h-screen bg-slate-50 font-body">
+        <main id="contenido-principal" tabIndex={-1} className="min-h-screen bg-slate-50 font-body">
             <Navbar />
 
             <div className="container mx-auto py-12 px-4">
                 <div className="max-w-5xl mx-auto space-y-8">
                     <ToolHeader
                         title="Generador GML de Parcela"
-                        description="Transforma planos topográficos DXF, SHP o coordenadas a formato GML oficial validado por la Sede Electrónica del Catastro."
+                        description="Transforma planos topográficos DXF, SHP o coordenadas a GML y comprueba el archivo antes de validarlo en la Sede Electrónica del Catastro."
                         Icon={MapIcon}
                     />
 

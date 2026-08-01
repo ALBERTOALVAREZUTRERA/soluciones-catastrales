@@ -1,40 +1,35 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import { FirebaseClientProvider } from '@/firebase/client-provider';
 import FacebookPixel from '@/components/facebook-pixel';
-
-const BASE_URL = 'https://www.solucionescatastrales.app';
+import {
+  AnalyticsScripts,
+  CookieConsentBanner,
+} from '@/components/cookie-consent';
+import { JsonLd } from '@/components/json-ld';
+import {
+  absoluteUrl,
+  createPageMetadata,
+  SITE_NAME,
+  SITE_URL,
+} from '@/lib/site-config';
 
 export const metadata: Metadata = {
-  title: 'Ingeniería Catastral y Topografía en Jaén | Soluciones Catastrales',
-  description: 'Ingeniería Técnica en Jaén especializada en Levantamientos Topográficos, archivos GML, subsanación de discrepancias Catastro-Registro y revisiones de IBI en Andalucía.',
+  ...createPageMetadata({
+    title: 'Ingeniería Catastral y Topografía en Jaén',
+    description: 'Ingeniería técnica en Jaén especializada en levantamientos topográficos, archivos GML, subsanación de discrepancias Catastro-Registro y revisiones de IBI en Andalucía.',
+    path: '/',
+  }),
+  title: {
+    default: 'Ingeniería Catastral y Topografía en Jaén | Soluciones Catastrales',
+    template: '%s | Soluciones Catastrales',
+  },
   keywords: ['Topógrafo Jaén', 'Archivo GML', 'Catastro', 'Registro de la Propiedad', 'Ingeniero Técnico', 'Andújar', 'Levantamiento Topográfico', 'Discrepancias Registrales', 'SOLUCIONES CATASTRALES'],
-  metadataBase: new URL(BASE_URL),
-  alternates: {
-    canonical: BASE_URL,
-  },
-  openGraph: {
-    title: 'Topografía e Ingeniería Catastral en Jaén | Soluciones Catastrales',
-    description: 'Resolvemos discrepancias entre Catastro y Registro de la Propiedad en Andalucía mediante informes técnicos y cartografía GML.',
-    url: BASE_URL,
-    siteName: 'Soluciones Catastrales (Jaén)',
-    locale: 'es_ES',
-    type: 'website',
-    images: [
-      {
-        url: `${BASE_URL}/og-image.png`,
-        width: 1200,
-        height: 630,
-        alt: 'Soluciones Catastrales y Registrales — Topografía e Ingeniería Catastral en Jaén',
-      },
-    ],
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Ingeniería Catastral y Topografía en Jaén | Soluciones Catastrales',
-    description: 'Resolvemos discrepancias Catastro-Registro. GML, topografía e IBI en Andalucía.',
-    images: [`${BASE_URL}/og-image.png`],
-  },
+  metadataBase: new URL(SITE_URL),
+  applicationName: SITE_NAME,
+  category: 'Ingeniería y topografía',
+  authors: [{ name: 'Alberto Álvarez Utrera', url: SITE_URL }],
+  creator: 'Alberto Álvarez Utrera',
+  publisher: SITE_NAME,
 };
 
 export default function RootLayout({
@@ -48,67 +43,64 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
-        <script async src="https://www.googletagmanager.com/gtag/js?id=G-SJB5J4ZTW7"></script>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
-              gtag('config', 'G-SJB5J4ZTW7');
-            `,
-          }}
-        />
-        {/* LocalBusiness structured data — mejora la visibilidad en búsquedas locales */}
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "LocalBusiness",
-              "name": "Soluciones Catastrales y Registrales",
-              "description": "Ingeniería Técnica especializada en Levantamientos Topográficos, archivos GML, subsanación de discrepancias Catastro-Registro y revisiones de IBI en Jaén y Andalucía.",
-              "url": "https://www.solucionescatastrales.app",
-              "logo": "https://www.solucionescatastrales.app/og-image.png",
-              "image": "https://www.solucionescatastrales.app/og-image.png",
-              "telephone": "+34665890608",
-              "address": {
-                "@type": "PostalAddress",
-                "addressLocality": "Andújar",
-                "addressRegion": "Jaén",
-                "addressCountry": "ES"
+        <JsonLd
+          data={{
+            '@context': 'https://schema.org',
+            '@graph': [
+              {
+                '@type': 'ProfessionalService',
+                '@id': `${SITE_URL}/#business`,
+                name: SITE_NAME,
+                description:
+                  'Ingeniería técnica especializada en levantamientos topográficos, archivos GML, subsanación de discrepancias Catastro-Registro y revisiones de IBI en Jaén y Andalucía.',
+                url: SITE_URL,
+                image: absoluteUrl('/og-social.jpg'),
+                telephone: '+34665890608',
+                email: 'alberto.alvarez.utrera@gmail.com',
+                address: {
+                  '@type': 'PostalAddress',
+                  streetAddress: 'Calle Nueva, 5',
+                  addressLocality: 'Andújar',
+                  addressRegion: 'Jaén',
+                  addressCountry: 'ES',
+                },
+                areaServed: [
+                  { '@type': 'AdministrativeArea', name: 'Jaén' },
+                  { '@type': 'AdministrativeArea', name: 'Andalucía' },
+                ],
+                founder: {
+                  '@type': 'Person',
+                  name: 'Alberto Álvarez Utrera',
+                  jobTitle: 'Ingeniero técnico',
+                },
+                knowsAbout: [
+                  'Catastro inmobiliario',
+                  'GML catastral',
+                  'Topografía',
+                  'Registro de la Propiedad',
+                  'Discrepancias catastrales',
+                ],
               },
-              "geo": {
-                "@type": "GeoCoordinates",
-                "latitude": 38.0392,
-                "longitude": -4.0516
+              {
+                '@type': 'WebSite',
+                '@id': `${SITE_URL}/#website`,
+                url: SITE_URL,
+                name: SITE_NAME,
+                inLanguage: 'es-ES',
+                publisher: { '@id': `${SITE_URL}/#business` },
               },
-              "areaServed": [
-                { "@type": "State", "name": "Andalucía" },
-                { "@type": "AdministrativeArea", "name": "Jaén" }
-              ],
-              "knowsAbout": [
-                "Catastro Inmobiliario",
-                "GML Catastral",
-                "Topografía",
-                "IBI",
-                "Registro de la Propiedad",
-                "Ingeniería Técnica",
-                "Discrepancias Registrales"
-              ],
-              "priceRange": "$$",
-              "sameAs": [
-                "https://www.solucionescatastrales.app"
-              ]
-            })
+            ],
           }}
         />
       </head>
       <body className="font-body antialiased">
-        <FirebaseClientProvider>
-          {children}
-          <FacebookPixel />
-        </FirebaseClientProvider>
+        <a href="#contenido-principal" className="skip-link">
+          Saltar al contenido principal
+        </a>
+        {children}
+        <AnalyticsScripts />
+        <FacebookPixel />
+        <CookieConsentBanner />
       </body>
     </html>
   );

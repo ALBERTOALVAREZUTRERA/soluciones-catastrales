@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CalculatorIcon, FileText, Sparkles, ShieldCheck, Upload, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { analyzeWithBackend } from "@/lib/backend-api";
-import { dbTipologiasUrbanas, coeficientesAntiguedadUrbana, coeficientesConservacionUrbana } from "@/data/mock-db-urbana";
+import { dbTipologiasUrbanas, coeficientesConservacionUrbana } from "@/data/cadastral-urban-data";
+import { calculateUrbanValuation } from "@/lib/cadastral-valuation";
 
 export interface UrbanCalculatorProps {
     formData: any;
@@ -79,55 +80,74 @@ export function UrbanCalculator({ formData, setFormData, onCalculate, loading }:
     };
 
     const calculateUrbanValue = () => {
-        // --- 1. SOIL CALCULATION (SUELO) ---
-        // Formula: Superficie × Valor Repercusión(VR) × Coef_Gastos(C) × RM
-        const supSuelo = Number(formData.sup_parcela) || 0;
-        const vr = Number(formData.valor_rep) || 0;
-        const coefG = Number(formData.custom_gb) || 1.0;
-        const rm = Number(formData.custom_rm) || 0.5;
+        const requiredParameters = [
+            formData.valor_rep,
+            formData.custom_gb,
+            formData.custom_rm,
+            formData.custom_mbc,
+            formData.custom_anio_ponencia,
+        ].map(Number);
+        if (!formData.parameters_confirmed || requiredParameters.some(value => !Number.isFinite(value) || value <= 0)) {
+            toast({
+                title: "Confirma los parámetros municipales",
+                description: "Introduce valores positivos para repercusión, G+B, RM, MBC y año de ponencia, y confirma que los has contrastado.",
+                variant: "destructive",
+            });
+            return;
+        }
 
-        // Si es división horizontal (piso), catastro muchas veces usa la sup construida como base de reparto
-        const baseSuelo = (supSuelo === 0) ? Number(formData.sup_const) : supSuelo;
-        const valorSueloTotal = baseSuelo * vr * coefG * rm;
-
-        // --- 2. CONSTRUCTION CALCULATION (CONSTRUCCIÓN) ---
-        // Formula: Superficie × Tipología(coef) × Antigüedad(H) × Conservación(I) × Coef_Gastos(C) × RM × MBC
-        const supConst = Number(formData.sup_const) || 0;
-        const mbc = Number(formData.custom_mbc) || 550;
-
-        // Find tipology coef (U)
         const tipologia = dbTipologiasUrbanas.find(t => t.id === formData.uso_const);
-        const cat = Number(formData.categoria) || 5;
-        const coefU = tipologia ? (tipologia.categorias[cat] || 1.0) : 1.0;
+        const categoria = Number(formData.categoria);
+        const coefU = tipologia?.categorias[categoria] ?? 1;
+        const coefI = coeficientesConservacionUrbana.find(c => c.value === formData.estado)?.coef ?? 1;
+        const calculation = calculateUrbanValuation({
+            soilArea: formData.sup_parcela,
+            constructionArea: formData.sup_const,
+            repercussionValue: formData.valor_rep,
+            expensesCoefficient: formData.custom_gb,
+            marketCoefficient: formData.custom_rm,
+            basicConstructionModule: formData.custom_mbc,
+            constructionTypeCoefficient: coefU,
+            conservationCoefficient: coefI,
+            referenceYear: formData.custom_anio_ponencia,
+            constructionYear: formData.anio_const,
+            typeId: formData.uso_const,
+            category: categoria,
+            ibiRate: formData.custom_tipo_urbano,
+        });
 
-        // Find age coef (H)
-        const currentYear = new Date().getFullYear();
-        const anioPonencia = Number(formData.custom_anio_ponencia) || currentYear;
-        const anioConst = Number(formData.anio_const) || currentYear;
-        const age = Math.max(0, anioPonencia - anioConst);
-        const coefH = coeficientesAntiguedadUrbana.find(c => age <= c.maxAge)?.coef || 0.39;
-
-        // Find conservation coef (I)
-        const coefI = coeficientesConservacionUrbana.find(c => c.value === formData.estado)?.coef || 1.0;
-
-        const valorConstTotal = supConst * coefU * coefH * coefI * coefG * rm * mbc;
-
-        // --- 3. TOTALS ---
-        const valorCatastralTotal = valorSueloTotal + valorConstTotal;
-
-        // IBI
-        const tipoIbi = 0.006; // 0.6% por defecto urbano
-        const cuotaIbi = valorCatastralTotal * tipoIbi;
+        if (calculation.effectiveSoilArea <= 0 && Number(formData.sup_const) <= 0) {
+            toast({
+                title: "Faltan superficies",
+                description: "Introduce una superficie de parcela o de construcción mayor que cero.",
+                variant: "destructive",
+            });
+            return;
+        }
 
         onCalculate({
-            suelo_urbano: valorSueloTotal,
-            construccion: valorConstTotal,
-            valor_catastral_total: valorCatastralTotal,
-            cuota_ibi_anual: cuotaIbi,
-            tipo_aplicado: tipoIbi,
+            suelo_urbano: calculation.soilValue,
+            construccion: calculation.constructionValue,
+            valor_catastral_total: calculation.totalValue,
+            cuota_ibi_anual: calculation.annualIbi,
+            tipo_aplicado: calculation.ibiRate,
             detalles: {
-                suelo: { sup: baseSuelo, vr, coefG, rm },
-                construccion: { sup: supConst, tipologia: tipologia?.nombre || 'Generico', coefU, age, coefH, estado: formData.estado, coefI, mbc }
+                suelo: {
+                    sup: calculation.effectiveSoilArea,
+                    vr: Number(formData.valor_rep),
+                    coefG: Number(formData.custom_gb),
+                    rm: Number(formData.custom_rm),
+                },
+                construccion: {
+                    sup: Number(formData.sup_const),
+                    tipologia: tipologia?.nombre || "Genérico",
+                    coefU,
+                    age: calculation.valuationAge,
+                    coefH: calculation.ageCoefficient,
+                    estado: formData.estado,
+                    coefI,
+                    mbc: Number(formData.custom_mbc),
+                },
             }
         });
     };
@@ -165,7 +185,7 @@ export function UrbanCalculator({ formData, setFormData, onCalculate, loading }:
                     <div>
                         <h4 className="font-semibold text-purple-900 dark:text-purple-300 text-sm mb-1">3. Valor Matemático</h4>
                         <p className="text-purple-700 dark:text-purple-400/80 text-xs leading-relaxed">
-                            Al calcular, el sistema sumará el Suelo y la Construcción aplicando la depreciación por antigüedad (CoefH) devolviendo un Valor Catastral exacto.
+                            Al calcular, el sistema sumará el suelo y la construcción aplicando la depreciación por antigüedad (CoefH) para obtener una estimación orientativa.
                         </p>
                     </div>
                 </div>
@@ -173,9 +193,9 @@ export function UrbanCalculator({ formData, setFormData, onCalculate, loading }:
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="space-y-2">
-                    <Label className="text-slate-600 font-medium">Uso / Tipología Urbana</Label>
+                    <Label htmlFor="urban-use" className="text-slate-600 font-medium">Uso / Tipología Urbana</Label>
                     <Select value={formData.uso_const} onValueChange={(v: string) => handleSelectChange("uso_const", v)}>
-                        <SelectTrigger className="h-11 bg-slate-50 border-slate-200">
+                        <SelectTrigger id="urban-use" className="h-11 bg-slate-50 border-slate-200">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -187,9 +207,9 @@ export function UrbanCalculator({ formData, setFormData, onCalculate, loading }:
                 </div>
 
                 <div className="space-y-2">
-                    <Label className="text-slate-600 font-medium">Calidad Constructiva</Label>
+                    <Label htmlFor="urban-category" className="text-slate-600 font-medium">Calidad Constructiva</Label>
                     <Select value={formData.categoria.toString()} onValueChange={(v: string) => handleSelectChange("categoria", v)}>
-                        <SelectTrigger className="h-11 bg-slate-50 border-slate-200">
+                        <SelectTrigger id="urban-category" className="h-11 bg-slate-50 border-slate-200">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -207,19 +227,19 @@ export function UrbanCalculator({ formData, setFormData, onCalculate, loading }:
                 </div>
 
                 <div className="space-y-2">
-                    <Label className="text-slate-600 font-medium">Superficie Construida (m²)</Label>
-                    <Input type="number" name="sup_const" value={formData.sup_const} onChange={handleInputChange} className="h-11 bg-slate-50 border-slate-200 text-lg font-medium" />
+                    <Label htmlFor="urban-built-area" className="text-slate-600 font-medium">Superficie Construida (m²)</Label>
+                    <Input id="urban-built-area" type="number" min="0" step="0.01" name="sup_const" value={formData.sup_const} onChange={handleInputChange} className="h-11 bg-slate-50 border-slate-200 text-lg font-medium" />
                 </div>
 
                 <div className="space-y-2">
-                    <Label className="text-slate-600 font-medium">Año de Construcción</Label>
-                    <Input type="number" name="anio_const" value={formData.anio_const} onChange={handleInputChange} className="h-11 bg-slate-50 border-slate-200 text-lg font-medium" />
+                    <Label htmlFor="urban-construction-year" className="text-slate-600 font-medium">Año de Construcción</Label>
+                    <Input id="urban-construction-year" type="number" min="1000" max={new Date().getFullYear() + 1} name="anio_const" value={formData.anio_const} onChange={handleInputChange} className="h-11 bg-slate-50 border-slate-200 text-lg font-medium" />
                 </div>
 
                 <div className="space-y-2">
-                    <Label className="text-slate-600 font-medium">Estado de Conservación</Label>
+                    <Label htmlFor="urban-condition" className="text-slate-600 font-medium">Estado de Conservación</Label>
                     <Select value={formData.estado} onValueChange={(v: string) => handleSelectChange("estado", v)}>
-                        <SelectTrigger className="h-11 bg-slate-50 border-slate-200">
+                        <SelectTrigger id="urban-condition" className="h-11 bg-slate-50 border-slate-200">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -231,18 +251,19 @@ export function UrbanCalculator({ formData, setFormData, onCalculate, loading }:
                 </div>
 
                 <div className="space-y-2">
-                    <Label className="text-slate-600 font-medium">Valor Repercusión Suelo (€/m²)</Label>
-                    <Input type="number" name="valor_rep" value={formData.valor_rep} onChange={handleInputChange} className="h-11 bg-slate-50 border-slate-200 text-lg font-medium" />
+                    <Label htmlFor="urban-land-value" className="text-slate-600 font-medium">Valor Repercusión Suelo (€/m²)</Label>
+                    <Input id="urban-land-value" type="number" min="0" step="0.01" name="valor_rep" value={formData.valor_rep} onChange={handleInputChange} className="h-11 bg-slate-50 border-slate-200 text-lg font-medium" />
                 </div>
 
                 <div className="space-y-2">
-                    <Label className="text-slate-600 font-medium">Superficie Suelo / Parcela (m²)</Label>
+                    <Label htmlFor="urban-land-area" className="text-slate-600 font-medium">Superficie Suelo / Parcela (m²)</Label>
                     <div className="flex gap-2">
-                        <Input type="number" name="sup_parcela" value={formData.sup_parcela} onChange={handleInputChange} className="h-11 bg-slate-50 border-slate-200 text-lg font-medium" />
+                        <Input id="urban-land-area" type="number" min="0" step="0.01" name="sup_parcela" value={formData.sup_parcela} onChange={handleInputChange} className="h-11 bg-slate-50 border-slate-200 text-lg font-medium" />
                         <div className="relative">
                             <input
                                 type="file"
                                 accept=".kmz,.kml"
+                                aria-label="Importar superficie desde KMZ o KML"
                                 onChange={handleKmzImport}
                                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                                 disabled={kmzLoading}
@@ -258,6 +279,24 @@ export function UrbanCalculator({ formData, setFormData, onCalculate, loading }:
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                <label className="flex cursor-pointer items-start gap-3" htmlFor="valuation-parameters-confirmed">
+                    <input
+                        id="valuation-parameters-confirmed"
+                        type="checkbox"
+                        checked={formData.parameters_confirmed === true}
+                        onChange={(event) => setFormData(prev => ({
+                            ...prev,
+                            parameters_confirmed: event.target.checked,
+                        }))}
+                        className="mt-0.5 h-4 w-4 rounded border-amber-400"
+                    />
+                    <span>
+                        He contrastado el valor de repercusión, MBC, RM, G+B, año de ponencia y tipo de IBI con la documentación aplicable al inmueble.
+                    </span>
+                </label>
             </div>
 
             <Button size="lg" className="w-full mt-6 h-14 text-lg font-bold bg-primary hover:bg-slate-800 text-white shadow-xl transition-all hover:scale-105" onClick={calculateUrbanValue} disabled={loading}>

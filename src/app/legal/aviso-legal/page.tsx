@@ -1,8 +1,15 @@
-"use client";
+import { createPageMetadata } from "@/lib/site-config";
+import { LEGAL_IDENTITY } from "@/lib/legal-config";
+
+export const metadata = createPageMetadata({
+    title: "Aviso legal",
+    description: "Información legal, titularidad y condiciones generales del sitio web de Soluciones Catastrales y Registrales.",
+    path: "/legal/aviso-legal",
+});
 
 export default function AvisoLegal() {
     return (
-        <div className="max-w-4xl mx-auto px-6 py-20 font-sans text-slate-800">
+        <main id="contenido-principal" tabIndex={-1} className="max-w-4xl mx-auto px-6 py-20 font-sans text-slate-800">
             <h1 className="text-3xl font-bold mb-8 border-b pb-4 text-primary">Aviso Legal</h1>
 
             <section className="mb-8">
@@ -12,11 +19,12 @@ export default function AvisoLegal() {
                 </p>
                 <ul className="list-disc pl-6 space-y-2">
                     <li><strong>Titular:</strong> Alberto Álvarez Utrera</li>
-                    <li><strong>DNI/NIF:</strong> [COMPLETAR DNI]</li>
-                    <li><strong>Domicilio:</strong> [COMPLETAR DIRECCIÓN], Andújar (Jaén), España</li>
+                    <li><strong>DNI/NIF:</strong> {LEGAL_IDENTITY.taxId}</li>
+                    <li><strong>Domicilio profesional:</strong> Calle Nueva nº 5, Andújar (Jaén), España</li>
                     <li><strong>Actividad Profesional:</strong> Ingeniero Técnico - Especialista en Catastro</li>
-                    <li><strong>Colegio Profesional:</strong> [COMPLETAR COLEGIO] - Número de Colegiado: [Nº]</li>
-                    <li><strong>Email de contacto:</strong> [COMPLETAR EMAIL]</li>
+                    <li><strong>Colegio profesional:</strong> {LEGAL_IDENTITY.professionalBody}</li>
+                    <li><strong>Número de colegiado:</strong> {LEGAL_IDENTITY.registrationNumber}</li>
+                    <li><strong>Email de contacto:</strong> alberto.alvarez.utrera@gmail.com</li>
                 </ul>
             </section>
 
@@ -43,6 +51,6 @@ export default function AvisoLegal() {
                     La relación entre el titular y el usuario se regirá por la normativa española vigente y cualquier controversia se someterá a los Juzgados y tribunales de la ciudad de Andújar (Jaén).
                 </p>
             </section>
-        </div>
+        </main>
     );
 }

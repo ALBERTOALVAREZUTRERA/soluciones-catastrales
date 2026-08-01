@@ -1,23 +1,23 @@
 
 import os
-import zipfile
 import tempfile
 import geopandas as gpd
+import math
 from typing import List
 from core.parcel_model import ParcelaInfo
+from core.file_security import safe_extract_zip
 
 class SHPReader:
     """Lector de archivos Shapefile para catastro"""
 
     @staticmethod
-    def leer_desde_zip(ruta_zip: str) -> List[ParcelaInfo]:
+    def leer_desde_zip(ruta_zip: str, epsg_destino: str = "25830") -> List[ParcelaInfo]:
         """
         Descomprime un ZIP y lee los shapefiles que contenga.
         """
         temp_dir = tempfile.mkdtemp()
         try:
-            with zipfile.ZipFile(ruta_zip, 'r') as zip_ref:
-                zip_ref.extractall(temp_dir)
+            safe_extract_zip(ruta_zip, temp_dir)
             
             # Buscar archivos .shp
             shp_files = []
@@ -27,11 +27,28 @@ class SHPReader:
                         shp_files.append(os.path.join(root, file))
             
             if not shp_files:
-                raise Exception("No se encontró ningún archivo .shp dentro del ZIP")
+                raise ValueError("No se encontró ningún archivo .shp dentro del ZIP")
             
             all_parcelas = []
             for shp_path in shp_files:
-                all_parcelas.extend(SHPReader.leer_shp(shp_path))
+                base_path = os.path.splitext(shp_path)[0]
+                sibling_files = {
+                    os.path.splitext(name)[1].lower(): os.path.join(os.path.dirname(shp_path), name)
+                    for name in os.listdir(os.path.dirname(shp_path))
+                    if os.path.splitext(name)[0].lower() == os.path.basename(base_path).lower()
+                }
+                missing = [
+                    extension
+                    for extension in (".shx", ".dbf")
+                    if extension not in sibling_files
+                ]
+                if missing:
+                    raise ValueError(
+                        "El Shapefile está incompleto; faltan: " + ", ".join(missing)
+                    )
+                all_parcelas.extend(
+                    SHPReader.leer_shp(shp_path, epsg_destino)
+                )
             
             return all_parcelas
         finally:
@@ -41,12 +58,18 @@ class SHPReader:
             shutil.rmtree(temp_dir, ignore_errors=True)
 
     @staticmethod
-    def leer_shp(ruta_shp: str) -> List[ParcelaInfo]:
+    def leer_shp(ruta_shp: str, epsg_destino: str = "25830") -> List[ParcelaInfo]:
         """
         Lee un archivo .shp y lo convierte a ParcelaInfo.
         """
         try:
             gdf = gpd.read_file(ruta_shp)
+            target_crs = f"EPSG:{str(epsg_destino).upper().replace('EPSG:', '')}"
+            if gdf.crs is None:
+                # Sin .prj se aplica el CRS que el usuario declaró al subirlo.
+                gdf = gdf.set_crs(target_crs, allow_override=True)
+            elif gdf.crs.to_string().upper() != target_crs:
+                gdf = gdf.to_crs(target_crs)
             
             # Asegurar que sea geometría de polígono
             gdf = gdf[gdf.geometry.type.isin(['Polygon', 'MultiPolygon'])]
@@ -55,6 +78,8 @@ class SHPReader:
             for idx, row in gdf.iterrows():
                 # Extraer geometría
                 geom = row.geometry
+                if geom is None or geom.is_empty:
+                    continue
                 
                 # Manejar Polygons y MultiPolygons
                 if geom.geom_type == 'Polygon':
@@ -76,8 +101,14 @@ class SHPReader:
                     referencia = ""
                     for col in ['REF_CAT', 'REFCAT', 'ID', 'LABEL', 'identifica', 'referencia']:
                         matched_col = next((c for c in gdf.columns if c.upper() == col.upper()), None)
-                        if matched_col and row[matched_col]:
-                            referencia = str(row[matched_col])
+                        if matched_col:
+                            raw_reference = row[matched_col]
+                            if raw_reference is None:
+                                continue
+                            reference_text = str(raw_reference).strip()
+                            if not reference_text or reference_text.lower() == "nan":
+                                continue
+                            referencia = reference_text
                             break
                     
                     if referencia:
@@ -87,7 +118,7 @@ class SHPReader:
                         
                         # Si parece una RC válida (14 o 20)
                         ref_limpia = referencia.replace(" ", "").upper()
-                        if len(ref_limpia) in [14, 20] and ref_limpia.isalnum():
+                        if len(ref_limpia) in [14, 18, 20] and ref_limpia.isalnum():
                             parcela.referencia_catastral = ref_limpia
                             parcela.nombre_archivo = ref_limpia
                         else:
@@ -97,12 +128,16 @@ class SHPReader:
                     
                     # Área y centroide
                     parcela.area = poly.area
-                    parcela.punto_referencia = (poly.centroid.x, poly.centroid.y)
+                    if not math.isfinite(parcela.area) or parcela.area <= 0:
+                        raise ValueError("El Shapefile contiene una geometría sin superficie")
+                    reference_point = poly.representative_point()
+                    parcela.punto_referencia = (reference_point.x, reference_point.y)
                     parcela.capa_origen = os.path.basename(ruta_shp)
                     
                     parcelas.append(parcela)
             
             return parcelas
+        except ValueError:
+            raise
         except Exception as e:
-            print(f"Error leyendo SHP {ruta_shp}: {e}")
-            return []
+            raise ValueError("No se pudo interpretar el Shapefile") from e

@@ -2,22 +2,22 @@ import os
 import zipfile
 import tempfile
 import xml.etree.ElementTree as ET
-import re
+import math
 from typing import List, Tuple
 from shapely.geometry import Polygon
 from core.parcel_model import ParcelaInfo
 from core.coordinate_transformer import CoordinateTransformer
+from core.file_security import safe_extract_zip
 
 class KMLReader:
     """Lector de archivos KML y KMZ para catastro"""
 
     @staticmethod
-    def _limpiar_namespaces(xml_string: str) -> str:
-        """
-        Limpia los namespaces para que sea más fácil de parsear
-        """
-        # Elimina xmlns="..."
-        return re.sub(r'\s+xmlns="[^"]+"', '', xml_string)
+    def _elements(root, local_name: str):
+        return [
+            node for node in root.iter()
+            if node.tag.rsplit('}', 1)[-1] == local_name
+        ]
 
     @staticmethod
     def _parse_coordinates(coord_text: str) -> List[Tuple[float, float]]:
@@ -33,13 +33,21 @@ class KMLReader:
         parts = coord_text.strip().split()
         for p in parts:
             components = p.split(',')
-            if len(components) >= 2:
-                try:
-                    lon = float(components[0].strip())
-                    lat = float(components[1].strip())
-                    coords.append((lon, lat))
-                except ValueError:
-                    continue
+            if len(components) < 2:
+                raise ValueError("El KML contiene una coordenada incompleta")
+            try:
+                lon = float(components[0].strip())
+                lat = float(components[1].strip())
+                if (
+                    not math.isfinite(lon)
+                    or not math.isfinite(lat)
+                    or not -180 <= lon <= 180
+                    or not -90 <= lat <= 90
+                ):
+                    raise ValueError("Coordenada KML fuera de rango")
+                coords.append((lon, lat))
+            except ValueError as exc:
+                raise ValueError("El KML contiene una coordenada no válida") from exc
         return coords
 
     @staticmethod
@@ -55,8 +63,7 @@ class KMLReader:
         try:
             if is_kmz:
                 temp_dir = tempfile.mkdtemp()
-                with zipfile.ZipFile(ruta_kmz, 'r') as zip_ref:
-                    zip_ref.extractall(temp_dir)
+                safe_extract_zip(ruta_kmz, temp_dir)
                 
                 # Buscar un .kml (generalmente doc.kml)
                 for root, _, files in os.walk(temp_dir):
@@ -68,7 +75,7 @@ class KMLReader:
                         break
                 
                 if ruta_kml_procesar == ruta_kmz:
-                    raise Exception("No se encontró ningún archivo .kml dentro del KMZ")
+                    raise ValueError("No se encontró ningún archivo .kml dentro del KMZ")
 
             return KMLReader.leer_kml(ruta_kml_procesar, epsg)
 
@@ -89,25 +96,27 @@ class KMLReader:
             with open(ruta_kml, 'r', encoding='latin-1') as f:
                 content = f.read()
 
-        # Limpiar namespace por simplicidad
-        clean_xml = KMLReader._limpiar_namespaces(content)
-        
         try:
-            root = ET.fromstring(clean_xml)
+            root = ET.fromstring(content)
         except ET.ParseError as e:
-            print(f"Error parseando XML del KML: {e}")
-            return []
+            raise ValueError("El archivo KML no contiene XML válido") from e
 
         parcelas = []
         
         # Buscar Placemarks
-        for idx, placemark in enumerate(root.findall(".//Placemark")):
+        for idx, placemark in enumerate(KMLReader._elements(root, "Placemark")):
             # Extraer nombre
-            name_node = placemark.find("name")
+            name_node = next(
+                (
+                    node for node in list(placemark)
+                    if node.tag.rsplit('}', 1)[-1] == "name"
+                ),
+                None,
+            )
             placemark_name = name_node.text.strip() if name_node is not None and name_node.text else f"KML_FEATURE_{idx + 1}"
             
             # Buscar Polígonos (pueden venir directos o dentro de MultiGeometry)
-            polygons = placemark.findall(".//Polygon")
+            polygons = KMLReader._elements(placemark, "Polygon")
             
             for p_idx, poly_node in enumerate(polygons):
                 parcela = ParcelaInfo()
@@ -120,11 +129,18 @@ class KMLReader:
                     
                 # Buscar potencial Referencia Catastral (14 o 20 chars limpios) en el nombre
                 ref_limpia = parcela.nombre_archivo.replace(" ", "").upper()
-                if len(ref_limpia) in [14, 20] and ref_limpia.isalnum():
+                if len(ref_limpia) in [14, 18, 20] and ref_limpia.isalnum():
                     parcela.referencia_catastral = ref_limpia
                 
                 # Exterior
-                outer_coords_node = poly_node.find(".//outerBoundaryIs//coordinates")
+                outer_boundary = next(
+                    iter(KMLReader._elements(poly_node, "outerBoundaryIs")),
+                    None,
+                )
+                outer_coords_node = next(
+                    iter(KMLReader._elements(outer_boundary, "coordinates")),
+                    None,
+                ) if outer_boundary is not None else None
                 if outer_coords_node is not None and outer_coords_node.text:
                     latlon_exterior = KMLReader._parse_coordinates(outer_coords_node.text)
                     if not latlon_exterior:
@@ -136,9 +152,13 @@ class KMLReader:
                     continue # Sin exterior, ignoramos
                 
                 # Huecos interiores
-                inner_boundaries = poly_node.findall(".//innerBoundaryIs//coordinates")
-                for inner_node in inner_boundaries:
-                    if inner_node.text:
+                inner_boundaries = KMLReader._elements(poly_node, "innerBoundaryIs")
+                for inner_boundary in inner_boundaries:
+                    inner_node = next(
+                        iter(KMLReader._elements(inner_boundary, "coordinates")),
+                        None,
+                    )
+                    if inner_node is not None and inner_node.text:
                         latlon_interior = KMLReader._parse_coordinates(inner_node.text)
                         if latlon_interior:
                             utm_interior = CoordinateTransformer.latlon_to_utm(latlon_interior, epsg)
@@ -147,11 +167,16 @@ class KMLReader:
                 # Calcular área usando Shapely (sobre las UTM proyectadas)
                 try:
                     shapely_poly = Polygon(parcela.coordenadas, parcela.interiores)
+                    if not shapely_poly.is_valid or shapely_poly.is_empty:
+                        raise ValueError("El KML contiene una geometría no válida")
                     parcela.area = shapely_poly.area
+                    if not math.isfinite(parcela.area) or parcela.area <= 0:
+                        raise ValueError("El KML contiene una geometría sin superficie")
                     parcela.punto_referencia = (shapely_poly.centroid.x, shapely_poly.centroid.y)
-                except BaseException as e:
-                    print(f"Error calculando geometría Shapely: {e}")
-                    parcela.area = 0.0
+                except ValueError:
+                    raise
+                except Exception as e:
+                    raise ValueError("No se pudo interpretar la geometría KML") from e
                 
                 parcela.capa_origen = os.path.basename(ruta_kml)
                 parcelas.append(parcela)

@@ -4,7 +4,7 @@
 import Image from "next/image";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, FileCheck, Map as MapIcon, ShieldCheck, Download } from "lucide-react";
+import { ArrowRight, FileCheck, ShieldCheck } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -60,7 +60,7 @@ export function ServiceCard({ title, description, imageUrl, imageHint, detailedC
               <DialogHeader>
                 <div className="flex items-center gap-2 text-accent mb-2">
                   <FileCheck className="h-6 w-6" />
-                  <span className="text-xs font-bold uppercase tracking-widest">Documentación Técnica Oficial</span>
+                  <span className="text-xs font-bold uppercase tracking-widest">Documentación técnica</span>
                 </div>
                 <DialogTitle className="text-2xl md:text-3xl font-headline text-primary uppercase">
                   {title}
@@ -105,10 +105,10 @@ export function ServiceCard({ title, description, imageUrl, imageHint, detailedC
 
                   <div className="flex flex-col gap-3">
                     <Button className="w-full bg-primary hover:bg-primary/90 h-12 text-lg font-bold" asChild>
-                      <a href="#tramites">Solicitar mi Informe ICUC</a>
+                      <a href="/#tramites">Solicitar evaluación técnica</a>
                     </Button>
                     <p className="text-[10px] text-center text-muted-foreground">
-                      * El documento final se entrega visado y en formato PDF/GML oficial.
+                      El alcance, los formatos de entrega y la necesidad de visado se confirman tras revisar el expediente.
                     </p>
                   </div>
                 </div>
@@ -117,7 +117,7 @@ export function ServiceCard({ title, description, imageUrl, imageHint, detailedC
           </Dialog>
         ) : (
           <Button variant="link" className="p-0 text-accent font-semibold group-hover:translate-x-1 transition-transform" asChild>
-            <a href="#tramites">Más información <ArrowRight className="ml-2 h-4 w-4" /></a>
+            <a href="/#tramites">Más información <ArrowRight className="ml-2 h-4 w-4" /></a>
           </Button>
         )}
       </CardContent>

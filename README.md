@@ -1,29 +1,88 @@
-# SOLUCIONES CATASTRALES - Alberto Álvarez
+# Soluciones Catastrales y Registrales
 
-Este proyecto es una aplicación de Next.js profesional para una oficina de ingeniería técnica catastral.
+Aplicación web para servicios de topografía, GML, Catastro y Registro de la
+Propiedad. Incluye un frontend Next.js, formularios de contacto por correo y
+una API FastAPI para procesar DXF, KML/KMZ, Shapefile y GML.
 
-## 📁 Cómo subir tus imágenes (Paso a Paso)
-Si no ves el listado de archivos a la izquierda:
-1. **Activa el Explorador**: Haz clic en el icono de la **Carpeta** (arriba a la izquierda en la barra lateral gris).
-2. **Navega**: Ve a `public` -> `images`.
-3. **Sube**: Haz clic derecho sobre la carpeta `images` y selecciona **Upload**.
-4. **Renombra**: Haz clic derecho sobre la foto subida y elige **Rename**.
+## Requisitos
 
-## 📸 Nombres de archivo recomendados
-Para que el sistema las reconozca automáticamente, cámbiales el nombre a:
-- `hero-principal.jpg` -> La foto principal de fondo.
-- `gml-parcela.jpg` -> El plano de la parcela.
-- `gml-edificio.jpg` -> La imagen que me has pasado de la Sede del Catastro.
-- `titularidad.jpg`
-- `revision-ibi.jpg`
-- `ivga.jpg`
-- `segregacion.jpg`
-- `pericial.jpg`
+- Node.js 20
+- npm
+- Python 3.11
 
-## 🌐 Configuración del Dominio
-1. Compra el dominio en tu proveedor (Nominalia, GoDaddy, etc.).
-2. En la consola de Firebase, ve a **App Hosting**.
-3. Añade tu dominio personalizado siguiendo las instrucciones de DNS que te proporcione Firebase.
+## Puesta en marcha local
 
----
-*Ingeniería Técnica al servicio de la propiedad inmobiliaria.*
+1. Instala el frontend:
+
+   ```bash
+   npm ci
+   ```
+
+2. Copia `.env.example` a `.env.local` y sustituye los valores de ejemplo.
+   Nunca subas ese archivo al repositorio.
+
+3. Arranca el frontend:
+
+   ```bash
+   npm run dev
+   ```
+
+   La web estará disponible en `http://localhost:9002`.
+
+4. En otra terminal, prepara y arranca la API:
+
+   ```bash
+   cd backend
+   python -m venv venv
+   venv\Scripts\activate
+   python -m pip install -r requirements.txt
+   python main.py
+   ```
+
+   La API estará disponible en `http://localhost:8000`.
+
+## Comprobaciones
+
+```bash
+npm test
+npm run typecheck
+npm run build
+npm run verify:build
+python -m pip install -r backend/requirements-dev.txt
+python -m pip_audit -r backend/requirements-dev.txt
+python -m unittest discover -s backend/tests -t backend -v
+```
+
+Antes de publicar, carga las variables reales del entorno y ejecuta:
+
+```bash
+npm run validate:env
+```
+
+Este comando solo informa de nombres ausentes o valores de ejemplo; nunca
+imprime contraseñas.
+
+## Despliegue
+
+El frontend necesita un entorno compatible con Next.js y funciones de servidor,
+ya que `/api/contact` y `/api/lead-magnet` envían correo. La API FastAPI se
+despliega como servicio independiente y su URL pública se configura mediante
+`NEXT_PUBLIC_BACKEND_URL`.
+
+`apphosting.yaml` conserva la configuración mínima para Firebase App Hosting.
+También es posible utilizar otra plataforma compatible, manteniendo las mismas
+variables de entorno.
+
+Consulta [la lista de preparación](docs/PRODUCTION_CHECKLIST.md) antes de
+publicar una versión.
+
+## Estructura principal
+
+```text
+src/app/              Rutas y API del frontend
+src/components/       Interfaz y herramientas
+src/lib/              Configuración y lógica compartida
+backend/              API GIS en FastAPI
+tests/frontend/       Pruebas automáticas del frontend
+.github/workflows/    Integración continua
+```

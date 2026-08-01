@@ -1,8 +1,12 @@
 
 import os
+import logging
 from datetime import datetime
 from .parcel_model import ParcelaInfo
 import math
+
+
+logger = logging.getLogger(__name__)
 
 # Importaciones condicionales
 try:
@@ -15,6 +19,7 @@ except ImportError:
 try:
     from shapely.geometry import Polygon, LinearRing
     from shapely.ops import orient
+    from shapely.validation import explain_validity
     SHAPELY_AVAILABLE = True
 except ImportError:
     SHAPELY_AVAILABLE = False
@@ -49,6 +54,54 @@ class GMLGenerator:
     }
 
     @staticmethod
+    def prepare_polygon(exterior, holes=None, exterior_clockwise=False):
+        """Normaliza y valida un polígono sin descartar ninguna de sus partes."""
+        if not SHAPELY_AVAILABLE:
+            raise RuntimeError("Shapely es necesario para validar la geometría GML.")
+
+        def clean_ring(ring, label):
+            cleaned = []
+            for coordinate in ring or []:
+                if (
+                    not isinstance(coordinate, (list, tuple))
+                    or len(coordinate) < 2
+                    or not math.isfinite(float(coordinate[0]))
+                    or not math.isfinite(float(coordinate[1]))
+                ):
+                    raise ValueError(f"{label} contiene una coordenada no válida.")
+                point = (round(float(coordinate[0]), 2), round(float(coordinate[1]), 2))
+                if not cleaned or point != cleaned[-1]:
+                    cleaned.append(point)
+            if len(cleaned) > 1 and cleaned[0] == cleaned[-1]:
+                cleaned.pop()
+            if len(cleaned) < 3:
+                raise ValueError(f"{label} debe tener al menos tres vértices distintos.")
+            cleaned.append(cleaned[0])
+            return cleaned
+
+        clean_exterior = clean_ring(exterior, "El anillo exterior")
+        clean_holes = [
+            clean_ring(hole, f"El hueco {index + 1}")
+            for index, hole in enumerate(holes or [])
+        ]
+        polygon = Polygon(clean_exterior, clean_holes)
+        if polygon.is_empty or polygon.area <= 0:
+            raise ValueError("La geometría tiene superficie nula.")
+        if not polygon.is_valid:
+            raise ValueError(f"La geometría no es válida: {explain_validity(polygon)}")
+
+        polygon = orient(polygon, sign=-1.0 if exterior_clockwise else 1.0)
+        normalized_exterior = [
+            (round(x, 2), round(y, 2))
+            for x, y in polygon.exterior.coords
+        ]
+        normalized_holes = [
+            [(round(x, 2), round(y, 2)) for x, y in ring.coords]
+            for ring in polygon.interiors
+        ]
+        return normalized_exterior, normalized_holes, round(polygon.area, 2)
+
+    @staticmethod
     def fix_geometry(coords):
         """
         Corrige la geometría para cumplir requisitos de Catastro:
@@ -74,7 +127,7 @@ class GMLGenerator:
             cleaned.append(cleaned[0])
             
         if len(cleaned) < 4: # Mínimo 3 ptos + cierre
-            print("Advertencia: Polígono con menos de 3 puntos")
+            logger.warning("Polígono con menos de tres puntos tras normalizarlo")
             return cleaned 
             
         # 3. Orientación CCW (Anti-Horario) para EXTERIOR - ISO 19107 / Catastro
@@ -94,14 +147,16 @@ class GMLGenerator:
                     return final_coords
                 else:
                    # Si buffer(0) devuelve Multipolygon, tomamos el más grande
-                   print("Advertencia: Geometría compleja convertida a MultiPolygon, usando el mayor.")
+                   logger.warning(
+                       "Geometría compleja convertida a MultiPolygon; se usará el polígono de mayor área"
+                   )
                    best_poly = max(oriented_poly.geoms, key=lambda p: p.area)
                    final_coords = list(best_poly.exterior.coords)
                    final_coords = [(round(x, 2), round(y, 2)) for x, y in final_coords]
                    return final_coords
 
-            except Exception as e:
-                print(f"Error Shapely: {e}")
+            except Exception:
+                logger.exception("No se pudo normalizar la geometría con Shapely")
                 return cleaned
         else:
             # Fallback simple (sin garantía de orden)
@@ -163,8 +218,25 @@ class GMLGenerator:
         # Siempre usar URN si lo pide Catastro
         srs_name = f"urn:ogc:def:crs:EPSG::{epsg_code}"
         
-        coords_fixed = GMLGenerator.fix_geometry(parcela.coordenadas)
-        huecos_fixed = [GMLGenerator.fix_hole_geometry(h) for h in parcela.interiores]
+        raw_parts = parcela.partes or [{
+            'exterior': parcela.coordenadas,
+            'huecos': parcela.interiores,
+        }]
+        normalized_parts = []
+        total_area = 0.0
+        for part in raw_parts:
+            exterior, holes, part_area = GMLGenerator.prepare_polygon(
+                part.get('exterior', []),
+                part.get('huecos', []),
+                exterior_clockwise=parcela.tipo_entidad == "BU",
+            )
+            normalized_parts.append({'exterior': exterior, 'huecos': holes})
+            total_area += part_area
+
+        parcela.partes = normalized_parts
+        parcela.area = round(total_area, 2)
+        coords_fixed = normalized_parts[0]['exterior']
+        huecos_fixed = normalized_parts[0]['huecos']
         
         ruta_absoluta = os.path.join(carpeta_destino, f"{nombre_archivo}.gml")
         
@@ -210,7 +282,7 @@ class GMLGenerator:
         if not xs: xs, ys = [0], [0]
         
         bb = ET.SubElement(bu, f"{{{ns['gml']}}}boundedBy")
-        env = ET.SubElement(bb, f"{{{ns['gml']}}}Envelope", srsName="urn:ogc:def:crs:EPSG::25830")
+        env = ET.SubElement(bb, f"{{{ns['gml']}}}Envelope", srsName=srs_name)
         lc = ET.SubElement(env, f"{{{ns['gml']}}}lowerCorner")
         lc.text = f"{min(xs):.2f} {min(ys):.2f}"
         uc = ET.SubElement(env, f"{{{ns['gml']}}}upperCorner")
@@ -240,7 +312,7 @@ class GMLGenerator:
         # Surface with PolygonPatch (Validated Structure)
         surf = ET.SubElement(geo2d, f"{{{ns['gml']}}}Surface")
         surf.set(f"{{{ns['gml']}}}id", f"Surface_{local_id}")
-        surf.set("srsName", "urn:ogc:def:crs:EPSG::25830")
+        surf.set("srsName", srs_name)
         
         patches = ET.SubElement(surf, f"{{{ns['gml']}}}patches")
         
@@ -253,14 +325,24 @@ class GMLGenerator:
             # Exterior
             ext = ET.SubElement(ppatch, f"{{{ns['gml']}}}exterior")
             lr = ET.SubElement(ext, f"{{{ns['gml']}}}LinearRing")
-            pl = ET.SubElement(lr, f"{{{ns['gml']}}}posList", srsDimension="2")
+            pl = ET.SubElement(
+                lr,
+                f"{{{ns['gml']}}}posList",
+                srsDimension="2",
+                count=str(len(part['exterior'])),
+            )
             pl.text = " ".join([f"{x:.2f} {y:.2f}" for x, y in part['exterior']])
             
             # Interiors
             for h in part.get('huecos', []):
                 inter = ET.SubElement(ppatch, f"{{{ns['gml']}}}interior")
                 lr_h = ET.SubElement(inter, f"{{{ns['gml']}}}LinearRing")
-                pl_h = ET.SubElement(lr_h, f"{{{ns['gml']}}}posList", srsDimension="2")
+                pl_h = ET.SubElement(
+                    lr_h,
+                    f"{{{ns['gml']}}}posList",
+                    srsDimension="2",
+                    count=str(len(h)),
+                )
                 pl_h.text = " ".join([f"{x:.2f} {y:.2f}" for x, y in h])
             
         # Estimated Accuracy (0.1m standard)
@@ -275,14 +357,13 @@ class GMLGenerator:
         
         # floors (ICUC requires minimum 1)
         floors = ET.SubElement(bu, f"{{{ns['bu-ext2d']}}}numberOfFloorsAboveGround")
-        floors.text = "1"
+        floors.text = str(max(1, int(parcela.numero_plantas)))
         
         # Write
         ET.ElementTree(root).write(filepath, pretty_print=True, xml_declaration=True, encoding="UTF-8")
 
     @staticmethod
     def _generate_parcel_xml(parcela, coords, huecos, namespace_prefix, local_id, srs_name, filepath):
-        import sys # Ensure sys is available
         if not LXML_AVAILABLE:
              raise ImportError("lxml es necesario para generar GMLs válidos.")
              
@@ -312,8 +393,6 @@ class GMLGenerator:
             # Eliminar prefijo explícito 'wfs' para evitar duplicidad o conflictos
             if 'wfs' in ns_map_final: del ns_map_final['wfs'] 
         
-        print("DEBUG: (1/6) Creating Root (WFS 2.0 FeatureCollection)..."); sys.stdout.flush()
-        
         root_attribs = {
              f"{{{ns['xsi']}}}schemaLocation": xsi_loc,
              "timeStamp": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
@@ -338,13 +417,12 @@ class GMLGenerator:
              parcel_gml_id = f"ES.SDGC.CP.{local_id}"
              inspire_ns = "ES.SDGC.CP"
 
-        print(f"DEBUG: (2/6) Creating CadastralParcel {parcel_gml_id}..."); sys.stdout.flush()
         cp = ET.SubElement(member, f"{{{ns['cp']}}}CadastralParcel")
         cp.set(f"{{{ns['gml']}}}id", parcel_gml_id)
         
         # 5. Mandatory Attributes
         area = ET.SubElement(cp, f"{{{ns['cp']}}}areaValue", uom="m2")
-        area.text = str(int(parcela.area))
+        area.text = str(int(round(parcela.area)))
         
         # Fechas (nilReason por defecto si no hay datos reales, pero mantenemos estructura)
         bl = ET.SubElement(cp, f"{{{ns['cp']}}}beginLifespanVersion")
@@ -356,7 +434,6 @@ class GMLGenerator:
         el.set("nilReason", "http://inspire.ec.europa.eu/codelist/VoidReasonValue/Unpopulated")
 
         # 6. Geometry
-        print("DEBUG: (3/6) Creating Geometry..."); sys.stdout.flush()
         geo = ET.SubElement(cp, f"{{{ns['cp']}}}geometry")
         ms = ET.SubElement(geo, f"{{{ns['gml']}}}MultiSurface")
         ms.set(f"{{{ns['gml']}}}id", f"MultiSurface_{parcel_gml_id.replace('ES.SDGC.CP.', '').replace('ES.LOCAL.CP.', '')}")
@@ -401,7 +478,6 @@ class GMLGenerator:
                 pl_h.text = txt_h
 
         # 7. InspireId
-        print("DEBUG: (4/6) Creating InspireId..."); sys.stdout.flush()
         iid = ET.SubElement(cp, f"{{{ns['cp']}}}inspireId")
         
         try:
@@ -412,9 +488,8 @@ class GMLGenerator:
             
             nasp = ET.SubElement(ident, f"{{{ns['base']}}}namespace")
             nasp.text = str(inspire_ns)
-        except Exception as e_iid:
-            print(f"ERROR Creating InspireId: {e_iid}"); sys.stdout.flush()
-            raise e_iid
+        except Exception:
+            raise
 
         # 8. Label & Ref
         lbl = ET.SubElement(cp, f"{{{ns['cp']}}}label")
@@ -437,23 +512,24 @@ class GMLGenerator:
         # 9. Reference Point
         if coords:
             try:
-                cx = sum(p[0] for p in coords) / len(coords)
-                cy = sum(p[1] for p in coords) / len(coords)
+                reference_polygons = [
+                    Polygon(part['exterior'], part.get('huecos', []))
+                    for part in parts_to_process
+                ]
+                reference_polygon = max(reference_polygons, key=lambda polygon: polygon.area)
+                reference_point = reference_polygon.representative_point()
+                cx, cy = reference_point.x, reference_point.y
                 rp = ET.SubElement(cp, f"{{{ns['cp']}}}referencePoint")
                 pt = ET.SubElement(rp, f"{{{ns['gml']}}}Point")
                 pt.set(f"{{{ns['gml']}}}id", f"ReferencePoint_{local_id}")
                 pt.set("srsName", srs_name)
                 pos = ET.SubElement(pt, f"{{{ns['gml']}}}pos")
                 pos.text = f"{cx:.2f} {cy:.2f}"
-            except Exception as e_rp:
-                print(f"WARN: Error calc ReferencePoint: {e_rp}")
+            except Exception:
+                logger.exception("No se pudo calcular el punto de referencia del edificio")
 
-        print(f"DEBUG: (5/6) XML Structure Complete. Writing to {filepath}..."); sys.stdout.flush()
-        
         # Write
         try:
             ET.ElementTree(root).write(filepath, pretty_print=True, xml_declaration=True, encoding="UTF-8")
-            print("DEBUG: (6/6) Write Successful."); sys.stdout.flush()
-        except Exception as e_write:
-            print(f"ERROR WRITING FILE: {e_write}"); sys.stdout.flush()
-            raise e_write
+        except Exception:
+            raise

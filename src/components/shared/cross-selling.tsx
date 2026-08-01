@@ -18,30 +18,30 @@ export function CrossSelling({ currentTool }: CrossSellingProps) {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
 
                 {currentTool !== "calculadora" && (
-                    <Link href="/herramientas/calculadora" passHref>
-                        <Button variant="outline" size="lg" className="h-14 px-8 border-primary text-primary hover:bg-primary/5 text-lg w-full sm:w-auto">
+                    <Button variant="outline" size="lg" className="h-14 px-8 border-primary text-primary hover:bg-primary/5 text-lg w-full sm:w-auto" asChild>
+                        <Link href="/herramientas/calculadora">
                             <Calculator className="mr-2 h-5 w-5" />
                             Calculadora Catastral
-                        </Button>
-                    </Link>
+                        </Link>
+                    </Button>
                 )}
 
                 {currentTool !== "gml-parcela" && (
-                    <Link href="/herramientas/conversor-gml" passHref>
-                        <Button variant="outline" size="lg" className="h-14 px-8 border-accent text-accent hover:bg-accent/5 text-lg w-full sm:w-auto">
+                    <Button variant="outline" size="lg" className="h-14 px-8 border-accent text-accent hover:bg-accent/5 text-lg w-full sm:w-auto" asChild>
+                        <Link href="/herramientas/conversor-gml">
                             <MapIcon className="mr-2 h-5 w-5" />
                             Generador GML de Parcela
-                        </Button>
-                    </Link>
+                        </Link>
+                    </Button>
                 )}
 
                 {currentTool !== "gml-edificio" && (
-                    <Link href="/herramientas/conversor-edificio" passHref>
-                        <Button variant="outline" size="lg" className="h-14 px-8 border-slate-800 text-slate-800 hover:bg-slate-50 text-lg w-full sm:w-auto">
+                    <Button variant="outline" size="lg" className="h-14 px-8 border-slate-800 text-slate-800 hover:bg-slate-50 text-lg w-full sm:w-auto" asChild>
+                        <Link href="/herramientas/conversor-edificio">
                             <Building2 className="mr-2 h-5 w-5" />
                             Conversor GML de Edificio
-                        </Button>
-                    </Link>
+                        </Link>
+                    </Button>
                 )}
 
             </div>

@@ -1,73 +1,128 @@
-import { NextResponse } from 'next/server';
-import nodemailer from 'nodemailer';
+import {
+  checkRateLimit,
+  ContactRequestError,
+  contactRequestSchema,
+  createMailTransport,
+  escapeHtml,
+  getMailAddresses,
+  isHoneypotFilled,
+  rateLimitHeaders,
+  readLimitedJson,
+} from "@/lib/contact-server";
+import {
+  apiError,
+  apiJson,
+  getRequestId,
+  logApiError,
+} from "@/lib/api-observability";
 
 export async function POST(req: Request) {
-    try {
-        const body = await req.json();
-        const { name, email, type, ref, message } = body;
+  const requestId = getRequestId(req);
+  const rateLimit = checkRateLimit(req, "contact");
+  const quotaHeaders = rateLimitHeaders(rateLimit);
+  if (!rateLimit.allowed) {
+    return apiError(
+      "Demasiados intentos. Espere unos minutos antes de volver a enviar.",
+      "rate_limited",
+      429,
+      requestId,
+      {
+        headers: quotaHeaders,
+      },
+    );
+  }
 
-        // Verificar variables de entorno
-        if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-            console.warn("Faltan las credenciales SMTP en el .env (EMAIL_USER y EMAIL_PASS)");
-            // En modo desarrollo sin .env configurado, simularemos el envío correcto para no bloquear la UI.
-            if (process.env.NODE_ENV !== "production") {
-                console.log("Simulando envío de correo (Faltan credenciales):", body);
-                return NextResponse.json({ success: true, mocked: true });
-            }
-
-            return NextResponse.json(
-                { error: "Error de configuración del servidor de correo." },
-                { status: 500 }
-            );
-        }
-
-        const transporter = nodemailer.createTransport({
-            host: process.env.SMTP_HOST || 'smtp.gmail.com',
-            port: Number(process.env.SMTP_PORT) || 465,
-            secure: true, // true for 465, false for other ports
-            auth: {
-                user: process.env.EMAIL_USER,
-                pass: process.env.EMAIL_PASS,
-            },
-        });
-
-        // Contenido del correo en texto plano y HTML
-        const mailOptions = {
-            from: `CATASTRO WEB <${process.env.EMAIL_USER}>`,
-            to: 'alberto.alvarez.utrera@gmail.com', // El destino final del formulario
-            replyTo: email,
-            subject: `NUEVO EXPEDIENTE WEB: ${type.toUpperCase()} - ${name}`,
-            text: `
-Has recibido un nuevo contacto desde el Portal de Envío Técnico:
-
-Nombre: ${name}
-Email: ${email}
-Tipo de Trámite: ${type}
-Referencia Catastral: ${ref || 'No especificada'}
-
-Mensaje del Cliente:
-${message}
-      `,
-            html: `
-        <h2>Nuevo Expediente Web Recibido</h2>
-        <p><strong>Remitente:</strong> ${name} (<a href="mailto:${email}">${email}</a>)</p>
-        <p><strong>Tipo de Trámite:</strong> ${type}</p>
-        <p><strong>Referencia Catastral:</strong> ${ref || 'No especificada'}</p>
-        <hr />
-        <h3>Mensaje / Descripción del Caso:</h3>
-        <p style="white-space: pre-line;">${message}</p>
-      `,
-        };
-
-        // Enviar el correo
-        await transporter.sendMail(mailOptions);
-
-        return NextResponse.json({ success: true });
-    } catch (error) {
-        console.error("Error al enviar el correo:", error);
-        return NextResponse.json(
-            { error: "Ha ocurrido un error al procesar el envío del correo." },
-            { status: 500 }
-        );
+  try {
+    const rawBody = await readLimitedJson(req);
+    if (isHoneypotFilled(rawBody)) {
+      return apiJson({ success: true }, requestId, { headers: quotaHeaders });
     }
+
+    const parsed = contactRequestSchema.safeParse(rawBody);
+    if (!parsed.success) {
+      return apiError(
+        "Revise los datos del formulario.",
+        "validation_error",
+        400,
+        requestId,
+        { headers: quotaHeaders },
+        { fields: parsed.error.flatten().fieldErrors },
+      );
+    }
+
+    const { name, email, phone, type, ref, message } = parsed.data;
+
+    if (
+      process.env.NODE_ENV !== "production" &&
+      (!process.env.EMAIL_USER || !process.env.EMAIL_PASS)
+    ) {
+      return apiJson(
+        { success: true, mocked: true },
+        requestId,
+        { headers: quotaHeaders },
+      );
+    }
+
+    const transporter = createMailTransport();
+    const { sender, recipient } = getMailAddresses();
+    const safeName = escapeHtml(name);
+    const safeEmail = escapeHtml(email);
+    const safePhone = escapeHtml(phone);
+    const safeType = escapeHtml(type);
+    const safeRef = escapeHtml(ref || "No especificada");
+    const safeMessage = escapeHtml(message).replace(/\n/g, "<br />");
+    const subjectType = type.replace(/[\r\n]/g, " ");
+    const subjectName = name.replace(/[\r\n]/g, " ");
+
+    await transporter.sendMail({
+      from: `CATASTRO WEB <${sender}>`,
+      to: recipient,
+      ...(email ? { replyTo: email } : {}),
+      subject: `NUEVO EXPEDIENTE WEB: ${subjectType.toUpperCase()} - ${subjectName}`,
+      text: [
+        "Has recibido un nuevo contacto desde la web:",
+        "",
+        `Nombre: ${name}`,
+        `Email: ${email || "No indicado"}`,
+        `Teléfono: ${phone || "No indicado"}`,
+        `Tipo de trámite: ${type}`,
+        `Referencia catastral: ${ref || "No especificada"}`,
+        "",
+        "Mensaje:",
+        message,
+      ].join("\n"),
+      html: `
+        <h2>Nuevo expediente web recibido</h2>
+        <p><strong>Nombre:</strong> ${safeName}</p>
+        <p><strong>Email:</strong> ${safeEmail || "No indicado"}</p>
+        <p><strong>Teléfono:</strong> ${safePhone || "No indicado"}</p>
+        <p><strong>Tipo de trámite:</strong> ${safeType}</p>
+        <p><strong>Referencia catastral:</strong> ${safeRef}</p>
+        <hr />
+        <h3>Mensaje / descripción del caso:</h3>
+        <p>${safeMessage}</p>
+      `,
+    });
+
+    return apiJson({ success: true }, requestId, { headers: quotaHeaders });
+  } catch (error) {
+    if (error instanceof ContactRequestError) {
+      return apiError(
+        error.message,
+        error.status === 413 ? "payload_too_large" : "invalid_request",
+        error.status,
+        requestId,
+        { headers: quotaHeaders },
+      );
+    }
+
+    logApiError("contact_submission_failed", requestId, error);
+    return apiError(
+      "No se pudo enviar la solicitud. Inténtelo de nuevo o contacte por teléfono.",
+      "internal_error",
+      500,
+      requestId,
+      { headers: quotaHeaders },
+    );
+  }
 }

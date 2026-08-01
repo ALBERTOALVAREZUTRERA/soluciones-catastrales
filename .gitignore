@@ -6,15 +6,21 @@ backend/__pycache__/
 *.pyc
 
 # Environment
-.env
-.env.local
-.env.*.local
+.env*
+!.env.example
 
 # Build
 .next/
+.next-stale-*/
+.next-corrupt-*/
 out/
 build/
 backend/temp_files/
+*.tsbuildinfo
+coverage/
+test-results/
+.pytest_cache/
+tmp_*/
 
 # OS/IDE
 .DS_Store
@@ -22,3 +28,5 @@ backend/temp_files/
 .idea/
 *.swp
 *.bak
+*_errors*.txt
+*_output.txt

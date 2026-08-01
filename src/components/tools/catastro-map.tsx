@@ -1,14 +1,24 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { MapContainer, TileLayer, WMSTileLayer, useMapEvents, Marker, Popup, LayersControl, useMap, Polygon } from "react-leaflet";
+import { MapContainer, TileLayer, WMSTileLayer, useMapEvents, Marker, Popup, LayersControl, useMap, Polygon, LayerGroup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { Button } from "@/components/ui/button";
 import { Loader2, ExternalLink, MapPin, Search, X, Upload, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "@/hooks/use-toast";
-import { API_BASE_URL } from "@/lib/backend-api";
+import { queryCatastro } from "@/lib/backend-api";
+import {
+    isValidCadastralReference,
+    normalizeCadastralReference,
+} from "@/lib/catastro-reference";
+import {
+    CATASTRO_WMS_LAYER,
+    CATASTRO_WMS_URL,
+    PNOA_WMS_LAYER,
+    PNOA_WMS_URL,
+} from "@/lib/map-services";
 
 // Fix for default Leaflet icons in Next.js
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -64,12 +74,10 @@ function ClickHandler({ setPlotInfo, setLoading, setFlyTarget }: {
             setPlotInfo(null);
             setLoading(true);
             try {
-                const response = await fetch(`${API_BASE_URL}/catastro/buscar-por-coordenadas`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ lat: e.latlng.lat, lon: e.latlng.lng }),
-                });
-                const data = await response.json();
+                const data = await queryCatastro<any>(
+                    "/catastro/buscar-por-coordenadas",
+                    { lat: e.latlng.lat, lon: e.latlng.lng },
+                );
                 if (data.encontrado && data.rc) {
                     setPlotInfo({
                         rc: data.rc,
@@ -167,21 +175,18 @@ export function CatastroMap({ className = "" }: CatastroMapProps) {
 
     const searchByRC = useCallback(async (e?: React.FormEvent) => {
         e?.preventDefault();
-        const rc = rcInput.trim().toUpperCase();
-        if (rc.length < 14) {
-            setSearchError("Introduce una referencia catastral válida (mínimo 14 caracteres)");
+        const rc = normalizeCadastralReference(rcInput);
+        if (!isValidCadastralReference(rc)) {
+            setSearchError("Introduce una referencia catastral de 14, 18 o 20 caracteres");
             return;
         }
         setSearching(true);
         setSearchError(null);
         setPlotInfo(null);
         try {
-            const resp = await fetch(`${API_BASE_URL}/catastro/buscar-rc`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ referencia_catastral: rc }),
+            const data = await queryCatastro<any>("/catastro/buscar-rc", {
+                referencia_catastral: rc,
             });
-            const data = await resp.json();
             if (data.encontrado) {
                 const info: PlotInfo = {
                     rc: data.rc,
@@ -237,6 +242,7 @@ export function CatastroMap({ className = "" }: CatastroMapProps) {
                             <button
                                 type="button"
                                 onClick={() => { setRcInput(""); setSearchError(null); setPlotInfo(null); }}
+                                aria-label="Borrar referencia catastral"
                                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
                             >
                                 <X className="h-4 w-4" />
@@ -245,7 +251,7 @@ export function CatastroMap({ className = "" }: CatastroMapProps) {
                     </div>
                     <button
                         type="submit"
-                        disabled={searching || rcInput.trim().length < 14}
+                        disabled={searching || !isValidCadastralReference(rcInput)}
                         className="bg-accent hover:bg-accent/90 disabled:opacity-40 text-white font-bold px-6 py-2.5 rounded-lg text-sm transition-colors flex items-center gap-2 shrink-0"
                     >
                         {searching
@@ -355,29 +361,33 @@ export function CatastroMap({ className = "" }: CatastroMapProps) {
                         </LayersControl.BaseLayer>
                         <LayersControl.BaseLayer name="Ortofoto (PNOA)">
                             <WMSTileLayer
-                                url="https://www.ign.es/wms-inspire/pnoa-ma"
-                                layers="OI.OrthoimageCoverage"
+                                url={PNOA_WMS_URL}
+                                layers={PNOA_WMS_LAYER}
                                 format="image/png"
                                 transparent={true}
                                 attribution="OrtoPNOA &copy; IGN"
                                 maxZoom={20}
+                                tileSize={512}
+                                updateWhenIdle={true}
                             />
                         </LayersControl.BaseLayer>
                         <LayersControl.Overlay name="Cartografía Catastral" checked>
                             <WMSTileLayer
-                                url="https://ovc.catastro.meh.es/Cartografia/WMS/ServidorWMS.aspx?"
-                                layers="catastro"
+                                url={CATASTRO_WMS_URL}
+                                layers={CATASTRO_WMS_LAYER}
                                 format="image/png"
                                 transparent={true}
                                 attribution="&copy; D.G. del Catastro"
                                 maxZoom={20}
                                 opacity={0.7}
+                                tileSize={512}
+                                updateWhenIdle={true}
                             />
                         </LayersControl.Overlay>
 
                         {kmzFeatures.length > 0 && (
                             <LayersControl.Overlay name="Mis Geometrías (KMZ/KML)" checked>
-                                <L.LayerGroup>
+                                <LayerGroup>
                                     {kmzFeatures.map((feat, i) => (
                                         <Polygon
                                             key={feat.id || i}
@@ -398,7 +408,7 @@ export function CatastroMap({ className = "" }: CatastroMapProps) {
                                             </Popup>
                                         </Polygon>
                                     ))}
-                                </L.LayerGroup>
+                                </LayerGroup>
                             </LayersControl.Overlay>
                         )}
                     </LayersControl>
@@ -418,16 +428,16 @@ export function CatastroMap({ className = "" }: CatastroMapProps) {
                                     </div>
                                     <div className="h-px w-full bg-slate-200 my-3" />
                                     <div className="space-y-2">
-                                        <Link href={`/herramientas/calculadora?rc=${plotInfo.rc}`} className="block w-full">
-                                            <Button size="sm" className="w-full bg-primary hover:bg-primary/90 text-white font-semibold text-xs h-8">
+                                        <Button size="sm" className="w-full bg-primary hover:bg-primary/90 text-white font-semibold text-xs h-8" asChild>
+                                            <Link href={`/herramientas/calculadora?rc=${plotInfo.rc}`} className="block w-full">
                                                 Calcular IBI Urbano <ExternalLink className="ml-1.5 h-3 w-3" />
-                                            </Button>
-                                        </Link>
-                                        <Link href={`/herramientas/calculadora-rustica?rc=${plotInfo.rc}`} className="block w-full">
-                                            <Button size="sm" variant="outline" className="w-full border-accent text-accent hover:bg-accent hover:text-white font-semibold text-xs h-8">
+                                            </Link>
+                                        </Button>
+                                        <Button size="sm" variant="outline" className="w-full border-accent text-accent hover:bg-accent hover:text-white font-semibold text-xs h-8" asChild>
+                                            <Link href={`/herramientas/calculadora-rustica?rc=${plotInfo.rc}`} className="block w-full">
                                                 Calcular Valor Rústico <ExternalLink className="ml-1.5 h-3 w-3" />
-                                            </Button>
-                                        </Link>
+                                            </Link>
+                                        </Button>
                                     </div>
                                 </div>
                             </Popup>

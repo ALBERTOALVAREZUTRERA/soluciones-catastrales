@@ -1,9 +1,7 @@
 import { MetadataRoute } from 'next'
+import { absoluteUrl } from '@/lib/site-config'
 
 export default function sitemap(): MetadataRoute.Sitemap {
-    const baseUrl = 'https://www.solucionescatastrales.app'
-    const lastModified = new Date()
-
     const pages = [
         // Página principal
         { path: '',                                     priority: 1.0,  changeFreq: 'weekly'  },
@@ -25,8 +23,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ]
 
     return pages.map(({ path, priority, changeFreq }) => ({
-        url: `${baseUrl}${path}`,
-        lastModified,
+        url: absoluteUrl(path || '/'),
         changeFrequency: changeFreq as MetadataRoute.Sitemap[0]['changeFrequency'],
         priority,
     }))

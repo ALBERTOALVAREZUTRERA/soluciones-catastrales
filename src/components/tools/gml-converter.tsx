@@ -12,8 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Upload, FileCode, Download, Loader2, AlertCircle, CheckCircle2, Map as MapIcon, Zap, Sparkles, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-// Placeholder for conversion logic (to be implemented)
-import { processFile, GmlFeature, generateGml } from "@/lib/gml-utils";
+import type { GmlFeature, TopologyIssue } from "@/lib/gml-utils";
 
 const GmlViewer = dynamic(() => import("./gml-viewer"), {
     ssr: false,
@@ -22,7 +21,6 @@ const GmlViewer = dynamic(() => import("./gml-viewer"), {
 
 import { CoordinatesTable } from "./coordinates-table";
 
-import { validateTopology, TopologyIssue } from "@/lib/gml-utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { X, FileText, AlertTriangle } from "lucide-react";
@@ -82,6 +80,9 @@ export function GmlConverter() {
         setFileResults(new Array(files.length).fill(null));
 
         try {
+            const { processFile, validateTopology, generateGml } = await import(
+                "@/lib/gml-utils"
+            );
             const allFeatures: GmlFeature[] = [];
             const newFileResults: (string | null)[] = [];
             const processedLayers: { name: string, features: GmlFeature[] }[] = [];
@@ -115,7 +116,6 @@ export function GmlConverter() {
             setResult(finalGml);
 
         } catch (error) {
-            console.error(error);
             toast({
                 title: "Error en el procesamiento",
                 description: error instanceof Error ? error.message : "Error desconocido",
@@ -308,7 +308,7 @@ export function GmlConverter() {
                                                         GML
                                                     </Button>
                                                 )}
-                                                <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 hover:text-red-500" onClick={() => removeFile(i)}>
+                                                <Button variant="ghost" size="icon" className="h-10 w-10 text-slate-500 hover:text-red-600" onClick={() => removeFile(i)} aria-label={`Eliminar ${f.name}`}>
                                                     <X className="h-4 w-4" />
                                                 </Button>
                                             </div>
@@ -515,7 +515,7 @@ export function GmlConverter() {
                                         URL.revokeObjectURL(url);
                                         toast({ title: "DXF Generado", description: "Archivo listo para AutoCAD." });
                                     } catch (error) {
-                                        toast({ title: "Error", description: "No se pudo generar el DXF", variant: "destructive" });
+                                        toast({ title: "Error al generar DXF", description: error instanceof Error ? error.message : "No se pudo generar el DXF", variant: "destructive" });
                                     }
                                 }}
                             >
@@ -549,7 +549,7 @@ export function GmlConverter() {
                                         URL.revokeObjectURL(url);
                                         toast({ title: "Shapefile Generado", description: "Archivo ZIP listo para QGIS/GIS." });
                                     } catch (error) {
-                                        toast({ title: "Error", description: "No se pudo generar el Shapefile", variant: "destructive" });
+                                        toast({ title: "Error al generar Shapefile", description: error instanceof Error ? error.message : "No se pudo generar el Shapefile", variant: "destructive" });
                                     }
                                 }}
                             >
@@ -565,8 +565,7 @@ export function GmlConverter() {
                                         const { generateTechnicalReport } = await import('@/lib/report-generator');
                                         await generateTechnicalReport(features, crs);
                                         toast({ title: "Informe Generado", description: "PDF listo para Notaría/Registro." });
-                                    } catch (error) {
-                                        console.error("PDF Error:", error);
+                                    } catch {
                                         toast({ title: "Error", description: "No se pudo generar el PDF", variant: "destructive" });
                                     }
                                 }}
@@ -587,11 +586,11 @@ export function GmlConverter() {
                                     <AlertTriangle className="h-5 w-5" />
                                     <AlertTitle className="flex items-center justify-between">
                                         <span>Conflictos de Topología Detectados</span>
-                                        <Link href="#tramites">
-                                            <Button size="sm" variant="destructive" className="h-7 text-[10px] uppercase font-bold">
+                                        <Button size="sm" variant="destructive" className="h-9 text-[10px] uppercase font-bold" asChild>
+                                            <Link href="/#tramites">
                                                 Consultar con Ingeniero
-                                            </Button>
-                                        </Link>
+                                            </Link>
+                                        </Button>
                                     </AlertTitle>
                                     <AlertDescription>
                                         <p className="text-xs mb-2 opacity-80">Si cree que estos solapes son errores del sistema o necesita ayuda para corregirlos:</p>
@@ -628,11 +627,11 @@ export function GmlConverter() {
                                 <p className="text-sm text-slate-600 mb-4 max-w-lg mx-auto">
                                     Si eres técnico y necesitas asesoramiento profesional para subsanaciones complejas o validaciones gráficas alternativas, contacta directamente con Alberto Álvarez.
                                 </p>
-                                <Link href="#tramites">
-                                    <Button className="bg-primary hover:bg-primary/90 font-bold uppercase tracking-wider">
+                                <Button className="bg-primary hover:bg-primary/90 font-bold uppercase tracking-wider" asChild>
+                                    <Link href="/#tramites">
                                         Solicitar Consultoría Técnica
-                                    </Button>
-                                </Link>
+                                    </Link>
+                                </Button>
                             </div>
                         </div>
                     )}
@@ -662,9 +661,10 @@ function FileUploader({ format, onFileChange, crs, setCrs, accept, desc }: any) 
             </div>
 
             <div className="grid gap-2">
-                <Label>Añadir Archivos ({format.toUpperCase()})</Label>
+                <Label htmlFor={`files-${format}`}>Añadir Archivos ({format.toUpperCase()})</Label>
                 <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center hover:bg-accent/5 transition-colors cursor-pointer relative">
                     <Input
+                        id={`files-${format}`}
                         type="file"
                         multiple // ENABLE MULTIPLE
                         accept={accept}

@@ -22,11 +22,15 @@ export function LeadMagnet() {
                         </p>
                     </div>
                     <div className="pt-2">
-                        <Link href="/servicios" passHref>
-                            <Button size="lg" className="bg-red-600 hover:bg-red-700 text-white text-lg h-14 px-8 shadow-lg">
+                        <Button
+                            size="lg"
+                            className="w-full sm:w-auto min-h-14 h-auto whitespace-normal px-4 py-3 text-center text-base sm:px-8 sm:text-lg bg-red-600 hover:bg-red-700 text-white shadow-lg"
+                            asChild
+                        >
+                            <Link href="/servicios">
                                 Solicitar Estudio Gratuito de mi Caso
-                            </Button>
-                        </Link>
+                            </Link>
+                        </Button>
                     </div>
                 </CardContent>
             </Card>
