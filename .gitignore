@@ -30,3 +30,4 @@ tmp_*/
 *.bak
 *_errors*.txt
 *_output.txt
+.vercel/

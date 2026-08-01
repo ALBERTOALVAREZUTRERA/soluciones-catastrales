@@ -1,0 +1,31 @@
+.git/
+.github/
+.idx/
+.next/
+.next-*/
+.vercel/
+.env*
+node_modules/
+backend/
+tests/
+test-results/
+docs/
+coverage/
+.pytest_cache/
+**/__pycache__/
+*.pyc
+*.tsbuildinfo
+tmp/
+tmp_*/
+
+# Material de trabajo y ejemplos que no forman parte del runtime web.
+EJEMPLOS DXF Y GML/
+HOJAS VALORACION EJEMPLO/
+Ponencia ANDUJAR_files/
+REPUESTA A CLIENTES/
+Ponencia ANDUJAR.html
+PROMPT.docx
+extract_pdfs.py
+extract_prompt.py
+tmp_read_xls.py
+vba_*.txt
