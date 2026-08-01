@@ -20,9 +20,10 @@ export default function ServiciosPage() {
             {/* Hero Sección */}
             <section className="relative py-24 bg-primary overflow-hidden">
                 <Image
-                    src="/servicios/hero_servicios.png"
+                    src="/servicios/hero_servicios.webp"
                     alt=""
                     fill
+                    sizes="100vw"
                     className="object-cover opacity-20 pointer-events-none"
                     priority
                 />
@@ -77,6 +78,7 @@ export default function ServiciosPage() {
                                 src="/servicios/gml_v4_real.png"
                                 alt="Conversión GML v4 Catastro"
                                 fill
+                                sizes="(min-width: 768px) 50vw, 100vw"
                                 className="object-cover transition-transform duration-700 group-hover:scale-105"
                             />
                         </div>
@@ -116,6 +118,7 @@ export default function ServiciosPage() {
                                 src="/servicios/ivga_real.png"
                                 alt="Informes de Validación Gráfica (IVG)"
                                 fill
+                                sizes="(min-width: 768px) 50vw, 100vw"
                                 className="object-cover transition-transform duration-700 group-hover:scale-105"
                             />
                         </div>
@@ -155,6 +158,7 @@ export default function ServiciosPage() {
                                 src="/servicios/topografia_real.png"
                                 alt="Topografía Profesional"
                                 fill
+                                sizes="(min-width: 768px) 50vw, 100vw"
                                 className="object-cover transition-transform duration-700 group-hover:scale-105"
                             />
                         </div>
@@ -194,6 +198,7 @@ export default function ServiciosPage() {
                                 src="/servicios/gml_edificio_real.png"
                                 alt="GML de Edificios y Construcciones"
                                 fill
+                                sizes="(min-width: 768px) 50vw, 100vw"
                                 className="object-cover transition-transform duration-700 group-hover:scale-105"
                             />
                         </div>

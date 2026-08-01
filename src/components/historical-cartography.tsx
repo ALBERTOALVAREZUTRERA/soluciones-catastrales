@@ -1,8 +1,9 @@
 
 "use client";
 
-import { History, Globe, FileText, CheckCircle2, ArrowRight } from "lucide-react";
+import { History, Globe, FileText, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Image from "next/image";
 
 export function HistoricalCartography() {
     return (
@@ -28,12 +29,12 @@ export function HistoricalCartography() {
                             <div className="grid sm:grid-cols-2 gap-6 pt-4">
                                 <div className="p-4 bg-white rounded-2xl shadow-sm border border-slate-200">
                                     <Globe className="h-6 w-6 text-accent mb-3" />
-                                    <h4 className="font-bold text-primary mb-1">Mosaico COG</h4>
+                                    <h3 className="font-bold text-primary mb-1">Mosaico COG</h3>
                                     <p className="text-xs">Digitalización y georreferenciación optimizada de 60.000 ortofotografías analógicas.</p>
                                 </div>
                                 <div className="p-4 bg-white rounded-2xl shadow-sm border border-slate-200">
                                     <FileText className="h-6 w-6 text-accent mb-3" />
-                                    <h4 className="font-bold text-primary mb-1">Valor Pericial</h4>
+                                    <h3 className="font-bold text-primary mb-1">Valor Pericial</h3>
                                     <p className="text-xs">Información territorial inédita útil para análisis históricos y estudios periciales.</p>
                                 </div>
                             </div>
@@ -59,9 +60,12 @@ export function HistoricalCartography() {
 
                     <div className="w-full lg:w-1/2 relative">
                         <div className="relative z-10 rounded-3xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.15)] border-8 border-white group">
-                            <img
-                                src="/servicios/hero_servicios.png"
+                            <Image
+                                src="/servicios/hero_servicios.webp"
                                 alt="Cartografía Histórica Catastro"
+                                width={1600}
+                                height={873}
+                                sizes="(min-width: 1024px) 50vw, 100vw"
                                 className="w-full h-auto transition-transform duration-1000 group-hover:scale-110"
                             />
                             <div className="absolute inset-0 bg-gradient-to-t from-primary/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
