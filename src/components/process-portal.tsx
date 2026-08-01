@@ -119,7 +119,7 @@ export function ProcessPortal() {
                   <Phone className="h-6 w-6 text-accent" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-primary">Atención Telefónica</h4>
+                  <h3 className="font-bold text-primary">Atención Telefónica</h3>
                   <p className="text-lg font-semibold text-accent">665 890 608</p>
                   <p className="text-xs text-muted-foreground">Horario: L-V 9:00 - 14:00 y 17:00 - 20:00</p>
                 </div>
@@ -130,7 +130,7 @@ export function ProcessPortal() {
                   <Mail className="h-6 w-6 text-accent" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-primary">Email Profesional</h4>
+                  <h3 className="font-bold text-primary">Email Profesional</h3>
                   <p className="text-muted-foreground break-all">alberto.alvarez.utrera@gmail.com</p>
                 </div>
               </div>
@@ -140,7 +140,7 @@ export function ProcessPortal() {
                   <MapPin className="h-6 w-6 text-accent" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-primary">Oficina de Ingeniería</h4>
+                  <h3 className="font-bold text-primary">Oficina de Ingeniería</h3>
                   <p className="text-muted-foreground">Calle Nueva nº 5, Andújar (Jaén)</p>
                 </div>
               </div>

@@ -84,6 +84,8 @@ export function Hero() {
           src={heroImage?.imageUrl || "https://picsum.photos/seed/catastral-hero/1920/1080"}
           alt=""
           fill
+          sizes="100vw"
+          fetchPriority="high"
           className="object-cover brightness-[0.25]"
           priority
           data-ai-hint="aerial landscape"

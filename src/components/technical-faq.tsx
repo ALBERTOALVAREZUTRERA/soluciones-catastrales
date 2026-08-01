@@ -133,7 +133,7 @@ export function TechnicalFaq() {
           </Accordion>
 
           <div className="mt-12 bg-slate-50 border-2 border-slate-200 rounded-2xl p-8 text-center flex flex-col items-center gap-4 shadow-sm hover:shadow-md transition-shadow">
-            <h4 className="font-bold text-secondary text-2xl font-headline">¿Se encuentra en alguna de estas situaciones?</h4>
+            <h3 className="font-bold text-secondary text-2xl font-headline">¿Se encuentra en alguna de estas situaciones?</h3>
             <p className="text-base text-muted-foreground max-w-2xl">
               Realizamos un <strong>estudio previo de su expediente catastral y registral</strong> sin compromiso para darle la viabilidad técnica y un presupuesto cerrado.
             </p>
