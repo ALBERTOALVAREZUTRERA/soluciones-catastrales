@@ -51,16 +51,16 @@ export function CookieConsentBanner() {
       aria-label="Configuración de cookies"
     >
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <p className="max-w-xl text-xs leading-relaxed text-slate-700 md:text-sm">
-          Usamos cookies técnicas y, solo con su permiso, analítica de Google y Meta.{" "}
+        <div className="flex max-w-xl flex-wrap items-center gap-x-1 text-xs leading-relaxed text-slate-700 md:text-sm">
+          <p>Cookies técnicas.</p>
+          <p>Analítica opcional de Google y Meta.</p>
           <Link
             href="/legal/cookies"
             className="font-semibold text-primary underline underline-offset-2"
           >
             Más información
           </Link>
-          .
-        </p>
+        </div>
         <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
           <Button
             type="button"
