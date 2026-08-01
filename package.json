@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack -p 9002",
+    "prebuild": "node scripts/guard-production-env.mjs",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit --pretty false --incremental false",

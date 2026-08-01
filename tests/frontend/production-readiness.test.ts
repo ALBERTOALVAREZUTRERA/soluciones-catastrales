@@ -62,6 +62,52 @@ describe("preparación para producción", () => {
     assert.doesNotMatch(result.stdout, /una-clave-segura/);
   });
 
+  test("Vercel bloquea producción sin variables reales y permite previews", () => {
+    const preview = spawnSync(process.execPath, ["scripts/guard-production-env.mjs"], {
+      cwd: root,
+      encoding: "utf8",
+      env: { NODE_ENV: "test", VERCEL_ENV: "preview" },
+    });
+    assert.equal(preview.status, 0, preview.stderr);
+
+    const production = spawnSync(
+      process.execPath,
+      ["scripts/guard-production-env.mjs"],
+      {
+        cwd: root,
+        encoding: "utf8",
+        env: { NODE_ENV: "test", VERCEL_ENV: "production" },
+      },
+    );
+    assert.notEqual(production.status, 0);
+    assert.match(production.stderr, /Despliegue bloqueado/);
+  });
+
+  test("Vercel acepta un frontend de producción completamente configurado", () => {
+    const result = spawnSync(process.execPath, ["scripts/guard-production-env.mjs"], {
+      cwd: root,
+      encoding: "utf8",
+      env: {
+        NODE_ENV: "test",
+        VERCEL_ENV: "production",
+        NEXT_PUBLIC_SITE_URL: "https://www.solucionescatastrales.app",
+        NEXT_PUBLIC_BACKEND_URL: "https://api.solucionescatastrales.app",
+        SMTP_HOST: "smtp.servidor.es",
+        SMTP_PORT: "465",
+        EMAIL_USER: "formularios@solucionescatastrales.app",
+        EMAIL_PASS: "una-clave-segura",
+        CONTACT_EMAIL: "contacto@solucionescatastrales.app",
+        LEGAL_TAX_ID: "12345678Z",
+        LEGAL_PROFESSIONAL_BODY: "Colegio profesional configurado",
+        LEGAL_REGISTRATION_NUMBER: "1234",
+      },
+    });
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /Variables del despliegue frontend validadas/);
+    assert.doesNotMatch(result.stdout, /una-clave-segura/);
+  });
+
   test("no conserva la configuración Firestore eliminada", () => {
     assert.equal(existsSync(join(root, "backend.json")), false);
     assert.equal(existsSync(join(root, "docs/backend.json")), false);
