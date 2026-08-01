@@ -688,7 +688,12 @@ export function validateTopology(layers: { name: string, features: GmlFeature[] 
 }
 
 export function parseGml(text: string, baseName: string): GmlFeature[] {
+    if (/<!\s*(?:DOCTYPE|ENTITY)\b/i.test(text)) {
+        throw new Error("El archivo XML/GML contiene declaraciones no permitidas.");
+    }
+
     const parser = new DOMParser();
+    // codeql[js/xss-through-dom] El documento se procesa como XML inerte, nunca se inserta como HTML.
     const xmlDoc = parser.parseFromString(text, "text/xml");
 
     // Check for parse errors

@@ -271,7 +271,7 @@ export default function TramitesRegistralesPage() {
                                 <div className="w-full md:w-3/5">
                                     <div className={`rounded-2xl border-2 ${colors.border} bg-white shadow-xl p-8`}>
                                         <h3 className="font-bold text-slate-800 text-lg mb-6 flex items-center gap-2">
-                                            <span className={`w-2 h-6 rounded-full ${colors.bg.replace("bg-", "bg-").replace("-50", "-500")}`} />
+                                            <span className={`w-2 h-6 rounded-full ${colors.bg.replace("-50", "-500")}`} />
                                             Proceso paso a paso
                                         </h3>
                                         <ol className="space-y-4">
