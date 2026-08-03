@@ -1199,7 +1199,9 @@ def buscar_por_referencia_catastral(request: BuscarRCRequest):
             superficie_construida = 0.0
             anio_const = 0
 
-        # 4. Detectar zona de valoración vía WMS + fallback por distancia al centro
+        # 4. Detectar la zona mediante la cartografía oficial de ponencias.
+        # Si el WMS no devuelve una zona inequívoca, se exige revisión manual:
+        # una aproximación por distancia podría asignar una zona incorrecta.
         zona_detectada = TaxCalculator.get_valuation_zone(lat, lon)
 
         # Normalizar nombre municipio para buscar en MUNICIPALITIES
@@ -1207,33 +1209,6 @@ def buscar_por_referencia_catastral(request: BuscarRCRequest):
         def norm(t): return ''.join(c for c in unicodedata.normalize('NFD', t) if unicodedata.category(c) != 'Mn').lower()
         muni_norm = norm(municipio_result)
         muni_key = next((k for k in MUNICIPALITIES if norm(k) == muni_norm), None)
-
-        # Si WMS no detectó zona, intentar fallback geográfico para Andújar
-        if not zona_detectada and muni_key == "Andújar":
-            # Distancias aproximadas al centro de Andújar (Plaza de España: 38.0438, -4.0484)
-            # R37/R37C: < 200m  |  R40: < 450m  |  R43: < 900m  |  R47: < 1800m  |  R50+: resto
-            import math
-            def haversine_m(lat1, lon1, lat2, lon2):
-                R = 6371000
-                φ1, φ2 = math.radians(lat1), math.radians(lat2)
-                dφ = math.radians(lat2 - lat1)
-                dλ = math.radians(lon2 - lon1)
-                a = math.sin(dφ/2)**2 + math.cos(φ1)*math.cos(φ2)*math.sin(dλ/2)**2
-                return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-
-            dist = haversine_m(lat, lon, 38.0438, -4.0484)
-            if dist < 200:
-                zona_detectada = "R37C"
-            elif dist < 450:
-                zona_detectada = "R40"
-            elif dist < 900:
-                zona_detectada = "R43"
-            elif dist < 1800:
-                zona_detectada = "R47"
-            elif dist < 3000:
-                zona_detectada = "R50"
-            else:
-                zona_detectada = "R55"
 
         valor_rep = 0.0
         zona_info = ""

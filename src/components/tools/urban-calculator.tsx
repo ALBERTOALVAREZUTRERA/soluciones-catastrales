@@ -24,6 +24,7 @@ export interface UrbanCalculatorProps {
 
 export function UrbanCalculator({ formData, setFormData, onCalculate, loading }: UrbanCalculatorProps) {
     const [kmzLoading, setKmzLoading] = useState(false);
+    const [professionalMode, setProfessionalMode] = useState(false);
     const zoneRegistry = getMunicipalUrbanZoneRegistry(formData.municipio);
     const selectedZone = zoneRegistry?.zones.find(({ code }) => code === formData.zona_valor) ?? null;
 
@@ -115,10 +116,19 @@ export function UrbanCalculator({ formData, setFormData, onCalculate, loading }:
             formData.custom_mbc,
             formData.custom_anio_ponencia,
         ].map(Number);
-        if (!formData.parameters_confirmed || requiredParameters.some(value => !Number.isFinite(value) || value <= 0)) {
+        if (!formData.parameters_confirmed) {
             toast({
-                title: "Confirma los parámetros municipales",
-                description: "Introduce valores positivos para el suelo, G+B, RM, MBC y año de aprobación de la ponencia, y confirma que los has contrastado.",
+                title: "Falta confirmar los datos",
+                description: "Revisa los datos mostrados y marca la casilla de confirmación antes de calcular.",
+                variant: "destructive",
+            });
+            return;
+        }
+        if (requiredParameters.some(value => !Number.isFinite(value) || value <= 0)) {
+            setProfessionalMode(true);
+            toast({
+                title: "Falta un dato para calcular",
+                description: "No hemos podido completar automáticamente todos los datos técnicos. Revisa los campos señalados en la configuración profesional.",
                 variant: "destructive",
             });
             return;
@@ -195,9 +205,9 @@ export function UrbanCalculator({ formData, setFormData, onCalculate, loading }:
                         <FileText className="w-5 h-5" />
                     </div>
                     <div>
-                        <h4 className="font-semibold text-emerald-900 dark:text-emerald-300 text-sm mb-1">1. Datos del Recibo</h4>
+                        <h4 className="font-semibold text-emerald-900 dark:text-emerald-300 text-sm mb-1">1. Localizamos tu inmueble</h4>
                         <p className="text-emerald-700 dark:text-emerald-400/80 text-xs leading-relaxed">
-                            Copia directamente de tu recibo del IBI o ponencia de valores los datos principales: Año de construcción y Superficies medidas en m².
+                            Con la referencia catastral intentamos rellenar municipio, superficie, antigüedad y zona.
                         </p>
                     </div>
                 </div>
@@ -206,9 +216,9 @@ export function UrbanCalculator({ formData, setFormData, onCalculate, loading }:
                         <Sparkles className="w-5 h-5" />
                     </div>
                     <div>
-                        <h4 className="font-semibold text-blue-900 dark:text-blue-300 text-sm mb-1">2. Tipología y Calidad</h4>
+                        <h4 className="font-semibold text-blue-900 dark:text-blue-300 text-sm mb-1">2. Comprueba tres datos</h4>
                         <p className="text-blue-700 dark:text-blue-400/80 text-xs leading-relaxed">
-                            Ajusta el uso (ej. Vivienda) y el nivel de calidad (Categoría 1-9). La herramienta buscará los coeficientes oficiales para esa gama.
+                            Revisa el tipo de inmueble, los metros construidos y el año. Corrígelos solo si no coinciden.
                         </p>
                     </div>
                 </div>
@@ -217,9 +227,9 @@ export function UrbanCalculator({ formData, setFormData, onCalculate, loading }:
                         <ShieldCheck className="w-5 h-5" />
                     </div>
                     <div>
-                        <h4 className="font-semibold text-purple-900 dark:text-purple-300 text-sm mb-1">3. Valor Matemático</h4>
+                        <h4 className="font-semibold text-purple-900 dark:text-purple-300 text-sm mb-1">3. Pulsa calcular</h4>
                         <p className="text-purple-700 dark:text-purple-400/80 text-xs leading-relaxed">
-                            Al calcular, el sistema sumará el suelo y la construcción aplicando la depreciación por antigüedad (CoefH) para obtener una estimación orientativa.
+                            Te mostraremos por separado el suelo, la construcción, el total y una orientación del IBI.
                         </p>
                     </div>
                 </div>
@@ -228,10 +238,10 @@ export function UrbanCalculator({ formData, setFormData, onCalculate, loading }:
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {zoneRegistry && (
                     <div className="space-y-2 md:col-span-2 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-                        <Label htmlFor="urban-value-zone" className="text-emerald-900 font-semibold">Zona de valor oficial</Label>
+                        <Label htmlFor="urban-value-zone" className="text-emerald-900 font-semibold">Zona del inmueble</Label>
                         <Select value={formData.zona_valor || undefined} onValueChange={handleZoneChange}>
                             <SelectTrigger id="urban-value-zone" className="h-11 bg-white border-emerald-300">
-                                <SelectValue placeholder="Selecciona la zona que corresponde a la parcela" />
+                                <SelectValue placeholder="No detectada: selecciónala si la conoces" />
                             </SelectTrigger>
                             <SelectContent>
                                 {zoneRegistry.zones.map(zone => (
@@ -242,7 +252,10 @@ export function UrbanCalculator({ formData, setFormData, onCalculate, loading }:
                             </SelectContent>
                         </Select>
                         <p className="text-xs text-emerald-800">
-                            La selección carga el valor inicial publicado para el uso elegido. No aplica automáticamente reducciones por urbanización ni correctores particulares de la finca.{' '}
+                            {selectedZone
+                                ? `Zona ${selectedZone.code} localizada. Hemos cargado el valor publicado que corresponde al tipo de inmueble seleccionado. `
+                                : "Si la búsqueda no consigue identificar la zona, no haremos una aproximación: tendrás que revisarla. "}
+                            No se aplican automáticamente reducciones o circunstancias particulares de la finca.{' '}
                             <a href={zoneRegistry.sourceUrl} target="_blank" rel="noopener noreferrer" className="font-semibold underline underline-offset-2">Tabla pública del Catastro</a>.
                         </p>
                         {selectedZone && getOfficialZoneLandValue(selectedZone, formData.uso_const) === null && (
@@ -252,7 +265,7 @@ export function UrbanCalculator({ formData, setFormData, onCalculate, loading }:
                 )}
 
                 <div className="space-y-2">
-                    <Label htmlFor="urban-use" className="text-slate-600 font-medium">Uso / Tipología Urbana</Label>
+                    <Label htmlFor="urban-use" className="text-slate-600 font-medium">¿Qué tipo de inmueble es?</Label>
                     <Select value={formData.uso_const} onValueChange={(v: string) => handleSelectChange("uso_const", v)}>
                         <SelectTrigger id="urban-use" className="h-11 bg-slate-50 border-slate-200">
                             <SelectValue />
@@ -266,7 +279,7 @@ export function UrbanCalculator({ formData, setFormData, onCalculate, loading }:
                 </div>
 
                 <div className="space-y-2">
-                    <Label htmlFor="urban-category" className="text-slate-600 font-medium">Calidad Constructiva</Label>
+                    <Label htmlFor="urban-category" className="text-slate-600 font-medium">Calidad de construcción</Label>
                     <Select value={formData.categoria.toString()} onValueChange={(v: string) => handleSelectChange("categoria", v)}>
                         <SelectTrigger id="urban-category" className="h-11 bg-slate-50 border-slate-200">
                             <SelectValue />
@@ -277,20 +290,21 @@ export function UrbanCalculator({ formData, setFormData, onCalculate, loading }:
                             ))}
                         </SelectContent>
                     </Select>
+                    <p className="text-xs text-slate-500">Si no la conoces, deja la categoría 5.</p>
                 </div>
 
                 <div className="space-y-2">
-                    <Label htmlFor="urban-built-area" className="text-slate-600 font-medium">Superficie Construida (m²)</Label>
+                    <Label htmlFor="urban-built-area" className="text-slate-600 font-medium">Metros construidos</Label>
                     <Input id="urban-built-area" type="number" min="0" step="0.01" name="sup_const" value={formData.sup_const} onChange={handleInputChange} className="h-11 bg-slate-50 border-slate-200 text-lg font-medium" />
                 </div>
 
                 <div className="space-y-2">
-                    <Label htmlFor="urban-construction-year" className="text-slate-600 font-medium">Año de Construcción</Label>
+                    <Label htmlFor="urban-construction-year" className="text-slate-600 font-medium">Año de construcción</Label>
                     <Input id="urban-construction-year" type="number" min="1000" max={new Date().getFullYear() + 1} name="anio_const" value={formData.anio_const} onChange={handleInputChange} className="h-11 bg-slate-50 border-slate-200 text-lg font-medium" />
                 </div>
 
                 <div className="space-y-2">
-                    <Label htmlFor="urban-condition" className="text-slate-600 font-medium">Estado de Conservación</Label>
+                    <Label htmlFor="urban-condition" className="text-slate-600 font-medium">¿Cómo está conservado?</Label>
                     <Select value={formData.estado} onValueChange={(v: string) => handleSelectChange("estado", v)}>
                         <SelectTrigger id="urban-condition" className="h-11 bg-slate-50 border-slate-200">
                             <SelectValue />
@@ -303,6 +317,25 @@ export function UrbanCalculator({ formData, setFormData, onCalculate, loading }:
                     </Select>
                 </div>
 
+                <div className="md:col-span-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        className="w-full justify-between text-slate-600"
+                        onClick={() => setProfessionalMode(current => !current)}
+                        aria-expanded={professionalMode}
+                    >
+                        <span>{professionalMode ? "Ocultar datos técnicos" : "Configuración profesional (opcional)"}</span>
+                        <span aria-hidden="true">{professionalMode ? "−" : "+"}</span>
+                    </Button>
+                    {!professionalMode && selectedZone && (
+                        <p className="mt-1 text-center text-xs text-slate-500">
+                            Método y valor del suelo ya cargados desde la zona {selectedZone.code}.
+                        </p>
+                    )}
+                </div>
+
+                {professionalMode && (<>
                 <div className="space-y-2">
                     <Label htmlFor="urban-land-method" className="text-slate-600 font-medium">Método de valoración del suelo</Label>
                     <Select value={formData.metodo_suelo} onValueChange={(v: string) => handleSelectChange("metodo_suelo", v)}>
@@ -353,6 +386,7 @@ export function UrbanCalculator({ formData, setFormData, onCalculate, loading }:
                         </div>
                     </div>
                 </div>
+                </>)}
             </div>
 
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
@@ -368,13 +402,16 @@ export function UrbanCalculator({ formData, setFormData, onCalculate, loading }:
                         className="mt-0.5 h-4 w-4 rounded border-amber-400"
                     />
                     <span>
-                        He contrastado método y valor del suelo, MBC, RM, gastos y beneficios, año de aprobación de la ponencia y tipo de IBI con la documentación aplicable.
+                        He revisado los datos mostrados arriba y son correctos.
                     </span>
                 </label>
+                <p className="mt-2 pl-7 text-xs text-amber-800">
+                    Es una estimación orientativa. Si algún dato no se ha podido localizar, la aplicación no lo sustituye por una aproximación.
+                </p>
             </div>
 
             <Button size="lg" className="w-full mt-6 h-14 text-lg font-bold bg-primary hover:bg-slate-800 text-white shadow-xl transition-all hover:scale-105" onClick={calculateUrbanValue} disabled={loading}>
-                {loading ? "Calculando..." : "Calcular Valor Urbano Ahora"}
+                {loading ? "Calculando..." : "Calcular mi valor catastral"}
                 <CalculatorIcon className="ml-2 h-5 w-5" />
             </Button>
         </div>

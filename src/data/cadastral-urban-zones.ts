@@ -32,6 +32,12 @@ export interface MunicipalUrbanZoneRegistry {
     zones: readonly UrbanValuationZone[];
 }
 
+export interface OfficialZoneSelection {
+    zoneCode: string;
+    method: UrbanLandValuationMethod;
+    landValue: number | null;
+}
+
 const UBEDA_SOURCE_URL =
     "https://ovc.catastro.meh.es/Cartografia/WMS/ponencia.aspx?del=23&mun=92";
 const ALCALA_SOURCE_URL =
@@ -174,4 +180,34 @@ export function getOfficialZoneLandValue(
     if (zone.method === "unit") return zone.value;
     const use = getRepercussionUse(typeId);
     return use ? zone.values[use] : null;
+}
+
+export function getUrbanTypeIdFromCadastralUse(cadastralUse: string): string {
+    const use = cadastralUse
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+    if (/industrial|almacen|nave/.test(use)) return "IAL";
+    if (/oficina/.test(use)) return "OFI";
+    if (/comerc|local|taller/.test(use)) return "COM";
+    if (/garaje|aparcamiento/.test(use)) return "GAR";
+    if (/hotel|hostal|turist/.test(use)) return "HOS";
+    return "AAP";
+}
+
+export function resolveOfficialZoneSelection(
+    municipality: string,
+    detectedZoneCode: string | null | undefined,
+    typeId: string,
+): OfficialZoneSelection | null {
+    const registry = getMunicipalUrbanZoneRegistry(municipality);
+    const normalizedCode = detectedZoneCode?.trim().toUpperCase();
+    if (!registry || !normalizedCode) return null;
+    const zone = registry.zones.find(({ code }) => code === normalizedCode);
+    if (!zone) return null;
+    return {
+        zoneCode: zone.code,
+        method: zone.method,
+        landValue: getOfficialZoneLandValue(zone, typeId),
+    };
 }

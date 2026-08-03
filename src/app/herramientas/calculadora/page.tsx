@@ -41,6 +41,10 @@ import {
     JAEN_MUNICIPAL_IBI_TAX_YEAR,
     JAEN_MUNICIPAL_IBI_VERIFIED_ON,
 } from "@/data/cadastral-municipal-ibi";
+import {
+    getUrbanTypeIdFromCadastralUse,
+    resolveOfficialZoneSelection,
+} from "@/data/cadastral-urban-zones";
 
 const JAEN_MUNICIPALITY_OPTIONS = JAEN_MUNICIPAL_VALUATION_REFERENCES.map(
     ({ name }) => `${name} (Jaén)`,
@@ -120,8 +124,6 @@ export default function CalculadoraPage() {
             custom_tipo_rustico: ibiReference?.rusticRate ?? profile?.tipoRustico ?? 0,
             custom_anio_ponencia: profile?.assessmentApprovalYear
                 ?? (requiresParcelSpecificAssessmentYear(reference) ? 0 : reference?.assessmentApprovalYear ?? 0),
-            zona_valor: "",
-            valor_rep: 0,
             parameters_confirmed: false,
         }));
     }, [formData.municipio]);
@@ -156,6 +158,19 @@ export default function CalculadoraPage() {
 
     const handleSelectChange = (name: string, value: string) => {
         setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleMunicipalityChange = (municipio: string) => {
+        setResult(null);
+        setSearchStatus({ type: null, message: "" });
+        setFormData(prev => ({
+            ...prev,
+            municipio,
+            zona_valor: "",
+            valor_rep: 0,
+            metodo_suelo: "repercussion",
+            parameters_confirmed: false,
+        }));
     };
 
     const getReportData = (): ReportData | null => {
@@ -246,6 +261,13 @@ export default function CalculadoraPage() {
                     setMunicipios(prev => prev.includes(muniName) ? prev : [...prev, muniName]);
                 }
 
+                const detectedTypeId = getUrbanTypeIdFromCadastralUse(data.uso || "");
+                const officialZone = resolveOfficialZoneSelection(
+                    muniName,
+                    data.zona_valor,
+                    detectedTypeId,
+                );
+
                 setFormData(prev => ({
                     ...prev,
                     municipio: muniName,
@@ -257,31 +279,35 @@ export default function CalculadoraPage() {
                         : (data.superficie_parcela || prev.sup_parcela),
                     ha: data.uso?.toLowerCase().includes("rústico") ? (data.superficie_parcela / 10000 || prev.ha) : prev.ha,
                     anio_const: data.anio_const || prev.anio_const,
-                    uso_const: data.uso?.toLowerCase().includes("industrial") ? "IAL" : "AAP",
+                    uso_const: detectedTypeId,
                     sup_const: data.superficie_construida || prev.sup_const,
-                    zona_valor: data.zona_valor || prev.zona_valor,
-                    valor_rep: data.valor_rep || prev.valor_rep,
+                    zona_valor: officialZone?.zoneCode || "",
+                    metodo_suelo: officialZone?.method || "repercussion",
+                    valor_rep: officialZone?.landValue ?? 0,
                     edif_real: data.superficie_construida || prev.edif_real,
-                    edif_max: data.superficie_construida || prev.edif_max
+                    edif_max: data.superficie_construida || prev.edif_max,
+                    parameters_confirmed: false,
                 }));
                 const selectionMessage = data.seleccion_aproximada
                     ? ` La referencia de finca agrupa ${data.num_inmuebles} inmuebles; introduce la referencia completa de 20 caracteres para cargar datos constructivos.`
                     : "";
-                const vrcMsg = data.valor_rep > 0 && data.zona_info
-                    ? ` Valor repercusión auto-detectado: ${data.zona_info}.`
-                    : " Valor de repercusión de suelo no detectado automáticamente — introdúcelo manualmente.";
-                setSearchStatus({ type: 'success', message: `¡Parcela localizada! ${data.direccion}.${selectionMessage}${vrcMsg}` });
+                const zoneMessage = officialZone?.landValue
+                    ? ` Hemos localizado la zona ${officialZone.zoneCode} y cargado su valor automáticamente.`
+                    : data.zona_valor
+                        ? ` Catastro indica la zona ${data.zona_valor}, pero todavía no disponemos de una tabla municipal compatible para cargar su valor.`
+                        : " Catastro no ha devuelto una zona inequívoca; tendrás que seleccionarla o revisarla manualmente.";
+                setSearchStatus({ type: 'success', message: `¡Inmueble localizado! ${data.direccion}.${selectionMessage}${zoneMessage}` });
                 toast({
                     title: data.seleccion_aproximada
                         ? "Finca con varios inmuebles"
-                        : data.valor_rep > 0
-                            ? "✅ Inmueble encontrado — Zona detectada"
+                        : officialZone?.landValue
+                            ? "✅ Inmueble y zona encontrados"
                             : "Inmueble encontrado",
                     description: data.seleccion_aproximada
                         ? `Introduce la referencia completa. Catastro devuelve ${data.num_inmuebles} inmuebles para esta finca.`
-                        : data.valor_rep > 0
-                        ? `${data.direccion} | ${data.zona_info}`
-                        : `${data.direccion}. Introduce el valor de repercusión de suelo manualmente.`,
+                        : officialZone?.landValue
+                            ? `${data.direccion} | Zona ${officialZone.zoneCode} · ${officialZone.landValue} €/m²`
+                            : `${data.direccion}. Revisa la zona antes de calcular.`,
                 });
             } else {
                 setSearchStatus({ type: 'error', message: `Parcela NO Localizada: ${data.error || "No encontrada."}` });
@@ -297,6 +323,19 @@ export default function CalculadoraPage() {
             setLoading(false);
         }
     };
+
+    const referenceReady = isValidCadastralReference(normalizeCadastralReference(formData.rc));
+    const propertyLocated = searchStatus.type === "success";
+    const dataReady = propertyLocated
+        && Number(formData.sup_const) > 0
+        && Number(formData.anio_const) > 0
+        && Number(formData.valor_rep) > 0;
+    const simpleSteps = [
+        { label: "1. Referencia", done: referenceReady },
+        { label: "2. Inmueble localizado", done: propertyLocated },
+        { label: "3. Datos revisados", done: dataReady },
+        { label: "4. Resultado", done: Boolean(result) },
+    ];
 
     return (
         <main id="contenido-principal" tabIndex={-1} className="min-h-screen bg-slate-50 font-body">
@@ -333,11 +372,25 @@ export default function CalculadoraPage() {
                                 </CardHeader>
                                 <CardContent className="p-8 space-y-8 bg-white">
 
+                                    <div aria-label="Progreso del cálculo" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                                        {simpleSteps.map(step => (
+                                            <div
+                                                key={step.label}
+                                                className={`rounded-lg border px-3 py-2 text-center text-xs font-semibold ${step.done
+                                                    ? "border-emerald-300 bg-emerald-50 text-emerald-800"
+                                                    : "border-slate-200 bg-slate-50 text-slate-500"
+                                                    }`}
+                                            >
+                                                {step.done ? "✓ " : ""}{step.label}
+                                            </div>
+                                        ))}
+                                    </div>
+
                                     {/* Búsqueda RC (Destacada) */}
-                                    <div className="bg-slate-50 p-6 rounded-xl border border-slate-100 space-y-3">
+                                    <div className="bg-blue-50 p-6 rounded-xl border-2 border-blue-200 space-y-3">
                                         <Label htmlFor="rc" className="text-slate-700 font-semibold flex items-center gap-2 text-base">
                                             <Search className="h-5 w-5 text-primary" />
-                                            Buscar Inmueble por Referencia Catastral
+                                            1. Escribe tu referencia catastral
                                         </Label>
                                         <div className="flex flex-col sm:flex-row gap-3">
                                             <Input
@@ -349,10 +402,10 @@ export default function CalculadoraPage() {
                                                 className="font-mono text-lg h-12 shadow-sm border-slate-300 focus-visible:ring-primary"
                                             />
                                             <Button onClick={buscarRC} disabled={loading} size="lg" className="h-12 px-8 bg-slate-800 hover:bg-slate-700 text-white shadow-md">
-                                                {loading ? "Buscando..." : "Autocompletar"}
+                                                {loading ? "Buscando tu inmueble..." : "Buscar y rellenar datos"}
                                             </Button>
                                         </div>
-                                        <p className="text-xs text-slate-500 ml-1">Para mayor precisión, utiliza siempre el buscador Catastral.</p>
+                                        <p className="text-xs text-slate-600 ml-1">La encontrarás en tu recibo del IBI. Es una combinación de 14 o 20 letras y números.</p>
                                         {searchStatus.type && (
                                             <div className={`mt-3 p-3 rounded-md text-sm font-medium border animate-in slide-in-from-top-2 ${searchStatus.type === 'success' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
                                                 searchStatus.type === 'error' ? 'bg-red-50 text-red-700 border-red-200' :
@@ -405,7 +458,7 @@ export default function CalculadoraPage() {
                                                     <div className="space-y-2">
 
                                                         <Label htmlFor="valuation-municipality">Municipio</Label>
-                                                        <Select value={formData.municipio} onValueChange={(v: string) => handleSelectChange("municipio", v)}>
+                                                        <Select value={formData.municipio} onValueChange={handleMunicipalityChange}>
                                                             <SelectTrigger id="valuation-municipality">
                                                                 <SelectValue placeholder="Selecciona municipio" />
                                                             </SelectTrigger>
