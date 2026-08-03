@@ -84,7 +84,9 @@ describe("accesibilidad estructural", () => {
       "urban-built-area",
       "urban-construction-year",
       "urban-condition",
+      "urban-land-method",
       "urban-land-value",
+      "urban-potential-area",
       "urban-land-area",
     ]) {
       assert.match(calculator, new RegExp(`htmlFor="${id}"`));
@@ -95,8 +97,8 @@ describe("accesibilidad estructural", () => {
       "valuation-municipality",
       "valuation-property-class",
       "valuation-gb",
-      "valuation-land-area",
-      "valuation-land-value",
+      "valuation-land-corrector",
+      "valuation-joint-corrector",
     ]) {
       assert.match(valuationPage, new RegExp(`htmlFor="${id}"`));
       assert.match(valuationPage, new RegExp(`id="${id}"`));

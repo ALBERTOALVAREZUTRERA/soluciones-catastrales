@@ -26,28 +26,31 @@ import {
 import type { ReportData } from "@/lib/valuation-report";
 import { UrbanCalculator } from "@/components/tools/urban-calculator";
 import { Toaster } from "@/components/ui/toaster";
+import {
+    getDocumentedUrbanProfile,
+    getJaenMunicipalValuationReference,
+    getOfficialMunicipalReferenceUrl,
+    getOfficialMunicipalValuationMapUrl,
+    requiresParcelSpecificAssessmentYear,
+    JAEN_MUNICIPAL_REFERENCES_VERIFIED_ON,
+    JAEN_MUNICIPAL_VALUATION_REFERENCES,
+} from "@/data/cadastral-municipal-profiles";
+import {
+    getJaenMunicipalIbiReference,
+    getOfficialJaenIbiSourceUrl,
+    JAEN_MUNICIPAL_IBI_TAX_YEAR,
+    JAEN_MUNICIPAL_IBI_VERIFIED_ON,
+} from "@/data/cadastral-municipal-ibi";
 
-const ANDUJAR_VALUATION_PROFILE = {
-    mbc: 550,
-    mbr: 450,
-    mbrRustico: 37.8,
-    rm: 0.5,
-    gb: 1.3,
-    tipoUrbano: 0.00593,
-    tipoRustico: 0.01068,
-    anioPonencia: 2010,
-} as const;
-
-function getDocumentedUrbanProfile(municipio: string) {
-    const normalized = municipio.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-    return normalized.startsWith("andujar") ? ANDUJAR_VALUATION_PROFILE : null;
-}
+const JAEN_MUNICIPALITY_OPTIONS = JAEN_MUNICIPAL_VALUATION_REFERENCES.map(
+    ({ name }) => `${name} (Jaén)`,
+);
 
 export default function CalculadoraPage() {
     const { toast } = useToast();
     const [loading, setLoading] = useState(false);
 
-    const [municipios, setMunicipios] = useState(["Andújar (Jaén)"]);
+    const [municipios, setMunicipios] = useState<string[]>([...JAEN_MUNICIPALITY_OPTIONS]);
     const [result, setResult] = useState<any>(null);
     const [searchStatus, setSearchStatus] = useState<{ type: 'success' | 'error' | 'info' | null, message: string }>({ type: null, message: "" });
     const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -60,6 +63,9 @@ export default function CalculadoraPage() {
         edif_max: 0,
         edif_real: 0,
         valor_rep: 0,
+        metodo_suelo: "repercussion",
+        coef_suelo: 1,
+        coef_conjunto: 1,
         zona_valor: "",
         uso_const: "AAP",
         categoria: 5,
@@ -75,7 +81,7 @@ export default function CalculadoraPage() {
         custom_mbr: 200,
         custom_mbr_rustico: 37.8,
         custom_rm: 0.50,
-        custom_gb: 1.30,
+        custom_gb: 1.40,
         custom_tipo_urbano: 0.006,
         custom_tipo_rustico: 0.010,
         custom_anio_ponencia: 2010,
@@ -91,10 +97,18 @@ export default function CalculadoraPage() {
         }
     }, []);
 
-    // No se reutilizan parámetros de un municipio para otro. Solo existe un
-    // perfil documentado; el resto exige introducir y confirmar la ponencia.
+    const municipalReference = getJaenMunicipalValuationReference(formData.municipio);
+    const municipalIbiReference = municipalReference
+        ? getJaenMunicipalIbiReference(municipalReference.id)
+        : null;
+    const documentedProfile = getDocumentedUrbanProfile(formData.municipio);
+
+    // No se reutilizan parámetros de un municipio para otro. Las fechas de la
+    // ponencia se precargan desde Catastro; módulos e IBI solo si están verificados.
     useEffect(() => {
         const profile = getDocumentedUrbanProfile(formData.municipio);
+        const reference = getJaenMunicipalValuationReference(formData.municipio);
+        const ibiReference = reference ? getJaenMunicipalIbiReference(reference.id) : null;
         setFormData(prev => ({
             ...prev,
             custom_mbc: profile?.mbc ?? 0,
@@ -102,9 +116,12 @@ export default function CalculadoraPage() {
             custom_mbr_rustico: profile?.mbrRustico ?? 0,
             custom_rm: profile?.rm ?? 0,
             custom_gb: profile?.gb ?? 0,
-            custom_tipo_urbano: profile?.tipoUrbano ?? 0,
-            custom_tipo_rustico: profile?.tipoRustico ?? 0,
-            custom_anio_ponencia: profile?.anioPonencia ?? 0,
+            custom_tipo_urbano: ibiReference?.generalUrbanRate ?? profile?.tipoUrbano ?? 0,
+            custom_tipo_rustico: ibiReference?.rusticRate ?? profile?.tipoRustico ?? 0,
+            custom_anio_ponencia: profile?.assessmentApprovalYear
+                ?? (requiresParcelSpecificAssessmentYear(reference) ? 0 : reference?.assessmentApprovalYear ?? 0),
+            zona_valor: "",
+            valor_rep: 0,
             parameters_confirmed: false,
         }));
     }, [formData.municipio]);
@@ -222,7 +239,9 @@ export default function CalculadoraPage() {
                 // Capitalize and clean municipality name
                 let muniName = "Personalizado";
                 if (data.municipio) {
-                    muniName = data.municipio.split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+                    const detectedName = data.municipio.split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+                    const detectedReference = getJaenMunicipalValuationReference(detectedName);
+                    muniName = detectedReference ? `${detectedReference.name} (Jaén)` : detectedName;
                     // Add to dropdown if it doesn't exist
                     setMunicipios(prev => prev.includes(muniName) ? prev : [...prev, muniName]);
                 }
@@ -302,9 +321,13 @@ export default function CalculadoraPage() {
                                         <CardTitle className="text-2xl font-bold tracking-tight">Calculadora de Valor Catastral</CardTitle>
                                         <CardDescription className="text-slate-400 font-medium">Estimación aproximada (Urbana / Rústica)</CardDescription>
                                         <Badge variant="outline" className="mt-4 border-accent text-accent bg-accent/10 px-3 py-1 text-xs">
-                                            {getDocumentedUrbanProfile(formData.municipio)
+                                            {documentedProfile
                                                 ? `${formData.municipio} · perfil de referencia documentado`
-                                                : "Sin perfil municipal · introduce la ponencia aplicable"}
+                                                : municipalReference?.partialValuations?.length
+                                                    ? `${formData.municipio} · ponencia total + ${municipalReference.partialValuations.length} parciales`
+                                                : municipalReference
+                                                    ? `${formData.municipio} · fechas e IBI ${JAEN_MUNICIPAL_IBI_TAX_YEAR} verificados`
+                                                    : "Sin perfil municipal · introduce la ponencia aplicable"}
                                         </Badge>
                                     </div>
                                 </CardHeader>
@@ -408,7 +431,7 @@ export default function CalculadoraPage() {
                                                     {/* CT/GB — visible siempre, pre-cargado del municipio */}
                                                     <div className="space-y-2 lg:col-span-2">
                                                         <Label htmlFor="valuation-gb" className="flex items-center gap-1">
-                                                            Coef. CT / G+B
+                                                            Coeficientes y parámetros de la ponencia
                                                             <span className="text-[10px] text-slate-400 font-normal ml-1">(obligatorio — de la Ponencia)</span>
                                                         </Label>
                                                         <Input
@@ -422,14 +445,39 @@ export default function CalculadoraPage() {
                                                             placeholder="Ej: 1.30"
                                                         />
                                                         <p className="text-[10px] text-slate-400">
-                                                            {getDocumentedUrbanProfile(formData.municipio)
-                                                                ? `Perfil de referencia: ${getDocumentedUrbanProfile(formData.municipio)?.gb}. Debes contrastarlo.`
-                                                                : "Sin valor municipal precargado: introdúcelo desde la ponencia."}
+                                                            {documentedProfile
+                                                                ? `Perfil completo de referencia: G+B ${documentedProfile.gb}. Debes contrastarlo.`
+                                                                : municipalReference
+                                                                    ? `Fechas y tipo general de IBI ${JAEN_MUNICIPAL_IBI_TAX_YEAR} verificados; faltan módulos y valor del suelo.`
+                                                                    : "Sin valor municipal precargado: introdúcelo desde la ponencia."}
                                                         </p>
+                                                        {municipalReference && (
+                                                            <p className="text-[10px] font-medium text-primary">
+                                                                Ponencia total: aprobación {municipalReference.assessmentApprovalYear} · efectos {municipalReference.assessmentEffectiveYear}{municipalReference.assessmentPublicationDate ? ` · publicación ${municipalReference.assessmentPublicationDate.split("-").reverse().join("/")}` : ""}. El coeficiente H usa el año de aprobación. Catastro consultado el {JAEN_MUNICIPAL_REFERENCES_VERIFIED_ON.split("-").reverse().join("/")}.{' '}
+                                                                <a href={getOfficialMunicipalReferenceUrl(municipalReference)} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">Consulta oficial del Catastro</a>.
+                                                            </p>
+                                                        )}
+                                                        {municipalReference?.partialValuations?.length ? (
+                                                            <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-[10px] font-medium text-amber-900">
+                                                                <p>
+                                                                    Este municipio también tiene ponencias parciales: {municipalReference.partialValuations.map(({ assessmentApprovalYear, assessmentEffectiveYear, assessmentPublicationDate }) => `aprobación ${assessmentApprovalYear}, efectos ${assessmentEffectiveYear}, publicación ${assessmentPublicationDate.split("-").reverse().join("/")}`).join("; ")}.
+                                                                </p>
+                                                                <p className="mt-1">
+                                                                    Por seguridad no se precarga el año: debes identificar cuál afecta a la parcela antes de confirmar los parámetros.{' '}
+                                                                    <a href={getOfficialMunicipalValuationMapUrl(municipalReference)} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">Consultar mapa y datos numéricos</a>.
+                                                                </p>
+                                                            </div>
+                                                        ) : null}
+                                                        {municipalIbiReference && (
+                                                            <p className="text-[10px] font-medium text-emerald-700">
+                                                                IBI {JAEN_MUNICIPAL_IBI_TAX_YEAR}: urbano general {(municipalIbiReference.generalUrbanRate * 100).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 4 })}% · rústico {(municipalIbiReference.rusticRate * 100).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 4 })}%. Catastro consultado el {JAEN_MUNICIPAL_IBI_VERIFIED_ON.split("-").reverse().join("/")}.{' '}
+                                                                <a href={getOfficialJaenIbiSourceUrl()} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">Fuente oficial</a>.
+                                                            </p>
+                                                        )}
                                                     </div>
 
                                                     {/* CONFIGURACIÓN EXPERTA (Solo si es Personalizado) */}
-                                                    {!getDocumentedUrbanProfile(formData.municipio) && (
+                                                    {!documentedProfile && (
                                                         <div className="lg:col-span-3 p-4 bg-accent/5 border border-accent/20 rounded-xl space-y-4 animate-in fade-in duration-300">
                                                             <h4 className="font-bold text-primary flex items-center gap-2 text-sm uppercase">
                                                                 <Landmark className="h-4 w-4" />
@@ -453,40 +501,38 @@ export default function CalculadoraPage() {
                                                                     <Input id="valuation-rm" type="number" name="custom_rm" step="0.1" value={formData.custom_rm} onChange={handleInputChange} className="h-8 text-xs" />
                                                                 </div>
                                                                 <div className="space-y-1">
-                                                                    <Label htmlFor="valuation-gb-custom" className="text-[10px]">Coef. G+B</Label>
+                                                                    <Label htmlFor="valuation-gb-custom" className="text-[10px]">G+B promoción</Label>
                                                                     <Input id="valuation-gb-custom" type="number" name="custom_gb" step="0.1" value={formData.custom_gb} onChange={handleInputChange} className="h-8 text-xs" />
                                                                 </div>
                                                                 <div className="space-y-1">
-                                                                    <Label htmlFor="valuation-tax-urban" className="text-[10px]">Tipo Urbano</Label>
+                                                                    <Label htmlFor="valuation-tax-urban" className="text-[10px]">Tipo urbano general (decimal)</Label>
                                                                     <Input id="valuation-tax-urban" type="number" name="custom_tipo_urbano" step="0.001" value={formData.custom_tipo_urbano} onChange={handleInputChange} className="h-8 text-xs" />
                                                                 </div>
                                                                 <div className="space-y-1">
-                                                                    <Label htmlFor="valuation-tax-rustic" className="text-[10px]">Tipo Rústico</Label>
+                                                                    <Label htmlFor="valuation-tax-rustic" className="text-[10px]">Tipo rústico (decimal)</Label>
                                                                     <Input id="valuation-tax-rustic" type="number" name="custom_tipo_rustico" step="0.001" value={formData.custom_tipo_rustico} onChange={handleInputChange} className="h-8 text-xs" />
                                                                 </div>
                                                                 <div className="space-y-1">
-                                                                    <Label htmlFor="valuation-assessment-year" className="text-[10px]">Año Ponencia</Label>
+                                                                    <Label htmlFor="valuation-assessment-year" className="text-[10px]">Año aprobación ponencia</Label>
                                                                     <Input id="valuation-assessment-year" type="number" name="custom_anio_ponencia" value={formData.custom_anio_ponencia} onChange={handleInputChange} className="h-8 text-xs" />
                                                                 </div>
                                                             </div>
-                                                            <p className="text-[9px] text-slate-500 italic">Los módulos MBC/MBR, RM, G+B, el año de ponencia y el tipo de IBI deben copiarse de la ponencia o recibo aplicable. La búsqueda catastral no acredita esos parámetros.</p>
+                                                            <p className="text-[9px] text-slate-500 italic">Los módulos, RM, G+B, el año de aprobación de la ponencia y el tipo de IBI deben copiarse de la documentación aplicable. El año de efectos no sustituye al de aprobación para calcular H.</p>
                                                         </div>
                                                     )}
 
-                                                    {/* URBANO */}
+                                                    {/* Correctores urbanos específicos del inmueble */}
                                                     {formData.clase === "urbano" && (
                                                         <>
                                                             <div className="space-y-2">
-                                                                <Label htmlFor="valuation-land-area">Superficie de Parcela (m²)</Label>
-                                                                <Input id="valuation-land-area" type="number" name="sup_parcela" value={formData.sup_parcela} onChange={handleInputChange} />
+                                                                <Label htmlFor="valuation-land-corrector">Corrector del suelo</Label>
+                                                                <Input id="valuation-land-corrector" type="number" name="coef_suelo" min="0" step="0.01" value={formData.coef_suelo} onChange={handleInputChange} />
+                                                                <p className="text-[10px] text-slate-400">Producto de los coeficientes que procedan según la Norma 10. Usa 1 si no resulta aplicable ninguno.</p>
                                                             </div>
                                                             <div className="space-y-2">
-                                                                <Label htmlFor="valuation-land-value">Valor Repercusión Suelo (€/m²)</Label>
-                                                                <Input id="valuation-land-value" type="number" name="valor_rep" value={formData.valor_rep} onChange={handleInputChange} />
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <Label htmlFor="valuation-max-buildability">Edificabilidad Max (m²)</Label>
-                                                                <Input id="valuation-max-buildability" type="number" name="edif_max" value={formData.edif_max} onChange={handleInputChange} />
+                                                                <Label htmlFor="valuation-joint-corrector">Corrector conjunto suelo-construcción</Label>
+                                                                <Input id="valuation-joint-corrector" type="number" name="coef_conjunto" min="0" step="0.01" value={formData.coef_conjunto} onChange={handleInputChange} />
+                                                                <p className="text-[10px] text-slate-400">Producto de los coeficientes que procedan según la Norma 14. Usa 1 si no resulta aplicable ninguno.</p>
                                                             </div>
                                                         </>
                                                     )}
@@ -567,7 +613,7 @@ export default function CalculadoraPage() {
 
                                     <Card className="bg-primary text-white border-none shadow-xl scale-105 z-10 hover:scale-110 transition-transform duration-300 md:col-span-2 lg:col-span-1">
                                         <CardHeader className="p-4 pb-0">
-                                            <CardTitle className="text-sm font-medium text-slate-200 uppercase">Valor Catastral Total (Vcat)</CardTitle>
+                                            <CardTitle className="text-sm font-medium text-slate-200 uppercase">Estimación técnica del valor catastral</CardTitle>
                                         </CardHeader>
                                         <CardContent className="p-4 pt-2">
                                             <p className="text-3xl font-bold text-accent">{Number(result.valor_catastral_total).toLocaleString("es-ES")} €</p>
@@ -578,11 +624,12 @@ export default function CalculadoraPage() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
                                     <Card className="border-accent/30 bg-accent/5">
                                         <CardHeader className="p-4 pb-0">
-                                            <CardTitle className="text-sm font-medium text-slate-500 uppercase">Cuota Anual IBI</CardTitle>
+                                            <CardTitle className="text-sm font-medium text-slate-500 uppercase">Aproximación cuota íntegra IBI</CardTitle>
                                         </CardHeader>
                                         <CardContent className="p-4 pt-2">
                                             <p className="text-2xl font-bold text-primary">{Number(result.cuota_ibi_anual).toLocaleString("es-ES")} €</p>
                                             <p className="text-xs text-slate-400">Tipo: {(result.tipo_aplicado * 100).toFixed(3)}%</p>
+                                            <p className="text-xs text-slate-400">Supone base liquidable igual al valor estimado y no descuenta bonificaciones.</p>
                                         </CardContent>
                                     </Card>
                                 </div>

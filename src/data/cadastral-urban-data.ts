@@ -16,54 +16,52 @@ export interface TipologiaConstructivaUrbana {
 
 export const dbTipologiasUrbanas: TipologiaConstructivaUrbana[] = [
     {
-        // 1.1 Vivienda colectiva en bloque abierto/cerrado
-        id: "AAP", nombre: "Vivienda colectiva / Piso", clase: "01235",
-        categorias: { 1: 1.00, 2: 0.90, 3: 0.80, 4: 0.60, 5: 0.50, 6: 0.45, 7: 0.40, 8: 0.35, 9: 0.30 }
+        id: "AAP", nombre: "1.1.1 Vivienda colectiva · edificación abierta", clase: "1.1.1",
+        categorias: { 1: 1.65, 2: 1.40, 3: 1.20, 4: 1.05, 5: 0.95, 6: 0.85, 7: 0.75, 8: 0.65, 9: 0.55 }
     },
     {
-        // 1.2 Vivienda aislada o pareada
-        id: "V", nombre: "Vivienda en bloque / Aislada", clase: "01225",
-        categorias: { 1: 1.40, 2: 1.25, 3: 1.15, 4: 1.05, 5: 0.95, 6: 0.85, 7: 0.75, 8: 0.65, 9: 0.55 }
+        id: "AMC", nombre: "1.1.2 Vivienda colectiva · manzana cerrada", clase: "1.1.2",
+        categorias: { 1: 1.60, 2: 1.35, 3: 1.15, 4: 1.00, 5: 0.90, 6: 0.80, 7: 0.70, 8: 0.60, 9: 0.50 }
     },
     {
-        // 2.1 Industria (Nave)
-        id: "IAL", nombre: "Industrial / Nave", clase: "02125",
-        categorias: { 1: 1.00, 2: 0.90, 3: 0.80, 4: 0.60, 5: 0.50, 6: 0.45, 7: 0.40, 8: 0.35, 9: 0.30 }
+        id: "V", nombre: "1.2.1 Vivienda unifamiliar · aislada o pareada", clase: "1.2.1",
+        categorias: { 1: 2.15, 2: 1.80, 3: 1.45, 4: 1.25, 5: 1.10, 6: 1.00, 7: 0.90, 8: 0.80, 9: 0.70 }
     },
     {
-        // 2.2 Almacén / Trastero
-        id: "AAL", nombre: "Almacenamiento / Trastero", clase: "02135",
-        categorias: { 1: 0.85, 2: 0.70, 3: 0.60, 4: 0.45, 5: 0.35, 6: 0.30, 7: 0.25, 8: 0.20, 9: 0.15 }
+        id: "VMC", nombre: "1.2.2 Vivienda unifamiliar · en línea/manzana cerrada", clase: "1.2.2",
+        categorias: { 1: 2.00, 2: 1.65, 3: 1.35, 4: 1.15, 5: 1.05, 6: 0.95, 7: 0.85, 8: 0.75, 9: 0.65 }
     },
     {
-        // 3. Oficinas
-        id: "OFI", nombre: "Oficinas", clase: "03235",
-        categorias: { 1: 1.25, 2: 1.10, 3: 1.00, 4: 0.80, 5: 0.65, 6: 0.55, 7: 0.45, 8: 0.35, 9: 0.30 }
+        id: "IAL", nombre: "2.1.1 Nave de fabricación · una planta", clase: "2.1.1",
+        categorias: { 1: 1.05, 2: 0.90, 3: 0.75, 4: 0.60, 5: 0.50, 6: 0.45, 7: 0.40, 8: 0.37, 9: 0.35 }
     },
     {
-        // 4. Comercio
-        id: "COM", nombre: "Comercio / Local", clase: "04235",
-        categorias: { 1: 1.30, 2: 1.15, 3: 1.05, 4: 0.85, 5: 0.70, 6: 0.60, 7: 0.50, 8: 0.40, 9: 0.30 }
+        id: "AAL", nombre: "2.1.3 Nave de almacenamiento", clase: "2.1.3",
+        categorias: { 1: 0.85, 2: 0.70, 3: 0.60, 4: 0.50, 5: 0.45, 6: 0.35, 7: 0.30, 8: 0.25, 9: 0.20 }
     },
     {
-        // 5. Deportivo
-        id: "KPS", nombre: "Deportivo / Piscina", clase: "05225",
-        categorias: { 1: 0.85, 2: 0.75, 3: 0.60, 4: 0.50, 5: 0.40, 6: 0.30, 7: 0.20, 8: 0.10, 9: 0.05 }
+        id: "OFI", nombre: "3.2.1 Oficinas en edificio mixto · unido a viviendas", clase: "3.2.1",
+        categorias: { 1: 2.05, 2: 1.80, 3: 1.50, 4: 1.30, 5: 1.10, 6: 1.00, 7: 0.90, 8: 0.80, 9: 0.70 }
     },
     {
-        // 6. Plazas de Garaje / Aparcamiento
-        id: "GAR", nombre: "Aparcamiento / Garaje", clase: "06235",
-        categorias: { 1: 0.60, 2: 0.55, 3: 0.50, 4: 0.35, 5: 0.30, 6: 0.25, 7: 0.20, 8: 0.15, 9: 0.10 }
+        id: "COM", nombre: "4.1.1 Local comercial/taller en edificio mixto", clase: "4.1.1",
+        categorias: { 1: 1.95, 2: 1.60, 3: 1.35, 4: 1.20, 5: 1.05, 6: 0.95, 7: 0.85, 8: 0.75, 9: 0.65 }
     },
     {
-        // 7. Espectáculos / Ocio
-        id: "ESC", nombre: "Ocio / Espectáculos", clase: "07235",
-        categorias: { 1: 1.50, 2: 1.30, 3: 1.10, 4: 0.90, 5: 0.75, 6: 0.65, 7: 0.50, 8: 0.40, 9: 0.30 }
+        id: "KPS", nombre: "5.2.2 Piscina descubierta", clase: "5.2.2",
+        categorias: { 1: 0.90, 2: 0.80, 3: 0.70, 4: 0.60, 5: 0.50, 6: 0.40, 7: 0.35, 8: 0.30, 9: 0.25 }
     },
     {
-        // 8. Hostelería
-        id: "HOS", nombre: "Hostelería / Hotel", clase: "08235",
-        categorias: { 1: 1.60, 2: 1.40, 3: 1.20, 4: 1.00, 5: 0.85, 6: 0.75, 7: 0.60, 8: 0.50, 9: 0.40 }
+        id: "GAR", nombre: "2.2.1 Garaje", clase: "2.2.1",
+        categorias: { 1: 1.15, 2: 1.00, 3: 0.85, 4: 0.70, 5: 0.60, 6: 0.50, 7: 0.40, 8: 0.30, 9: 0.20 }
+    },
+    {
+        id: "ESC", nombre: "6.1.1 Espectáculos varios · cubiertos", clase: "6.1.1",
+        categorias: { 1: 1.90, 2: 1.70, 3: 1.50, 4: 1.35, 5: 1.20, 6: 1.05, 7: 0.95, 8: 0.85, 9: 0.75 }
+    },
+    {
+        id: "HOS", nombre: "7.1.1 Hotel, hostal o motel", clase: "7.1.1",
+        categorias: { 1: 2.65, 2: 2.35, 3: 2.10, 4: 1.90, 5: 1.70, 6: 1.50, 7: 1.35, 8: 1.20, 9: 1.05 }
     }
 ];
 

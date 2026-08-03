@@ -10,6 +10,10 @@ import { toast } from "@/hooks/use-toast";
 import { analyzeWithBackend } from "@/lib/backend-api";
 import { dbTipologiasUrbanas, coeficientesConservacionUrbana } from "@/data/cadastral-urban-data";
 import { calculateUrbanValuation } from "@/lib/cadastral-valuation";
+import {
+    getMunicipalUrbanZoneRegistry,
+    getOfficialZoneLandValue,
+} from "@/data/cadastral-urban-zones";
 
 export interface UrbanCalculatorProps {
     formData: any;
@@ -20,6 +24,8 @@ export interface UrbanCalculatorProps {
 
 export function UrbanCalculator({ formData, setFormData, onCalculate, loading }: UrbanCalculatorProps) {
     const [kmzLoading, setKmzLoading] = useState(false);
+    const zoneRegistry = getMunicipalUrbanZoneRegistry(formData.municipio);
+    const selectedZone = zoneRegistry?.zones.find(({ code }) => code === formData.zona_valor) ?? null;
 
     const handleKmzImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files || e.target.files.length === 0) return;
@@ -76,7 +82,29 @@ export function UrbanCalculator({ formData, setFormData, onCalculate, loading }:
     };
 
     const handleSelectChange = (name: string, value: string) => {
-        setFormData(prev => ({ ...prev, [name]: value }));
+        setFormData(prev => {
+            if (name === "uso_const" && selectedZone) {
+                return {
+                    ...prev,
+                    [name]: value,
+                    valor_rep: getOfficialZoneLandValue(selectedZone, value) ?? 0,
+                    parameters_confirmed: false,
+                };
+            }
+            return { ...prev, [name]: value };
+        });
+    };
+
+    const handleZoneChange = (code: string) => {
+        const zone = zoneRegistry?.zones.find(candidate => candidate.code === code);
+        if (!zone) return;
+        setFormData(prev => ({
+            ...prev,
+            zona_valor: zone.code,
+            metodo_suelo: zone.method,
+            valor_rep: getOfficialZoneLandValue(zone, prev.uso_const) ?? 0,
+            parameters_confirmed: false,
+        }));
     };
 
     const calculateUrbanValue = () => {
@@ -90,7 +118,7 @@ export function UrbanCalculator({ formData, setFormData, onCalculate, loading }:
         if (!formData.parameters_confirmed || requiredParameters.some(value => !Number.isFinite(value) || value <= 0)) {
             toast({
                 title: "Confirma los parámetros municipales",
-                description: "Introduce valores positivos para repercusión, G+B, RM, MBC y año de ponencia, y confirma que los has contrastado.",
+                description: "Introduce valores positivos para el suelo, G+B, RM, MBC y año de aprobación de la ponencia, y confirma que los has contrastado.",
                 variant: "destructive",
             });
             return;
@@ -100,56 +128,62 @@ export function UrbanCalculator({ formData, setFormData, onCalculate, loading }:
         const categoria = Number(formData.categoria);
         const coefU = tipologia?.categorias[categoria] ?? 1;
         const coefI = coeficientesConservacionUrbana.find(c => c.value === formData.estado)?.coef ?? 1;
-        const calculation = calculateUrbanValuation({
-            soilArea: formData.sup_parcela,
-            constructionArea: formData.sup_const,
-            repercussionValue: formData.valor_rep,
-            expensesCoefficient: formData.custom_gb,
-            marketCoefficient: formData.custom_rm,
-            basicConstructionModule: formData.custom_mbc,
-            constructionTypeCoefficient: coefU,
-            conservationCoefficient: coefI,
-            referenceYear: formData.custom_anio_ponencia,
-            constructionYear: formData.anio_const,
-            typeId: formData.uso_const,
-            category: categoria,
-            ibiRate: formData.custom_tipo_urbano,
-        });
+        try {
+            const calculation = calculateUrbanValuation({
+                soilArea: formData.sup_parcela,
+                constructionArea: formData.sup_const,
+                potentialConstructionArea: formData.edif_max,
+                landValuationMethod: formData.metodo_suelo,
+                landValue: formData.valor_rep,
+                landCorrector: formData.coef_suelo,
+                promotionCoefficient: formData.custom_gb,
+                jointCorrector: formData.coef_conjunto,
+                marketCoefficient: formData.custom_rm,
+                basicConstructionModule: formData.custom_mbc,
+                constructionTypeCoefficient: coefU,
+                conservationCoefficient: coefI,
+                assessmentApprovalYear: formData.custom_anio_ponencia,
+                constructionYear: formData.anio_const,
+                typeId: formData.uso_const,
+                category: categoria,
+                ibiRate: formData.custom_tipo_urbano,
+            });
 
-        if (calculation.effectiveSoilArea <= 0 && Number(formData.sup_const) <= 0) {
+            onCalculate({
+                suelo_urbano: calculation.soilValue,
+                construccion: calculation.constructionValue,
+                valor_catastral_total: calculation.totalValue,
+                cuota_ibi_anual: calculation.estimatedGrossIbi,
+                tipo_aplicado: calculation.ibiRate,
+                detalles: {
+                    suelo: {
+                        sup: calculation.landValuationArea,
+                        metodo: calculation.landValuationMethod,
+                        valor: Number(formData.valor_rep),
+                        corrector: Number(formData.coef_suelo),
+                        promocion: Number(formData.custom_gb),
+                        rm: Number(formData.custom_rm),
+                    },
+                    construccion: {
+                        sup: Number(formData.sup_const),
+                        tipologia: tipologia?.nombre || "Genérico",
+                        coefU,
+                        age: calculation.valuationAge,
+                        approvalYear: calculation.assessmentApprovalYear,
+                        coefH: calculation.ageCoefficient,
+                        estado: formData.estado,
+                        coefI,
+                        mbc: Number(formData.custom_mbc),
+                    },
+                }
+            });
+        } catch (error) {
             toast({
-                title: "Faltan superficies",
-                description: "Introduce una superficie de parcela o de construcción mayor que cero.",
+                title: "No se puede calcular",
+                description: error instanceof Error ? error.message : "Revisa los parámetros de valoración.",
                 variant: "destructive",
             });
-            return;
         }
-
-        onCalculate({
-            suelo_urbano: calculation.soilValue,
-            construccion: calculation.constructionValue,
-            valor_catastral_total: calculation.totalValue,
-            cuota_ibi_anual: calculation.annualIbi,
-            tipo_aplicado: calculation.ibiRate,
-            detalles: {
-                suelo: {
-                    sup: calculation.effectiveSoilArea,
-                    vr: Number(formData.valor_rep),
-                    coefG: Number(formData.custom_gb),
-                    rm: Number(formData.custom_rm),
-                },
-                construccion: {
-                    sup: Number(formData.sup_const),
-                    tipologia: tipologia?.nombre || "Genérico",
-                    coefU,
-                    age: calculation.valuationAge,
-                    coefH: calculation.ageCoefficient,
-                    estado: formData.estado,
-                    coefI,
-                    mbc: Number(formData.custom_mbc),
-                },
-            }
-        });
     };
 
     return (
@@ -192,6 +226,31 @@ export function UrbanCalculator({ formData, setFormData, onCalculate, loading }:
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {zoneRegistry && (
+                    <div className="space-y-2 md:col-span-2 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+                        <Label htmlFor="urban-value-zone" className="text-emerald-900 font-semibold">Zona de valor oficial</Label>
+                        <Select value={formData.zona_valor || undefined} onValueChange={handleZoneChange}>
+                            <SelectTrigger id="urban-value-zone" className="h-11 bg-white border-emerald-300">
+                                <SelectValue placeholder="Selecciona la zona que corresponde a la parcela" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {zoneRegistry.zones.map(zone => (
+                                    <SelectItem key={zone.code} value={zone.code}>
+                                        {zone.code} · {zone.method === "unit" ? `unitario ${zone.value} €/m² suelo` : "repercusión por uso"}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <p className="text-xs text-emerald-800">
+                            La selección carga el valor inicial publicado para el uso elegido. No aplica automáticamente reducciones por urbanización ni correctores particulares de la finca.{' '}
+                            <a href={zoneRegistry.sourceUrl} target="_blank" rel="noopener noreferrer" className="font-semibold underline underline-offset-2">Tabla pública del Catastro</a>.
+                        </p>
+                        {selectedZone && getOfficialZoneLandValue(selectedZone, formData.uso_const) === null && (
+                            <p className="text-xs font-semibold text-amber-800">La tabla no define una correspondencia automática para esta tipología. Introduce y contrasta el valor manualmente.</p>
+                        )}
+                    </div>
+                )}
+
                 <div className="space-y-2">
                     <Label htmlFor="urban-use" className="text-slate-600 font-medium">Uso / Tipología Urbana</Label>
                     <Select value={formData.uso_const} onValueChange={(v: string) => handleSelectChange("uso_const", v)}>
@@ -213,15 +272,9 @@ export function UrbanCalculator({ formData, setFormData, onCalculate, loading }:
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="1">Categoría 1 (Lujo Max)</SelectItem>
-                            <SelectItem value="2">Categoría 2 (Lujo)</SelectItem>
-                            <SelectItem value="3">Categoría 3 (Muy Buena)</SelectItem>
-                            <SelectItem value="4">Categoría 4 (Buena)</SelectItem>
-                            <SelectItem value="5">Categoría 5 (Normal)</SelectItem>
-                            <SelectItem value="6">Categoría 6 (Sencilla)</SelectItem>
-                            <SelectItem value="7">Categoría 7 (Económica)</SelectItem>
-                            <SelectItem value="8">Categoría 8 (Ínfima)</SelectItem>
-                            <SelectItem value="9">Categoría 9 (Ruina)</SelectItem>
+                            {Array.from({ length: 9 }, (_, index) => index + 1).map(category => (
+                                <SelectItem key={category} value={String(category)}>Categoría constructiva {category}</SelectItem>
+                            ))}
                         </SelectContent>
                     </Select>
                 </div>
@@ -251,9 +304,30 @@ export function UrbanCalculator({ formData, setFormData, onCalculate, loading }:
                 </div>
 
                 <div className="space-y-2">
-                    <Label htmlFor="urban-land-value" className="text-slate-600 font-medium">Valor Repercusión Suelo (€/m²)</Label>
+                    <Label htmlFor="urban-land-method" className="text-slate-600 font-medium">Método de valoración del suelo</Label>
+                    <Select value={formData.metodo_suelo} onValueChange={(v: string) => handleSelectChange("metodo_suelo", v)}>
+                        <SelectTrigger id="urban-land-method" className="h-11 bg-slate-50 border-slate-200"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="repercussion">Repercusión (€/m² construido real o potencial)</SelectItem>
+                            <SelectItem value="unit">Unitario (€/m² de suelo)</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <div className="space-y-2">
+                    <Label htmlFor="urban-land-value" className="text-slate-600 font-medium">
+                        {formData.metodo_suelo === "repercussion" ? "Valor de repercusión (€/m² construido)" : "Valor unitario (€/m² de suelo)"}
+                    </Label>
                     <Input id="urban-land-value" type="number" min="0" step="0.01" name="valor_rep" value={formData.valor_rep} onChange={handleInputChange} className="h-11 bg-slate-50 border-slate-200 text-lg font-medium" />
                 </div>
+
+                {formData.metodo_suelo === "repercussion" && (
+                    <div className="space-y-2">
+                        <Label htmlFor="urban-potential-area" className="text-slate-600 font-medium">Superficie construible potencial (m², opcional)</Label>
+                        <Input id="urban-potential-area" type="number" min="0" step="0.01" name="edif_max" value={formData.edif_max} onChange={handleInputChange} className="h-11 bg-slate-50 border-slate-200 text-lg font-medium" />
+                        <p className="text-xs text-slate-500">Si queda a cero se utilizará la superficie realmente construida.</p>
+                    </div>
+                )}
 
                 <div className="space-y-2">
                     <Label htmlFor="urban-land-area" className="text-slate-600 font-medium">Superficie Suelo / Parcela (m²)</Label>
@@ -294,7 +368,7 @@ export function UrbanCalculator({ formData, setFormData, onCalculate, loading }:
                         className="mt-0.5 h-4 w-4 rounded border-amber-400"
                     />
                     <span>
-                        He contrastado el valor de repercusión, MBC, RM, G+B, año de ponencia y tipo de IBI con la documentación aplicable al inmueble.
+                        He contrastado método y valor del suelo, MBC, RM, gastos y beneficios, año de aprobación de la ponencia y tipo de IBI con la documentación aplicable.
                     </span>
                 </label>
             </div>
