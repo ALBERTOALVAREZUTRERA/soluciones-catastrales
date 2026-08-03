@@ -46,6 +46,11 @@ COORDINATE_XML = b"""
 </consulta_coordenadas>
 """
 
+ANDUJAR_PROPERTY_XML = PROPERTY_XML.replace(
+    b"<np>VALENCIA</np><nm>GODELLETA</nm>",
+    b"<np>JAEN</np><nm>ANDUJAR</nm>",
+)
+
 
 class CatastroXmlTests(unittest.TestCase):
     def test_normalizes_only_supported_reference_lengths(self):
@@ -99,6 +104,21 @@ class CatastroEndpointTests(unittest.TestCase):
                 BuscarRCRequest(referencia_catastral="1234567890123!")
             )
         self.assertEqual(raised.exception.status_code, 400)
+
+    @patch("main.TaxCalculator.get_valuation_zone", return_value=None)
+    @patch("main.get_coordinates", return_value=ET.fromstring(COORDINATE_XML))
+    @patch("main.get_property", return_value=ET.fromstring(ANDUJAR_PROPERTY_XML))
+    def test_andujar_never_invents_a_zone_when_wms_has_no_result(
+        self,
+        _property,
+        _coordinates,
+        _valuation,
+    ):
+        result = buscar_por_referencia_catastral(
+            BuscarRCRequest(referencia_catastral="2749704YJ0624N0001DI")
+        )
+        self.assertIsNone(result["zona_valor"])
+        self.assertEqual(result["valor_rep"], 0)
 
     @patch(
         "main.get_property",

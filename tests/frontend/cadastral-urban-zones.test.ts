@@ -5,7 +5,9 @@ import {
     getMunicipalUrbanZoneRegistry,
     getOfficialZoneLandValue,
     getRepercussionUse,
+    getUrbanTypeIdFromCadastralUse,
     MUNICIPAL_URBAN_ZONE_REGISTRIES,
+    resolveOfficialZoneSelection,
 } from "../../src/data/cadastral-urban-zones";
 import { getDocumentedUrbanProfile } from "../../src/data/cadastral-municipal-profiles";
 import { calculateUrbanValuation } from "../../src/lib/cadastral-valuation";
@@ -69,6 +71,26 @@ describe("zonas urbanas documentadas", () => {
         assert.equal(getRepercussionUse("KPS"), null);
         assert.equal(getRepercussionUse("ESC"), null);
         assert.equal(getOfficialZoneLandValue(zone, "KPS"), null);
+    });
+
+    test("convierte el uso catastral y resuelve únicamente zonas publicadas", () => {
+        assert.equal(getUrbanTypeIdFromCadastralUse("Residencial"), "AAP");
+        assert.equal(getUrbanTypeIdFromCadastralUse("Almacén industrial"), "IAL");
+        assert.equal(getUrbanTypeIdFromCadastralUse("Local comercial"), "COM");
+        assert.equal(getUrbanTypeIdFromCadastralUse("Garaje / aparcamiento"), "GAR");
+
+        assert.deepEqual(resolveOfficialZoneSelection("Andújar (Jaén)", "r37c", "COM"), {
+            zoneCode: "R37C",
+            method: "repercussion",
+            landValue: 575,
+        });
+        assert.deepEqual(resolveOfficialZoneSelection("Andújar", "U49", "AAP"), {
+            zoneCode: "U49",
+            method: "unit",
+            landValue: 26,
+        });
+        assert.equal(resolveOfficialZoneSelection("Andújar", "R99", "AAP"), null);
+        assert.equal(resolveOfficialZoneSelection("Jaén", "R37C", "AAP"), null);
     });
 
     test("calcula casos residenciales reproducibles de los tres municipios", () => {
