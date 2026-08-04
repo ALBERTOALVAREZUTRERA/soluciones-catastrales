@@ -16,6 +16,10 @@ backend/__pycache__/
 out/
 build/
 backend/temp_files/
+backend/data/*.cat
+backend/data/*.CAT
+backend/data/*.zip
+backend/data/*.sqlite*
 *.tsbuildinfo
 coverage/
 test-results/

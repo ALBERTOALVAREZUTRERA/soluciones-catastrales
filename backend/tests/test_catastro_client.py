@@ -77,6 +77,41 @@ class CatastroXmlTests(unittest.TestCase):
 
 
 class CatastroEndpointTests(unittest.TestCase):
+    @patch(
+        "main.get_cat_enrichment",
+        return_value={
+            "available": True,
+            "source": "DGC_CAT",
+            "age_year": 1972,
+            "built_surface": 94,
+            "dominant": {
+                "urban_type_id": "AMC",
+                "typology_code": "0112",
+                "category": 4,
+                "effective_year": 1972,
+                "reform_type": None,
+                "reform_year": None,
+            },
+        },
+    )
+    @patch("main.TaxCalculator.get_valuation_zone", return_value="R43")
+    @patch("main.get_coordinates", return_value=ET.fromstring(COORDINATE_XML))
+    @patch("main.get_property", return_value=ET.fromstring(ANDUJAR_PROPERTY_XML))
+    def test_reference_lookup_prefers_official_cat_construction_details(
+        self,
+        _property,
+        _coordinates,
+        _valuation,
+        _cat,
+    ):
+        result = buscar_por_referencia_catastral(
+            BuscarRCRequest(referencia_catastral="2749704YJ0624N0001DI")
+        )
+        self.assertEqual(result["datos_constructivos_fuente"], "DGC_CAT")
+        self.assertEqual(result["tipologia_constructiva"], "AMC")
+        self.assertEqual(result["categoria_constructiva"], 4)
+        self.assertEqual(result["anio_const"], 1972)
+
     @patch("main.TaxCalculator.get_valuation_zone", return_value=None)
     @patch("main.get_coordinates", return_value=ET.fromstring(COORDINATE_XML))
     @patch("main.get_property", return_value=ET.fromstring(PROPERTY_XML))

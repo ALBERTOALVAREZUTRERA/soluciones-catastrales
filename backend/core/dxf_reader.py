@@ -64,15 +64,15 @@ class DXFReader:
         """
         import os
         nombre_base_dxf = os.path.splitext(os.path.basename(ruta_dxf))[0]
-        
+
         # Compatibilidad hacia atrás si pasan un string
         if isinstance(capas_parcelas, str):
             capas_parcelas = [capas_parcelas]
-            
+
         try:
             doc = ezdxf.readfile(ruta_dxf)
             msp = doc.modelspace()
-            
+
             parcelas = []
             todos_textos = []
 
@@ -81,28 +81,59 @@ class DXFReader:
                 textos = msp.query(f'TEXT[layer=="{capa_textos}"]')
                 textos_m = msp.query(f'MTEXT[layer=="{capa_textos}"]')
                 todos_textos = list(textos) + list(textos_m)
-            
+
+            def crear_parcela(coordenadas, capa):
+                parcela = ParcelaInfo()
+                parcela.coordenadas = coordenadas
+                parcela.area = DXFReader.calcular_area(coordenadas)
+                parcela.punto_referencia = DXFReader.calcular_centroide(coordenadas)
+                parcela.capa_origen = capa
+
+                referencia = DXFReader.buscar_texto_dentro(parcela, todos_textos)
+                if referencia:
+                    referencia_limpia = referencia.replace(" ", "").upper()
+                    if len(referencia_limpia) in [14, 18, 20] and referencia_limpia.isalnum():
+                        parcela.referencia_catastral = referencia_limpia
+                        parcela.nombre_archivo = referencia_limpia
+                    else:
+                        parcela.referencia_catastral = None
+                        parcela.nombre_archivo = referencia
+                else:
+                    nombre_limpio = nombre_base_dxf.strip().upper()
+                    es_rc_valida = (
+                        len(nombre_limpio) in (14, 18, 20)
+                        and nombre_limpio.isalnum()
+                    )
+                    if es_rc_valida:
+                        parcela.referencia_catastral = nombre_limpio
+                        parcela.nombre_archivo = nombre_limpio
+                    else:
+                        parcela.referencia_catastral = None
+                        parcela.nombre_archivo = nombre_base_dxf
+                return parcela
+
             # Iterar sobre las capas de geometría
             for capa in capas_parcelas:
-                # CORRECCIÓN CRÍTICA: PG-LI son divisiones interiores VÁLIDAS
-                # NO ignorar, son parte importante de la parcela
-                # Extraer Polilíneas de esta capa
                 lw_polys = msp.query(f'LWPOLYLINE[layer=="{capa}"]')
                 legacy_polys = msp.query(f'POLYLINE[layer=="{capa}"]')
                 polilineas = list(lw_polys) + list(legacy_polys)
-                
+                lineas = list(msp.query(f'LINE[layer=="{capa}"]'))
+                fragmentos_abiertos = []
+
                 # Procesar cada polilínea
-                for i, poly in enumerate(polilineas):
-                    # Verificar si está cerrada
+                for poly in polilineas:
                     is_closed = poly.is_closed
-                    
+
                     # Obtener puntos según el tipo
                     if poly.dxftype() == 'LWPOLYLINE':
-                       puntos_raw = poly.get_points()
-                       coordenadas = [(p[0], p[1]) for p in puntos_raw]
+                        puntos_raw = poly.get_points()
+                        coordenadas = [(p[0], p[1]) for p in puntos_raw]
                     else:
-                       coordenadas = [(v.dxf.location.x, v.dxf.location.y) for v in poly.vertices]
-                    
+                        coordenadas = [
+                            (v.dxf.location.x, v.dxf.location.y)
+                            for v in poly.vertices
+                        ]
+
                     # Solo admitir anillos declarados como cerrados o cuyos
                     # extremos coincidan dentro de una tolerancia topográfica.
                     if len(coordenadas) > 2:
@@ -117,63 +148,45 @@ class DXFReader:
                                 coordenadas.append(start)
                             is_closed = True
 
-                    if not is_closed or len(set(coordenadas[:-1])) < 3:
+                    if not is_closed:
+                        if len(coordenadas) >= 2:
+                            fragmentos_abiertos.append(coordenadas)
                         continue
-                    
-                    # Crear parcela preliminar
-                    parcela = ParcelaInfo()
-                    parcela.coordenadas = coordenadas
-                    parcela.area = DXFReader.calcular_area(coordenadas)
-                    parcela.punto_referencia = DXFReader.calcular_centroide(coordenadas)
-                    parcela.capa_origen = capa # GUARDAR CAPA ORIGEN
-                    
-                    # Buscar texto dentro del polígono
-                    referencia = DXFReader.buscar_texto_dentro(parcela, todos_textos)
-                    
-                    if referencia:
-                        referencia_limpia = referencia.replace(" ", "").upper()
-                        if len(referencia_limpia) in [14, 18, 20] and referencia_limpia.isalnum():
-                            parcela.referencia_catastral = referencia_limpia
-                            parcela.nombre_archivo = referencia_limpia
-                        else:
-                            parcela.referencia_catastral = None
-                            parcela.nombre_archivo = referencia
-                    else:
-                        # Naming fallback
-                        # 1. Intentar usar el nombre del archivo si parece una RC (14 caracteres)
-                        nombre_limpio = nombre_base_dxf.strip().upper()
-                        # Validación simple de RC: 14 caracteres alfanuméricos (o 20)
-                        es_rc_valida = (
-                            len(nombre_limpio) in (14, 18, 20)
-                            and nombre_limpio.isalnum()
-                        )
-                        
-                        if es_rc_valida:
-                             parcela.referencia_catastral = nombre_limpio
-                             parcela.nombre_archivo = nombre_limpio
-                        else:
-                             # Caso Local / Nombre de archivo genérico
-                             parcela.referencia_catastral = None
-                             
-                             # Si es un solo objeto, el nombre es el archivo
-                             if len(polilineas) == 1 and len(capas_parcelas) == 1:
-                                 nombre = nombre_base_dxf
-                             else:
-                                 # Multiples objetos: Nombre + Indice para diferenciar (si no se agrupan luego)
-                                 # El usuario pide: ES.LOCAL.CP.NOMBRE_ARCHIVO
-                                 # Si hay VARIAS, deberían ser Partes del mismo...
-                                 # Vamos a asumir que si no es RC, también queremos agrupar por nombre de archivo
-                                 # pero cuidado con IDs duplicados si no se agrupan.
-                                 # La agrupación se hace en main_window por identificador.
-                                 # ASÍ QUE USAMOS EL MISMO NOMBRE BASE
-                                 nombre = nombre_base_dxf
-                                 
-                             parcela.nombre_archivo = nombre
-                    
-                    parcelas.append(parcela)
-                
+
+                    if len(set(coordenadas[:-1])) >= 3:
+                        parcelas.append(crear_parcela(coordenadas, capa))
+
+                for linea in lineas:
+                    fragmentos_abiertos.append([
+                        (linea.dxf.start.x, linea.dxf.start.y),
+                        (linea.dxf.end.x, linea.dxf.end.y),
+                    ])
+
+                # Los DXF catastrales R12 pueden repartir un recinto entre
+                # POLYLINE y LINE abiertas. Polygonize solo crea parcelas si
+                # esos fragmentos forman anillos exactos, sin inventar cierres.
+                if fragmentos_abiertos:
+                    from shapely.geometry import LineString
+                    from shapely.ops import polygonize, unary_union
+
+                    linework = [LineString(points) for points in fragmentos_abiertos]
+                    stitched = sorted(
+                        polygonize(unary_union(linework)),
+                        key=lambda polygon: (
+                            round(polygon.bounds[0], 8),
+                            round(polygon.bounds[1], 8),
+                            -polygon.area,
+                        ),
+                    )
+                    for polygon in stitched:
+                        if not polygon.is_empty and polygon.area > 0:
+                            parcelas.append(crear_parcela(
+                                list(polygon.exterior.coords),
+                                capa,
+                            ))
+
             return parcelas
-            
+
         except Exception as e:
             raise Exception(f"Error al leer DXF: {str(e)}")
 

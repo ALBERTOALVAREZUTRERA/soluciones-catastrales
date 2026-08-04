@@ -1,8 +1,9 @@
 
 import os
 import logging
+import re
 from datetime import datetime
-from .parcel_model import ParcelaInfo
+from .parcel_model import ParcelaInfo, sanitizar_nombre_catastral
 import math
 
 
@@ -52,6 +53,18 @@ class GMLGenerator:
         'xlink': 'http://www.w3.org/1999/xlink',
         'xsi': 'http://www.w3.org/2001/XMLSchema-instance'
     }
+
+    @staticmethod
+    def cadastral_parcel_label(reference: str) -> str:
+        """Obtiene la etiqueta de parcela urbana o rústica desde una RC de 14 caracteres."""
+        normalized = re.sub(r"\s+", "", str(reference or "")).upper()
+        if not re.fullmatch(r"[A-Z0-9]{14}", normalized):
+            return ""
+        if re.fullmatch(r"\d{7}[A-Z0-9]{7}", normalized):
+            return normalized[5:7]
+        if re.fullmatch(r"\d{5}[A-Z]\d{8}", normalized):
+            return normalized[9:14].lstrip("0") or "0"
+        return ""
 
     @staticmethod
     def prepare_polygon(exterior, holes=None, exterior_clockwise=False):
@@ -206,8 +219,10 @@ class GMLGenerator:
         if parcela.referencia_catastral:
             # Caso A: Tiene RC -> ES.SDGC
             namespace_prefix = "ES.SDGC"
-            # Usamos el identificador ya sanitizado (que será la RC limpia)
-            local_id = parcela.identificador
+            # El GML de parcela identifica la parcela base (14 caracteres),
+            # no la unidad/inmueble completa de 18 o 20 caracteres.
+            reference = sanitizar_nombre_catastral(parcela.referencia_catastral)
+            local_id = reference[:14] if len(reference) in (18, 20) else reference
         else:
             # Caso B: No tiene RC -> ES.LOCAL
             namespace_prefix = "ES.LOCAL"
@@ -493,21 +508,12 @@ class GMLGenerator:
 
         # 8. Label & Ref
         lbl = ET.SubElement(cp, f"{{{ns['cp']}}}label")
-        # Logic: Extract Parcel Number (digits 6-7 of RC)
-        # RC Example: 40679 26 VH2137S
-        label_txt = ""
         clean_id = str(local_id).strip().upper()
-        if len(clean_id) == 14 and clean_id[0:5].isdigit() and clean_id[5:7].isdigit():
-             label_txt = clean_id[5:7] # Characters at index 5 and 6
-        elif len(clean_id) == 20:
-             # Full RC 20 chars: 4067926VH2137S0001TT
-             if clean_id[0:5].isdigit() and clean_id[5:7].isdigit():
-                 label_txt = clean_id[5:7]
-        
-        lbl.text = label_txt
+        lbl.text = GMLGenerator.cadastral_parcel_label(clean_id)
         
         ref = ET.SubElement(cp, f"{{{ns['cp']}}}nationalCadastralReference")
-        ref.text = str(local_id)
+        if not is_local:
+            ref.text = str(local_id)
         
         # 9. Reference Point
         if coords:

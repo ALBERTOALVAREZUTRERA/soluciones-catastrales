@@ -45,6 +45,23 @@ class DxfImportTests(unittest.TestCase):
         self.assertAlmostEqual(result[0].area, 100)
         self.assertEqual(result[0].coordenadas[0], result[0].coordenadas[-1])
 
+    def test_stitches_open_cadastral_fragments_without_forcing_loose_ends(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "23039A04900005.dxf"
+            document = ezdxf.new("R2010")
+            modelspace = document.modelspace()
+            modelspace.add_lwpolyline([(0, 0), (10, 0), (10, 10)])
+            modelspace.add_lwpolyline([(10, 10), (0, 10), (0, 0)])
+            modelspace.add_line((20, 20), (21, 21))
+            document.saveas(path)
+
+            result = DXFReader.leer_borde_parcelas(str(path), ["0"], "")
+
+        self.assertEqual(len(result), 1)
+        self.assertAlmostEqual(result[0].area, 100)
+        self.assertEqual(result[0].referencia_catastral, "23039A04900005")
+        self.assertEqual(result[0].coordenadas[0], result[0].coordenadas[-1])
+
     def test_nesting_requires_the_whole_child_to_be_inside(self):
         parent = parcel([(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)])
         crossing = parcel([(8, 2), (12, 2), (12, 4), (8, 4), (8, 2)])
