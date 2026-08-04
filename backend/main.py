@@ -529,6 +529,12 @@ allow_origins = [orig.strip() for orig in admitted_origins_str.split(",") if ori
 if app_env == "production" and not os.getenv("ADMITTED_ORIGINS", "").strip():
     raise RuntimeError("ADMITTED_ORIGINS es obligatorio cuando APP_ENV=production")
 
+# Asegurar siempre los orígenes oficiales de producción
+prod_origins = ["https://www.solucionescatastrales.app", "https://solucionescatastrales.app"]
+for po in prod_origins:
+    if po not in allow_origins:
+        allow_origins.append(po)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allow_origins,
