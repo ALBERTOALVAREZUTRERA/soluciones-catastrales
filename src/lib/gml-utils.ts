@@ -821,7 +821,12 @@ export function detectGmlCrs(text: string): string {
         throw new Error("El archivo XML/GML contiene declaraciones no permitidas.");
     }
     const detected = new Set<string>();
-    const inspectableText = text.replace(/<!--[\s\S]*?-->/g, "");
+    let inspectableText = text;
+    let prevText = "";
+    while (inspectableText !== prevText) {
+        prevText = inspectableText;
+        inspectableText = inspectableText.replace(/<!--[\s\S]*?-->/g, "");
+    }
     const attributePattern = /\bsrsName\s*=\s*(["'])(.*?)\1/gi;
     for (const matchAttribute of inspectableText.matchAll(attributePattern)) {
         const srsName = matchAttribute[2].trim();
