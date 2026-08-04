@@ -261,7 +261,8 @@ export default function CalculadoraPage() {
                     setMunicipios(prev => prev.includes(muniName) ? prev : [...prev, muniName]);
                 }
 
-                const detectedTypeId = getUrbanTypeIdFromCadastralUse(data.uso || "");
+                const detectedTypeId = data.tipologia_constructiva
+                    || getUrbanTypeIdFromCadastralUse(data.uso || "");
                 const officialZone = resolveOfficialZoneSelection(
                     muniName,
                     data.zona_valor,
@@ -278,8 +279,9 @@ export default function CalculadoraPage() {
                         ? (data.superficie_construida || prev.sup_parcela)
                         : (data.superficie_parcela || prev.sup_parcela),
                     ha: data.uso?.toLowerCase().includes("rústico") ? (data.superficie_parcela / 10000 || prev.ha) : prev.ha,
-                    anio_const: data.anio_const || prev.anio_const,
+                    anio_const: data.anio_antiguedad_efectiva || data.anio_const || prev.anio_const,
                     uso_const: detectedTypeId,
+                    categoria: data.categoria_constructiva || prev.categoria,
                     sup_const: data.superficie_construida || prev.sup_const,
                     zona_valor: officialZone?.zoneCode || "",
                     metodo_suelo: officialZone?.method || "repercussion",
@@ -296,7 +298,10 @@ export default function CalculadoraPage() {
                     : data.zona_valor
                         ? ` Catastro indica la zona ${data.zona_valor}, pero todavía no disponemos de una tabla municipal compatible para cargar su valor.`
                         : " Catastro no ha devuelto una zona inequívoca; tendrás que seleccionarla o revisarla manualmente.";
-                setSearchStatus({ type: 'success', message: `¡Inmueble localizado! ${data.direccion}.${selectionMessage}${zoneMessage}` });
+                const constructionMessage = data.datos_constructivos_fuente === "DGC_CAT"
+                    ? " También hemos cargado automáticamente su tipología, categoría y antigüedad constructiva oficiales."
+                    : "";
+                setSearchStatus({ type: 'success', message: `¡Inmueble localizado! ${data.direccion}.${selectionMessage}${zoneMessage}${constructionMessage}` });
                 toast({
                     title: data.seleccion_aproximada
                         ? "Finca con varios inmuebles"

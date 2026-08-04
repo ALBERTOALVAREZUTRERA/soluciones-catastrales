@@ -10,6 +10,49 @@ from core.parcel_model import ParcelaInfo
 
 
 class ParcelGmlGenerationTests(unittest.TestCase):
+    def test_uses_correct_urban_and_rustic_labels(self):
+        self.assertEqual(GMLGenerator.cadastral_parcel_label("4067954VH2137S"), "54")
+        self.assertEqual(GMLGenerator.cadastral_parcel_label("23039A04900005"), "5")
+        self.assertEqual(GMLGenerator.cadastral_parcel_label("PARCELA_LOCAL"), "")
+
+    def test_reduces_a_property_reference_to_its_fourteen_character_parcel(self):
+        parcel = ParcelaInfo(
+            referencia_catastral="4067954VH2137S0001AB",
+            coordenadas=[[0, 0], [10, 0], [10, 10], [0, 10]],
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = GMLGenerator.generar_gml(parcel, directory)
+            document = etree.parse(path)
+
+        self.assertEqual(
+            document.xpath("string(//*[local-name()='localId'])"),
+            "4067954VH2137S",
+        )
+        self.assertEqual(
+            document.xpath("string(//*[local-name()='nationalCadastralReference'])"),
+            "4067954VH2137S",
+        )
+        self.assertEqual(document.xpath("string(//*[local-name()='label'])"), "54")
+
+    def test_local_parcel_does_not_invent_a_national_reference(self):
+        parcel = ParcelaInfo(
+            nombre_archivo="finca local",
+            coordenadas=[[0, 0], [10, 0], [10, 10], [0, 10]],
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = GMLGenerator.generar_gml(parcel, directory)
+            document = etree.parse(path)
+
+        self.assertEqual(
+            document.xpath("string(//*[local-name()='namespace'])"),
+            "ES.LOCAL.CP",
+        )
+        references = document.xpath(
+            "//*[local-name()='nationalCadastralReference']"
+        )
+        self.assertEqual(len(references), 1)
+        self.assertIsNone(references[0].text)
+
     def test_recalculates_area_closes_rings_and_uses_requested_epsg(self):
         exterior = [
             [500000, 4200000],

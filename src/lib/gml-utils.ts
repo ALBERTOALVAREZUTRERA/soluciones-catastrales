@@ -49,6 +49,23 @@ export interface GmlFeature {
     nombre_archivo?: string;     // Nombre del archivo de origen
 }
 
+export function cadastralParcelLabel(reference: string): string {
+    const normalized = reference.trim().toUpperCase().replace(/\s+/g, "");
+    if (!/^[A-Z0-9]{14}$/.test(normalized)) return "";
+
+    // Urbana: 7 primeros caracteres de parcela, mostrando los dos últimos.
+    if (/^\d{7}[A-Z0-9]{7}$/.test(normalized)) {
+        return normalized.substring(5, 7);
+    }
+
+    // Rústica: provincia (2), municipio (3), sector (1), polígono (3), parcela (5).
+    if (/^\d{5}[A-Z]\d{8}$/.test(normalized)) {
+        return normalized.substring(9, 14).replace(/^0+(?=\d)/, "");
+    }
+
+    return "";
+}
+
 const NS_MAP = {
     gml: 'http://www.opengis.net/gml/3.2',
     cp: 'http://inspire.ec.europa.eu/schemas/cp/4.0',
@@ -91,6 +108,14 @@ export async function processFile(file: File, format: string, targetCrs: string)
             }));
         } else if (format === 'gml') {
             const text = await file.text();
+            const sourceCrs = detectGmlCrs(text);
+            const selectedCrs = normalizeCadastralCrs(targetCrs);
+            if (sourceCrs !== selectedCrs) {
+                throw new Error(
+                    `El GML usa EPSG:${sourceCrs}, pero está seleccionado EPSG:${selectedCrs}. `
+                    + "Selecciona el sistema del archivo antes de procesarlo.",
+                );
+            }
             features = parseGml(text, baseName);
         }
     } catch (e) {
@@ -499,7 +524,7 @@ export function generateGml(features: GmlFeature[], crs: string): string {
     const epsgCode = normalizeCadastralCrs(crs);
     const timestamp = new Date().toISOString().split('.')[0] + 'Z';
 
-    const srsName = `http://www.opengis.net/def/crs/EPSG/0/${epsgCode}`;
+    const srsName = `urn:ogc:def:crs:EPSG::${epsgCode}`;
 
     let gml = `<?xml version="1.0" encoding="utf-8"?>
 <FeatureCollection xmlns:xsi="${NS_MAP.xsi}" xmlns:gml="${NS_MAP.gml}" xmlns:xlink="${NS_MAP.xlink}" xmlns:cp="${NS_MAP.cp}" xmlns:gmd="http://www.isotc211.org/2005/gmd" xsi:schemaLocation="${SCHEMALOCATION}" xmlns="${NS_MAP.wfs}" timeStamp="${timestamp}" numberMatched="${features.length}" numberReturned="${features.length}">`;
@@ -526,9 +551,9 @@ export function generateGml(features: GmlFeature[], crs: string): string {
         // DETECCION DE REFEFERNCIA CATASTRAL Y NAMESPACE
         // Limpiamos el ID de posibles sufijos internos para chequear el formato
         const identifierSource = (f.cadastralReference || f.id || "").trim().toUpperCase();
-        const prefixedMatch = identifierSource.match(/^ES\.SDGC\.CP\.([A-Z0-9]{14}|[A-Z0-9]{20})/);
+        const prefixedMatch = identifierSource.match(/^ES\.SDGC\.CP\.([A-Z0-9]{14}|[A-Z0-9]{18}|[A-Z0-9]{20})/);
         const cleanIdRoot = (prefixedMatch?.[1] || identifierSource).replace(/\s+/g, "");
-        const isRC = /^(?:[A-Z0-9]{14}|[A-Z0-9]{20})$/.test(cleanIdRoot);
+        const isRC = /^(?:[A-Z0-9]{14}|[A-Z0-9]{18}|[A-Z0-9]{20})$/.test(cleanIdRoot);
 
         // Si el ID ya trae prefijo, respetar.
         // El usuario se queja de "ES.LOCAL.CP". Quiere "ES.SDGC.CP".
@@ -540,14 +565,13 @@ export function generateGml(features: GmlFeature[], crs: string): string {
             // IMPORTANTE: El ID GML debe ser unique. Si f.id ya es unico, lo usamos.
             // Si f.id es la RC pura, le pegamos el prefijo.
 
-            localId = cleanIdRoot;
+            const parcelReference = cleanIdRoot.slice(0, 14);
+            localId = parcelReference;
             namespacePrefix = "ES.SDGC.CP";
             gmlId = `${namespacePrefix}.${localId}`;
 
-            // Label suele ser los ultimos 2 digitos de la finca (pos 5-7 del string 14) o nada
-            // XX0000 -> 00
-            label = cleanIdRoot.length >= 7 ? cleanIdRoot.substring(5, 7) : '';
-            refVal = `<cp:nationalCadastralReference>${cleanIdRoot}</cp:nationalCadastralReference>`;
+            label = cadastralParcelLabel(parcelReference);
+            refVal = `<cp:nationalCadastralReference>${parcelReference}</cp:nationalCadastralReference>`;
 
         } else {
             // FALLBACK A LOCAL SI NO PARECE UNA RC
@@ -562,6 +586,12 @@ export function generateGml(features: GmlFeature[], crs: string): string {
             localId = safeId;
         }
         if (usedGmlIds.has(gmlId)) {
+            if (namespacePrefix === "ES.SDGC.CP") {
+                throw new Error(
+                    `La parcela catastral ${localId} está repetida. `
+                    + "Debe enviarse una sola vez con toda su geometría.",
+                );
+            }
             localId = `${localId}_${featureIndex + 1}`;
             gmlId = `${namespacePrefix}.${localId}`;
         }
@@ -634,55 +664,64 @@ export interface TopologyIssue {
 export function validateTopology(layers: { name: string, features: GmlFeature[] }[]): TopologyIssue[] {
     const issues: TopologyIssue[] = [];
 
-    // Validar solo si hay 2 o más capas
-    if (layers.length < 2) return issues;
+    const candidates = layers.flatMap(layer => layer.features.map(feature => {
+        try {
+            return {
+                layerName: layer.name,
+                feature,
+                polygon: polygon(normalizeCadastralGeometry(feature.geometry)),
+            };
+        } catch {
+            return null;
+        }
+    })).filter(candidate => candidate !== null) as Array<{
+        layerName: string;
+        feature: GmlFeature;
+        polygon: Feature<Polygon>;
+    }>;
+    const reportedCandidates = new Set<number>();
 
-    // Convertir features a Turf Polygons para facilitar operaciones
-    const layerPolys = layers.map(layer => ({
-        name: layer.name,
-        polygons: layer.features.map(f => {
+    // Comparar todos los pares, también cuando proceden del mismo archivo.
+    for (let first = 0; first < candidates.length; first++) {
+        for (let second = first + 1; second < candidates.length; second++) {
+            const candidateA = candidates[first];
+            const candidateB = candidates[second];
             try {
-                return polygon(f.geometry);
-            } catch (e) {
-                return null;
-            }
-        }).filter(p => p !== null) as Feature<Polygon>[]
-    }));
+                const intersectionGeometry = intersect(featureCollection([
+                    candidateA.polygon,
+                    candidateB.polygon,
+                ]));
+                if (!intersectionGeometry) continue;
 
-    // Comparar cada capa con las demás (sin repetir pares)
-    for (let i = 0; i < layerPolys.length; i++) {
-        for (let j = i + 1; j < layerPolys.length; j++) {
-            const layerA = layerPolys[i];
-            const layerB = layerPolys[j];
+                const intersectionArea = calculatePlanarAreaFromFeature(
+                    intersectionGeometry as Feature<Polygon | MultiPolygon>,
+                );
+                if (intersectionArea <= 0.5) continue;
 
-            // Comparar cada polígono de A con cada polígono de B
-            layerA.polygons.forEach(polyA => {
-                layerB.polygons.forEach(polyB => {
-                    try {
-                        const intersection = intersect(featureCollection([polyA, polyB]));
-
-                        // Si hay intersección y NO es solo una línea o punto (comprobando área > 0)
-                        if (intersection) {
-                            // IMPORTANTE: No usar turf.area ya que asume WGS84 y explota con coordenadas UTM
-                            // Calculamos área planar usando nuestra función simple
-                            const intersectionArea = calculatePlanarAreaFromFeature(intersection as Feature<Polygon | MultiPolygon>);
-
-                            // Tolerancia mínima (0.5 m2) para evitar falsos positivos por imprecisión float en adjacencias
-                            if (intersectionArea > 0.5) {
-                                issues.push({
-                                    type: 'OVERLAP',
-                                    geometry: intersection as Feature<Polygon | MultiPolygon>,
-                                    message: `Solape detectado entre ${layerA.name} y ${layerB.name} (${intersectionArea.toFixed(2)} m²)`
-                                });
-                            }
-                        }
-                    } catch {
-                        // Turf puede rechazar geometrías degeneradas; se omite solo este par.
-                    }
+                reportedCandidates.add(first);
+                reportedCandidates.add(second);
+                const sourceA = `${candidateA.layerName} (${candidateA.feature.id})`;
+                const sourceB = `${candidateB.layerName} (${candidateB.feature.id})`;
+                issues.push({
+                    type: 'OVERLAP',
+                    geometry: intersectionGeometry as Feature<Polygon | MultiPolygon>,
+                    message: `Solape detectado entre ${sourceA} y ${sourceB} (${intersectionArea.toFixed(2)} m²)`,
                 });
-            });
+            } catch {
+                // La marca del backend se conserva abajo como respaldo.
+            }
         }
     }
+
+    candidates.forEach((candidate, index) => {
+        if (candidate.feature.hasConflict && !reportedCandidates.has(index)) {
+            issues.push({
+                type: 'OVERLAP',
+                geometry: candidate.polygon,
+                message: `Conflicto topológico detectado en ${candidate.layerName} (${candidate.feature.id})`,
+            });
+        }
+    });
 
     return issues;
 }
@@ -718,19 +757,11 @@ export function parseGml(text: string, baseName: string): GmlFeature[] {
     };
 
     const parsePositionList = (node: Element): number[][] => {
-        const dimension = Number(node.getAttribute("srsDimension") || 2);
-        if (!Number.isInteger(dimension) || dimension < 2 || dimension > 3) {
-            throw new Error("Dimensión de coordenadas GML no soportada.");
-        }
-        const values = (node.textContent || "").trim().split(/\s+/).map(Number);
-        if (values.some(value => !Number.isFinite(value)) || values.length % dimension !== 0) {
-            throw new Error("La lista de coordenadas GML está incompleta o contiene valores no válidos.");
-        }
-        const points: number[][] = [];
-        for (let index = 0; index < values.length; index += dimension) {
-            points.push([values[index], values[index + 1]]);
-        }
-        return points;
+        return parseGmlPositionList(
+            node.textContent || "",
+            node.getAttribute("srsDimension"),
+            node.getAttribute("count"),
+        );
     };
 
     parcels.forEach((parcel, idx) => {
@@ -783,4 +814,61 @@ export function parseGml(text: string, baseName: string): GmlFeature[] {
     }
 
     return features;
+}
+
+export function detectGmlCrs(text: string): string {
+    if (/<!\s*(?:DOCTYPE|ENTITY)\b/i.test(text)) {
+        throw new Error("El archivo XML/GML contiene declaraciones no permitidas.");
+    }
+    const detected = new Set<string>();
+    let inspectableText = text;
+    let prevText = "";
+    while (inspectableText !== prevText) {
+        prevText = inspectableText;
+        inspectableText = inspectableText.replace(/<!--[\s\S]*?-->/g, "");
+    }
+    const attributePattern = /\bsrsName\s*=\s*(["'])(.*?)\1/gi;
+    for (const matchAttribute of inspectableText.matchAll(attributePattern)) {
+        const srsName = matchAttribute[2].trim();
+        const match = srsName.trim().match(/EPSG(?:(?:::|:)|\/0\/)(\d+)$/i);
+        if (!match) {
+            throw new Error(`Sistema de coordenadas GML no reconocido: ${srsName}`);
+        }
+        detected.add(normalizeCadastralCrs(match[1]));
+    }
+    if (detected.size === 0) {
+        throw new Error("El GML no declara su sistema de coordenadas srsName.");
+    }
+    if (detected.size > 1) {
+        throw new Error("El GML mezcla varios sistemas de coordenadas.");
+    }
+    return [...detected][0];
+}
+
+export function parseGmlPositionList(
+    text: string,
+    dimensionValue: string | number | null = 2,
+    countValue: string | number | null = null,
+): number[][] {
+    const dimension = Number(dimensionValue ?? 2);
+    if (!Number.isInteger(dimension) || dimension < 2 || dimension > 3) {
+        throw new Error("Dimensión de coordenadas GML no soportada.");
+    }
+    const trimmed = text.trim();
+    const values = trimmed ? trimmed.split(/\s+/).map(Number) : [];
+    if (
+        values.length === 0
+        || values.some(value => !Number.isFinite(value))
+        || values.length % dimension !== 0
+    ) {
+        throw new Error("La lista de coordenadas GML está incompleta o contiene valores no válidos.");
+    }
+    const points: number[][] = [];
+    for (let index = 0; index < values.length; index += dimension) {
+        points.push([values[index], values[index + 1]]);
+    }
+    if (countValue !== null && Number(countValue) !== points.length) {
+        throw new Error("El atributo count del GML no coincide con sus coordenadas.");
+    }
+    return points;
 }

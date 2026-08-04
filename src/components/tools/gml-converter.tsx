@@ -127,7 +127,7 @@ export function GmlConverter() {
     };
 
     const downloadGml = (content: string, fileName: string) => {
-        const blob = new Blob([content], { type: 'text/xml' });
+        const blob = new Blob([content], { type: 'application/gml+xml' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -303,6 +303,8 @@ export function GmlConverter() {
                                                         variant="outline"
                                                         className="h-7 text-xs border-green-600 text-green-700 hover:bg-green-50"
                                                         onClick={() => downloadGml(fileResults[i]!, f.name)}
+                                                        disabled={topologyIssues.length > 0}
+                                                        title={topologyIssues.length > 0 ? "Corrige los conflictos topológicos antes de descargar" : undefined}
                                                     >
                                                         <Download className="h-3 w-3 mr-1" />
                                                         GML
@@ -339,13 +341,14 @@ export function GmlConverter() {
                                     size="lg"
                                     variant="outline"
                                     className="border-2 border-green-600 text-green-600 hover:bg-green-600 hover:text-white gap-2 font-bold"
+                                    disabled={topologyIssues.length > 0}
                                     onClick={() => {
                                         fileResults.forEach((content, i) => {
                                             if (content) {
                                                 // Retraso muy breve para que el navegador no bloquee descargas múltiples
                                                 setTimeout(() => {
                                                     const cleanName = files[i].name.replace(/\.[^/.]+$/, "");
-                                                    const blob = new Blob([content], { type: 'text/xml' });
+                                                    const blob = new Blob([content], { type: 'application/gml+xml' });
                                                     const url = URL.createObjectURL(blob);
                                                     const a = document.createElement('a');
                                                     a.href = url;
@@ -371,8 +374,9 @@ export function GmlConverter() {
                                 size="lg"
                                 variant="outline"
                                 className="border-2 border-primary text-primary hover:bg-primary hover:text-white gap-2 font-bold"
+                                disabled={topologyIssues.length > 0}
                                 onClick={() => {
-                                    const blob = new Blob([result], { type: 'text/xml' });
+                                    const blob = new Blob([result], { type: 'application/gml+xml' });
                                     const url = URL.createObjectURL(blob);
                                     const a = document.createElement('a');
                                     a.href = url;

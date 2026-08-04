@@ -99,6 +99,59 @@ class AnalyzeEndpointSecurityTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(raised.exception.status_code, 400)
         self.assertIn("ruta no permitida", raised.exception.detail)
 
+    async def test_groups_a_hole_that_precedes_its_parent_in_the_dxf(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "parcel-with-hole.dxf"
+            document = ezdxf.new("R2010")
+            modelspace = document.modelspace()
+            modelspace.add_lwpolyline(
+                [(2, 2), (4, 2), (4, 4), (2, 4)],
+                close=True,
+                dxfattribs={"layer": "PG-LP"},
+            )
+            modelspace.add_lwpolyline(
+                [(0, 0), (10, 0), (10, 10), (0, 10)],
+                close=True,
+                dxfattribs={"layer": "PG-LP"},
+            )
+            document.saveas(path)
+            content = path.read_bytes()
+
+        response = await analyze_file(
+            file=self._upload("parcel-with-hole.dxf", content),
+            epsg="25830",
+            tipo_entidad="CP",
+        )
+
+        self.assertEqual(response.num_parcelas, 1)
+        self.assertEqual(response.num_huecos, 1)
+        self.assertAlmostEqual(response.parcelas[0].area, 96)
+
+    async def test_preserves_the_cadastral_reference_from_the_original_filename(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "source.dxf"
+            document = ezdxf.new("R2010")
+            document.modelspace().add_lwpolyline(
+                [(0, 0), (10, 0), (10, 10), (0, 10)],
+                close=True,
+                dxfattribs={"layer": "PG-LP"},
+            )
+            document.saveas(path)
+            content = path.read_bytes()
+
+        response = await analyze_file(
+            file=self._upload("23039A04900005.dxf", content),
+            epsg="25830",
+            tipo_entidad="CP",
+        )
+
+        self.assertEqual(response.num_parcelas, 1)
+        self.assertEqual(
+            response.parcelas[0].referencia_catastral,
+            "23039A04900005",
+        )
+        self.assertEqual(response.parcelas[0].id, "23039A04900005")
+
 
 class GenerationRequestSecurityTests(unittest.TestCase):
     def test_rejects_empty_generation_request(self):
@@ -182,6 +235,26 @@ class GenerationRequestSecurityTests(unittest.TestCase):
             parcelas=[
                 {"id": "PARCELA-1", "coordenadas_utm": [[0, 0], [1, 0], [0, 1]]},
                 {"id": "PARCELA1", "coordenadas_utm": [[2, 0], [3, 0], [2, 1]]},
+            ],
+            epsg="25830",
+        )
+
+        with self.assertRaises(HTTPException) as raised:
+            _validate_generation_request(request)
+
+        self.assertIn("identificadores únicos", raised.exception.detail)
+
+    def test_rejects_two_property_references_from_the_same_parcel(self):
+        request = GenerateGMLRequest(
+            parcelas=[
+                {
+                    "referencia_catastral": "4067954VH2137S0001AB",
+                    "coordenadas_utm": [[0, 0], [1, 0], [0, 1]],
+                },
+                {
+                    "referencia_catastral": "4067954VH2137S0002CD",
+                    "coordenadas_utm": [[2, 0], [3, 0], [2, 1]],
+                },
             ],
             epsg="25830",
         )

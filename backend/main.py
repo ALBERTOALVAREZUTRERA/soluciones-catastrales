@@ -58,6 +58,7 @@ from core.catastro_client import (
     get_rustic_property,
     normalize_cadastral_reference,
 )
+from core.catastro_cat import get_cat_enrichment
 
 # Crear app FastAPI
 app = FastAPI(
@@ -473,7 +474,12 @@ def _validate_generation_request(request: "GenerateGMLRequest") -> None:
                 detail="La referencia catastral de la exportación no es válida",
             )
         parcela["referencia_catastral"] = normalized_reference
-        identifier = sanitizar_nombre_catastral(normalized_reference or raw_id)
+        parcel_reference = (
+            normalized_reference[:14]
+            if len(normalized_reference) in (18, 20)
+            else normalized_reference
+        )
+        identifier = sanitizar_nombre_catastral(parcel_reference or raw_id)
         if identifier in identifiers:
             raise HTTPException(
                 status_code=400,
@@ -638,29 +644,52 @@ async def analyze_file(
             capas_info = DXFReader.obtener_capas_con_detalle(tmp_path)
             # Selección de capas según tipo
             if tipo_entidad == "BU":
-                # Para edificios, ser más permisivo (usar todas las capas con geometrías si no hay LP/LI específicas)
-                capas_parcelas = [c[0] for c in capas_info if c[1] > 0]
+                # Para edificios, buscar primero capas de edificios/construcciones (PG-LI, CONSTRU, EDIF, etc.)
+                capas_parcelas = [c[0] for c in capas_info if any(w in c[0].upper() for w in ['LI', 'CONSTRU', 'EDIF', 'BUILD', 'VOL']) and c[1] > 0]
+                if not capas_parcelas:
+                    # Excluir explícitamente capas de parcelas y ejes viales antes del fallback genérico
+                    capas_parcelas = [c[0] for c in capas_info if not any(x in c[0].upper() for x in ['LP', 'EJE', 'PARCEL']) and c[1] > 0]
+                    if not capas_parcelas:
+                        capas_parcelas = [c[0] for c in capas_info if c[1] > 0]
                 capa_textos = [c[0] for c in capas_info if c[2] > 0]
                 capa_textos = capa_textos[0] if capa_textos else ""
             else:
-                # Lógica original para parcelas
+                # Lógica para parcelas (CP)
                 capas_parcelas = [c[0] for c in capas_info if 'LP' in c[0].upper() and c[1] > 0]
                 capas_textos = [c[0] for c in capas_info if 'LT' in c[0].upper() and c[2] > 0]
                 
                 if not capas_parcelas:
-                    capas_parcelas = [c[0] for c in capas_info if c[1] > 0]
+                    capas_parcelas = [c[0] for c in capas_info if not any(x in c[0].upper() for x in ['LI', 'CONSTRU', 'EDIF', 'EJE']) and c[1] > 0]
+                    if not capas_parcelas:
+                        capas_parcelas = [c[0] for c in capas_info if c[1] > 0]
                 
                 capa_textos = capas_textos[0] if capas_textos else ""
             
             # Leer parcelas/edificios del DXF
             parcelas = DXFReader.leer_borde_parcelas(tmp_path, capas_parcelas, capa_textos)
+            if not parcelas:
+                capas_todas = [c[0] for c in capas_info if c[1] > 0]
+                if capas_todas and capas_todas != capas_parcelas:
+                    parcelas = DXFReader.leer_borde_parcelas(tmp_path, capas_todas, capa_textos)
         if not parcelas:
             raise ValueError("No se encontraron polígonos válidos en el archivo")
         
         # Asignar tipo de entidad y asegurar nombre de archivo original
         base_filename = os.path.splitext(Path(file.filename or "archivo").name)[0]
+        normalized_base_reference = re.sub(r"\s+", "", base_filename).upper()
+        filename_is_reference = bool(re.fullmatch(
+            r"(?:[A-Z0-9]{14}|[A-Z0-9]{18}|[A-Z0-9]{20})",
+            normalized_base_reference,
+        ))
         for p in parcelas:
             p.tipo_entidad = tipo_entidad
+            # El lector trabaja sobre un archivo temporal. Recuperar aquí la RC
+            # del nombre original evita convertir una parcela oficial en LOCAL.
+            # Se aplica solo cuando el archivo consta de un único polígono para
+            # no duplicar identificadores entre múltiples partes o divisiones.
+            if not p.referencia_catastral and filename_is_reference and len(parcelas) == 1:
+                p.referencia_catastral = normalized_base_reference
+                p.nombre_archivo = normalized_base_reference
             # Si el nombre detectado es genérico o nulo, usar el del archivo original
             if not p.nombre_archivo or "TMP" in p.nombre_archivo.upper() or "PARCELA_" in p.nombre_archivo.upper():
                 p.nombre_archivo = base_filename
@@ -685,6 +714,12 @@ async def analyze_file(
         for idx, parcela in enumerate(parcelas):
             if idx in indices_procesados:
                 continue
+
+            # Un anillo marcado como hueco nunca debe salir como parcela
+            # independiente, aunque aparezca antes que su exterior en el DXF.
+            if parcela.is_hole:
+                indices_procesados.add(idx)
+                continue
             
             # Si es un padre con huecos, agregar interiores
             if idx in anidamientos:
@@ -693,10 +728,8 @@ async def analyze_file(
                         parcela.interiores.append(parcelas[hijo_idx].coordenadas)
                         indices_procesados.add(hijo_idx)
             
-            # Si no es un hueco independiente, añadir
-            if not parcela.is_hole or idx not in indices_procesados:
-                parcelas_procesadas.append(parcela)
-                indices_procesados.add(idx)
+            parcelas_procesadas.append(parcela)
+            indices_procesados.add(idx)
         
         parcelas = parcelas_procesadas
         # Recalcular área y validez después de incorporar huecos.
@@ -713,8 +746,17 @@ async def analyze_file(
         parcelas_response = []
         num_conflictos = 0
         num_huecos = sum(len(p.interiores) for p in parcelas)
+        vistos_ids = {}
         
         for parcela in parcelas:
+            base_id = parcela.identificador
+            if base_id in vistos_ids:
+                vistos_ids[base_id] += 1
+                unique_id = f"{base_id}_{vistos_ids[base_id]}"
+            else:
+                vistos_ids[base_id] = 1
+                unique_id = base_id
+
             # Convertir interiores a Lat/Lon
             interiores_latlon = [
                 CoordinateTransformer.utm_to_latlon(hueco, epsg)
@@ -722,7 +764,7 @@ async def analyze_file(
             ]
             
             parcelas_response.append(ParcelaResponse(
-                id=parcela.identificador,
+                id=unique_id,
                 referencia_catastral=parcela.referencia_catastral,
                 area=parcela.area,
                 coordenadas_utm=[[x, y] for x, y in parcela.coordenadas],
@@ -1199,6 +1241,22 @@ def buscar_por_referencia_catastral(request: BuscarRCRequest):
             superficie_construida = 0.0
             anio_const = 0
 
+        # Los ficheros CAT oficiales aportan descripción constructiva no
+        # protegida (tipología, categoría, reforma y antigüedad efectiva). La
+        # integración es opcional: si no existe un índice municipal cargado, la
+        # consulta conserva los datos del servicio web de acceso libre.
+        cat_details = None if ambiguous else get_cat_enrichment(rc_original)
+        dominant_cat = cat_details.get("dominant") if cat_details else None
+        if dominant_cat:
+            superficie_construida = (
+                cat_details.get("built_surface") or superficie_construida
+            )
+            anio_const = (
+                dominant_cat.get("effective_year")
+                or cat_details.get("age_year")
+                or anio_const
+            )
+
         # 4. Detectar la zona mediante la cartografía oficial de ponencias.
         # Si el WMS no devuelve una zona inequívoca, se exige revisión manual:
         # una aproximación por distancia podría asignar una zona incorrecta.
@@ -1246,6 +1304,25 @@ def buscar_por_referencia_catastral(request: BuscarRCRequest):
             "zona_info": zona_info,
             "seleccion_aproximada": ambiguous,
             "num_inmuebles": candidate_count or 1,
+            "datos_constructivos_fuente": "DGC_CAT" if dominant_cat else None,
+            "tipologia_constructiva": (
+                dominant_cat.get("urban_type_id") if dominant_cat else None
+            ),
+            "codigo_tipologia_cat": (
+                dominant_cat.get("typology_code") if dominant_cat else None
+            ),
+            "categoria_constructiva": (
+                dominant_cat.get("category") if dominant_cat else None
+            ),
+            "anio_antiguedad_efectiva": (
+                dominant_cat.get("effective_year") if dominant_cat else None
+            ),
+            "tipo_reforma": (
+                dominant_cat.get("reform_type") if dominant_cat else None
+            ),
+            "anio_reforma": (
+                dominant_cat.get("reform_year") if dominant_cat else None
+            ),
         }
 
     except CatastroUpstreamError as exc:
