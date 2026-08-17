@@ -4,4 +4,4 @@
 pip-audit==2.10.1
 
 # Cliente requerido por starlette.testclient para las pruebas HTTP.
-httpx2==2.9.1
+httpx2==2.10.0
