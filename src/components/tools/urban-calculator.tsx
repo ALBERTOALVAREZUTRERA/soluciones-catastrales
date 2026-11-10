@@ -152,6 +152,7 @@ export function UrbanCalculator({ formData, setFormData, onCalculate, loading }:
                 basicConstructionModule: formData.custom_mbc,
                 constructionTypeCoefficient: coefU,
                 conservationCoefficient: coefI,
+                updateCoefficient: formData.coef_actualizacion,
                 assessmentApprovalYear: formData.custom_anio_ponencia,
                 constructionYear: formData.anio_const,
                 typeId: formData.uso_const,

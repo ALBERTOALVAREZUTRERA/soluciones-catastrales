@@ -32,6 +32,14 @@ export const dbTipologiasUrbanas: TipologiaConstructivaUrbana[] = [
         categorias: { 1: 2.00, 2: 1.65, 3: 1.35, 4: 1.15, 5: 1.05, 6: 0.95, 7: 0.85, 8: 0.75, 9: 0.65 }
     },
     {
+        id: "POR", nombre: "1.2.3 Garaje o porche en planta baja de vivienda unifamiliar", clase: "1.2.3",
+        categorias: { 1: 0.90, 2: 0.85, 3: 0.75, 4: 0.65, 5: 0.60, 6: 0.55, 7: 0.45, 8: 0.40, 9: 0.35 }
+    },
+    {
+        id: "IVP", nombre: "2.1.2 Nave de fabricación · varias plantas", clase: "2.1.2",
+        categorias: { 1: 1.15, 2: 1.00, 3: 0.85, 4: 0.70, 5: 0.60, 6: 0.55, 7: 0.52, 8: 0.50, 9: 0.40 }
+    },
+    {
         id: "IAL", nombre: "2.1.1 Nave de fabricación · una planta", clase: "2.1.1",
         categorias: { 1: 1.05, 2: 0.90, 3: 0.75, 4: 0.60, 5: 0.50, 6: 0.45, 7: 0.40, 8: 0.37, 9: 0.35 }
     },
@@ -65,27 +73,8 @@ export const dbTipologiasUrbanas: TipologiaConstructivaUrbana[] = [
     }
 ];
 
-export const coeficientesAntiguedadUrbana = [
-    { label: "0-4 años", maxAge: 4, coef: 1.00 },
-    { label: "5-9 años", maxAge: 9, coef: 0.93 },
-    { label: "10-14 años", maxAge: 14, coef: 0.87 },
-    { label: "15-19 años", maxAge: 19, coef: 0.82 },
-    { label: "20-24 años", maxAge: 24, coef: 0.77 },
-    { label: "25-29 años", maxAge: 29, coef: 0.72 },
-    { label: "30-34 años", maxAge: 34, coef: 0.68 },
-    { label: "35-39 años", maxAge: 39, coef: 0.64 },
-    { label: "40-44 años", maxAge: 44, coef: 0.61 },
-    { label: "45-49 años", maxAge: 49, coef: 0.59 }, // Urbano can be 0.59 instead of 0.58
-    { label: "50-54 años", maxAge: 54, coef: 0.56 },
-    { label: "55-59 años", maxAge: 59, coef: 0.53 },
-    { label: "60-64 años", maxAge: 64, coef: 0.50 },
-    { label: "65-69 años", maxAge: 69, coef: 0.47 },
-    { label: "70-74 años", maxAge: 74, coef: 0.45 },
-    { label: "75-79 años", maxAge: 79, coef: 0.43 },
-    { label: "80-84 años", maxAge: 84, coef: 0.41 },
-    { label: "85-89 años", maxAge: 89, coef: 0.40 },
-    { label: "90+ años", maxAge: 999, coef: 0.39 },
-];
+// La antigüedad (coeficiente H) se obtiene de getAgeCoefficient en
+// src/lib/cadastral-valuation.ts, que contiene la tabla completa de la Norma 13.
 
 export const coeficientesConservacionUrbana = [
     { label: "Normal (N)", value: "N", coef: 1.00 },

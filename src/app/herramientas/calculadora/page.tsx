@@ -70,6 +70,7 @@ export default function CalculadoraPage() {
         metodo_suelo: "repercussion",
         coef_suelo: 1,
         coef_conjunto: 1,
+        coef_actualizacion: 1,
         zona_valor: "",
         uso_const: "AAP",
         categoria: 5,
@@ -591,6 +592,11 @@ export default function CalculadoraPage() {
                                                                 <Label htmlFor="valuation-joint-corrector">Corrector conjunto suelo-construcción</Label>
                                                                 <Input id="valuation-joint-corrector" type="number" name="coef_conjunto" min="0" step="0.01" value={formData.coef_conjunto} onChange={handleInputChange} />
                                                                 <p className="text-[10px] text-slate-400">Producto de los coeficientes que procedan según la Norma 14. Usa 1 si no resulta aplicable ninguno.</p>
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <Label htmlFor="valuation-update-coefficient">Coeficiente de actualización acumulado</Label>
+                                                                <Input id="valuation-update-coefficient" type="number" name="coef_actualizacion" min="0" step="0.0001" value={formData.coef_actualizacion} onChange={handleInputChange} />
+                                                                <p className="text-[10px] text-slate-400">Producto de los coeficientes de las leyes de presupuestos desde la ponencia. En la hoja informativa equivale a «total actualizado» dividido entre «total». Usa 1 si el municipio no los ha aplicado (caso de Andújar).</p>
                                                             </div>
                                                         </>
                                                     )}
