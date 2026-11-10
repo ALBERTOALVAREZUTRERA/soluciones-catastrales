@@ -70,3 +70,20 @@ export function createPageMetadata({
     },
   };
 }
+
+/** Datos estructurados de una herramienta gratuita (schema.org WebApplication). */
+export function toolJsonLd({ title, description, path }: PageMetadataOptions) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    name: title,
+    description,
+    url: absoluteUrl(path),
+    applicationCategory: "BusinessApplication",
+    operatingSystem: "Web",
+    inLanguage: "es-ES",
+    isAccessibleForFree: true,
+    offers: { "@type": "Offer", price: "0", priceCurrency: "EUR" },
+    provider: { "@id": `${SITE_URL}/#business` },
+  };
+}
