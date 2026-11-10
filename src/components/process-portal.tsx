@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { CheckCircle, AlertCircle, Phone, Mail, MapPin, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { WhatsAppFallback } from "@/components/shared/whatsapp-fallback";
 import {
   HoneypotField,
   PrivacyConsent,
@@ -19,6 +20,7 @@ export function ProcessPortal() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [sendFailed, setSendFailed] = useState(false);
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [website, setWebsite] = useState("");
   const [formData, setFormData] = useState({
@@ -68,6 +70,7 @@ export function ProcessPortal() {
       });
 
     } catch {
+      setSendFailed(true);
       toast({
         title: "Error de Envío",
         description: "Ocurrió un error al enviar su solicitud. Por favor, contáctenos directamente al 665 890 608.",
@@ -249,6 +252,16 @@ export function ProcessPortal() {
                     <p>Los datos se utilizarán exclusivamente para estudiar y responder su solicitud.</p>
                   </div>
                 </div>
+                {sendFailed && (
+                  <WhatsAppFallback
+                    lines={[
+                      `Nombre: ${formData.name}`,
+                      `Trámite: ${formData.type}`,
+                      formData.ref ? `Referencia catastral: ${formData.ref}` : "",
+                      `Consulta: ${formData.message}`,
+                    ]}
+                  />
+                )}
                 <Button type="submit" className="bg-accent hover:bg-accent/90 px-10 h-14 text-lg font-bold w-full sm:w-auto shadow-lg shadow-accent/20" disabled={loading} aria-busy={loading}>
                   {loading ? (
                     <>

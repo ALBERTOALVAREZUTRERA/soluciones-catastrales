@@ -32,6 +32,7 @@ const navigationGroups = {
     items: [
       { name: "Valor Catastral / IBI (Urbano)", href: "/herramientas/calculadora" },
       { name: "Valor Catastral Rústico", href: "/herramientas/calculadora-rustica" },
+      { name: "Tipos de IBI por municipio", href: "/ibi" },
     ]
   },
   procedures: {

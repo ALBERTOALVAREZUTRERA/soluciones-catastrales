@@ -14,6 +14,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { WhatsAppFallback } from "@/components/shared/whatsapp-fallback";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import {
@@ -28,6 +29,7 @@ export function Hero() {
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [website, setWebsite] = useState("");
   const [submitError, setSubmitError] = useState("");
+  const [fallbackLines, setFallbackLines] = useState<string[]>([]);
 
   const handleConsultationSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,6 +66,11 @@ export function Hero() {
         description: "Alberto Álvarez analizará su caso y le contactará en breve.",
       });
     } catch (error) {
+      setFallbackLines([
+        `Nombre: ${formData.get("name")}`,
+        `Teléfono: ${formData.get("phone")}`,
+        `Consulta: ${formData.get("issue")}`,
+      ]);
       setSubmitError(
         error instanceof Error
           ? error.message
@@ -137,6 +144,7 @@ export function Hero() {
                       {submitError}
                     </p>
                   )}
+                  {submitError && <WhatsAppFallback lines={fallbackLines} />}
                   <Button type="submit" className="w-full bg-accent text-lg h-12" disabled={loading} aria-busy={loading}>
                     {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : "Enviar Consulta"}
                   </Button>

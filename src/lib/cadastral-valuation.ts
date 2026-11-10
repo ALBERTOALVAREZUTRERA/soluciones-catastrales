@@ -35,8 +35,13 @@ const AGE_COEFFICIENTS: Record<AgeUsageGroup, readonly AgeBand[]> = {
     ],
 };
 
-const USE_1_TYPES = new Set(["AAP", "AMC", "V", "VMC", "OFI"]);
-const USE_3_TYPES = new Set(["IAL", "BIG", "ESC"]);
+// El grupo de uso de la Norma 13 depende de la tipología constructiva:
+// residencial (1.x) y oficinas → uso 1.º; fabricación (2.1.1, 2.1.2) y
+// espectáculos → uso 3.º; resto (almacenamiento, garajes, comercial...) → uso 2.º.
+// Contrastado con hojas informativas oficiales de Andújar (p. ej. BIG con
+// tipología 2.1.3 → H de uso 2.º; porche 1.2.3 → H de uso 1.º).
+const USE_1_TYPES = new Set(["AAP", "AMC", "V", "VMC", "POR", "VR", "ANX", "OFI"]);
+const USE_3_TYPES = new Set(["IAL", "IVP", "ESC"]);
 
 export function getUsageGroup(typeId: string): AgeUsageGroup {
     const normalized = typeId.trim().toUpperCase();
@@ -103,6 +108,8 @@ export interface UrbanValuationInput {
     basicConstructionModule: unknown;
     constructionTypeCoefficient: unknown;
     conservationCoefficient: unknown;
+    /** Coeficiente acumulado de actualización (leyes de presupuestos) desde la ponencia. */
+    updateCoefficient?: unknown;
     assessmentApprovalYear: unknown;
     constructionYear: unknown;
     typeId: string;
@@ -121,7 +128,9 @@ export function calculateUrbanValuation(input: UrbanValuationInput) {
     const marketCoefficient = requirePositive(input.marketCoefficient, "El coeficiente RM");
     const basicConstructionModule = requirePositive(input.basicConstructionModule, "El módulo MBC");
     const constructionTypeCoefficient = requirePositive(input.constructionTypeCoefficient, "El coeficiente de tipología");
-    const conservationCoefficient = requirePositive(input.conservationCoefficient, "El coeficiente de conservación");
+    // Estado ruinoso = 0,00 (Norma 13): la construcción no aporta valor.
+    const conservationCoefficient = finiteNonNegative(input.conservationCoefficient, 1);
+    const updateCoefficient = requirePositive(input.updateCoefficient ?? 1, "El coeficiente de actualización");
     const assessmentApprovalYear = Math.trunc(requirePositive(input.assessmentApprovalYear, "El año de aprobación de la ponencia"));
     const constructionYear = Math.trunc(finiteNonNegative(input.constructionYear, assessmentApprovalYear));
     const category = Math.trunc(finiteNonNegative(input.category, 5));
@@ -152,7 +161,7 @@ export function calculateUrbanValuation(input: UrbanValuationInput) {
         * conservationCoefficient
         * basicConstructionModule;
     const promotionFactor = constructionArea > 0 ? promotionCoefficient : 1;
-    const commonFactor = jointCorrector * promotionFactor * marketCoefficient;
+    const commonFactor = jointCorrector * promotionFactor * marketCoefficient * updateCoefficient;
     const soilValue = roundMoney(rawSoilValue * commonFactor);
     const constructionValue = roundMoney(rawConstructionValue * commonFactor);
     const totalValue = roundMoney((rawSoilValue + rawConstructionValue) * commonFactor);

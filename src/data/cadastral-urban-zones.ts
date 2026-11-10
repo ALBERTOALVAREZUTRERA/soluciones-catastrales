@@ -164,8 +164,8 @@ export function getMunicipalUrbanZoneRegistry(
 }
 
 export function getRepercussionUse(typeId: string): UrbanRepercussionUse | null {
-    if (["AAP", "AMC", "V", "VMC"].includes(typeId)) return "housing";
-    if (["IAL", "AAL"].includes(typeId)) return "industrial";
+    if (["AAP", "AMC", "V", "VMC", "POR"].includes(typeId)) return "housing";
+    if (["IAL", "IVP", "AAL"].includes(typeId)) return "industrial";
     if (typeId === "OFI") return "offices";
     if (typeId === "COM") return "commercial";
     if (typeId === "GAR") return "garages";
@@ -187,7 +187,8 @@ export function getUrbanTypeIdFromCadastralUse(cadastralUse: string): string {
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
         .toLowerCase();
-    if (/industrial|almacen|nave/.test(use)) return "IAL";
+    if (/almacen/.test(use)) return "AAL";
+    if (/industrial|nave/.test(use)) return "IAL";
     if (/oficina/.test(use)) return "OFI";
     if (/comerc|local|taller/.test(use)) return "COM";
     if (/garaje|aparcamiento/.test(use)) return "GAR";

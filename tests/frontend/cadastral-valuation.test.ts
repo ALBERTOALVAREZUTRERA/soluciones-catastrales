@@ -55,7 +55,10 @@ describe("motor de valoración catastral", () => {
     test("clasifica tipologías residenciales, fabriles y restantes", () => {
         assert.equal(getUsageGroup("AAP"), "uso1");
         assert.equal(getUsageGroup("AMC"), "uso1");
-        assert.equal(getUsageGroup("BIG"), "uso3");
+        assert.equal(getUsageGroup("BIG"), "uso2");
+        assert.equal(getUsageGroup("VR"), "uso1");
+        assert.equal(getUsageGroup("POR"), "uso1");
+        assert.equal(getUsageGroup("IAL"), "uso3");
         assert.equal(getUsageGroup("ESC"), "uso3");
         assert.equal(getUsageGroup("COM"), "uso2");
     });

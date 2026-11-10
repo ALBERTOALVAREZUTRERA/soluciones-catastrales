@@ -75,7 +75,8 @@ describe("zonas urbanas documentadas", () => {
 
     test("convierte el uso catastral y resuelve únicamente zonas publicadas", () => {
         assert.equal(getUrbanTypeIdFromCadastralUse("Residencial"), "AAP");
-        assert.equal(getUrbanTypeIdFromCadastralUse("Almacén industrial"), "IAL");
+        assert.equal(getUrbanTypeIdFromCadastralUse("Almacén industrial"), "AAL");
+        assert.equal(getUrbanTypeIdFromCadastralUse("Industrial"), "IAL");
         assert.equal(getUrbanTypeIdFromCadastralUse("Local comercial"), "COM");
         assert.equal(getUrbanTypeIdFromCadastralUse("Garaje / aparcamiento"), "GAR");
 

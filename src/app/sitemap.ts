@@ -1,5 +1,6 @@
 import { MetadataRoute } from 'next'
 import { absoluteUrl } from '@/lib/site-config'
+import { IBI_MUNICIPIOS } from '@/lib/ibi-municipios'
 
 export default function sitemap(): MetadataRoute.Sitemap {
     const pages = [
@@ -15,6 +16,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
         { path: '/herramientas/conversor-gml',          priority: 0.85, changeFreq: 'monthly' },
         { path: '/herramientas/conversor-edificio',     priority: 0.85, changeFreq: 'monthly' },
         { path: '/herramientas/visor-catastral',        priority: 0.8,  changeFreq: 'monthly' },
+        // IBI por municipio (captación local)
+        { path: '/ibi',                                 priority: 0.8,  changeFreq: 'yearly'  },
+        ...IBI_MUNICIPIOS.map((item) => ({ path: `/ibi/${item.slug}`, priority: 0.6, changeFreq: 'yearly' })),
         // Legales (baja prioridad)
         { path: '/legal/aviso-legal',                   priority: 0.3,  changeFreq: 'yearly'  },
         { path: '/legal/privacidad',                    priority: 0.3,  changeFreq: 'yearly'  },

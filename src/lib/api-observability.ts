@@ -48,6 +48,9 @@ export function logApiError(
       event,
       requestId,
       errorType: error instanceof Error ? error.name : "UnknownError",
+      // Código de nodemailer/Node (EAUTH, ETIMEDOUT...) y respuesta SMTP: no contienen secretos.
+      errorCode: (error as { code?: unknown })?.code,
+      smtpCode: (error as { responseCode?: unknown })?.responseCode,
     }),
   );
 }
