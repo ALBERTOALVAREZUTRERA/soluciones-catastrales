@@ -32,7 +32,8 @@ export function LeadMagnet() {
                 }),
             });
 
-            if (!res.ok) {
+            // Si falla el aviso interno (5xx) la guía se entrega igualmente.
+            if (!res.ok && res.status < 500) {
                 const result = await res.json().catch(() => ({}));
                 throw new Error(result.error || "No se pudo procesar la solicitud.");
             }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { WhatsAppFallback } from "@/components/shared/whatsapp-fallback";
 import { Button } from "@/components/ui/button";
 import { Trees, Building2, MapPin, Calculator, FileWarning, LandPlot, AlertTriangle, Scale, ArrowRight, CheckCircle2 } from "lucide-react";
 import {
@@ -262,6 +263,15 @@ Contacto (Tel/Email): ${data.contact}`,
                                         <p role="alert" className="text-sm text-red-600">
                                             {submitError}
                                         </p>
+                                    )}
+                                    {submitError && (
+                                        <WhatsAppFallback
+                                            lines={[
+                                                `Tipo de propiedad: ${data.propertyType}`,
+                                                `Necesidad: ${data.problem}`,
+                                                `Contacto: ${data.contact}`,
+                                            ]}
+                                        />
                                     )}
 
                                     <div className="pt-4">

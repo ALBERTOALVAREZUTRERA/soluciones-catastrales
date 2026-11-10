@@ -37,6 +37,8 @@ export const metadata: Metadata = {
   authors: [{ name: 'Alberto Álvarez Utrera', url: SITE_URL }],
   creator: 'Alberto Álvarez Utrera',
   publisher: SITE_NAME,
+  // Código de Google Search Console (opcional).
+  verification: { google: process.env.GOOGLE_SITE_VERIFICATION },
 };
 
 export default function RootLayout({
