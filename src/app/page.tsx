@@ -79,6 +79,13 @@ export default function Home() {
               </div>
             </Link>
           </div>
+          <p className="mt-8 text-center text-sm text-slate-600">
+            ¿Quiere saber qué tipo de IBI aplica su ayuntamiento?{" "}
+            <Link href="/ibi" className="font-semibold text-primary underline underline-offset-4">
+              Consulte los tipos de IBI de los municipios de Jaén
+            </Link>
+            .
+          </p>
         </div>
       </section>
 
