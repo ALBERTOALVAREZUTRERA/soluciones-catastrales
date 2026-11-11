@@ -51,6 +51,7 @@ export function Footer() {
               <li><a href="https://www1.sedecatastro.gob.es/Cartografia/mapa.aspx?historica=SI" target="_blank" rel="noopener noreferrer" className="hover:text-accent underline decoration-accent/30 font-semibold text-accent/90">Visor Cartografía Histórica</a></li>
               <li><a href="/descargas/guia-supervivencia-catastral.pdf" download className="hover:text-accent">Guía catastral en PDF</a></li>
               <li><a href="https://www.boe.es/buscar/act.php?id=BOE-A-2015-7046" target="_blank" rel="noopener noreferrer" className="hover:text-accent">Ley 13/2015 en el BOE</a></li>
+              <li><Link href="/guias" className="hover:text-accent">Guías de Catastro y Registro</Link></li>
               <li><Link href="/ibi" className="hover:text-accent">Tipos de IBI por municipio</Link></li>
               <li><Link href="/#preguntas-frecuentes" className="hover:text-accent">Preguntas frecuentes</Link></li>
             </ul>
