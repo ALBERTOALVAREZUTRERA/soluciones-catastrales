@@ -4,6 +4,8 @@ import { Footer } from "@/components/footer";
 import { WhatsAppButton } from "@/components/whatsapp-button";
 import { Toaster } from "@/components/ui/toaster";
 import Image from "next/image";
+import Link from "next/link";
+import { SERVICIOS } from "@/data/servicios";
 import { createPageMetadata } from "@/lib/site-config";
 
 export const metadata = createPageMetadata({
@@ -211,25 +213,12 @@ export default function ServiciosPage() {
                     <h2 className="text-3xl md:text-4xl font-bold text-primary text-center">
                         Todos nuestros <span className="text-accent">servicios</span>
                     </h2>
-                    <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                        {[
-                            ["Levantamientos topográficos", "Medición de fincas y construcciones con GNSS y estación total, replanteo de linderos y planos georreferenciados."],
-                            ["Planos georreferenciados", "Plano de la finca o de la construcción con coordenadas UTM ETRS89, firmado, para notaría, Registro, ayuntamiento y Catastro."],
-                            ["Representación gráfica alternativa", "Delimitación georreferenciada de la finca para notaría y Registro cuando Catastro no refleja la realidad."],
-                            ["Archivos GML", "GML de parcela y de edificio con su Informe de Validación Gráfica Alternativa de la Sede del Catastro."],
-                            ["Informe Catastral de Ubicación de las Construcciones", "ICUC con las coordenadas de la edificación para declaraciones de obra nueva."],
-                            ["Subsanación de discrepancias catastrales", "Corrección de superficie, linderos, uso o construcciones erróneas en Catastro y revisión del IBI."],
-                            ["Nota simple del Registro de la Propiedad", "Solicitud de la nota simple de su finca y comparación con los datos catastrales."],
-                            ["Proyectos de casetas y naves agrarias", "Proyecto técnico de casetas de aperos, almacenes y naves agrarias para la licencia de obras."],
-                            ["Segregaciones y agrupaciones", "Documentación técnica y GML para dividir una finca o unir varias colindantes."],
-                            ["Informes periciales", "Dictámenes sobre linderos, superficies, deslindes e invasiones para juicio o reclamación."],
-                            ["Valoraciones agrarias", "Valoración de fincas rústicas, cultivos y construcciones para herencias, compraventas, expropiaciones y daños."],
-                            ["Servidumbres y caminos", "Medición, plano e informe de servidumbres de paso, caminos y accesos a fincas."],
-                        ].map(([title, text]) => (
-                            <div key={title} className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
-                                <h3 className="text-lg font-bold text-primary">{title}</h3>
-                                <p className="mt-3 text-sm leading-relaxed text-slate-600">{text}</p>
-                            </div>
+                    <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                        {SERVICIOS.map((servicio) => (
+                            <Link key={servicio.slug} href={`/servicios/${servicio.slug}`} className="group rounded-2xl border border-slate-200 bg-slate-50 p-6 transition-colors hover:border-accent">
+                                <h3 className="text-lg font-bold text-primary group-hover:underline">{servicio.nombre}</h3>
+                                <p className="mt-3 text-sm leading-relaxed text-slate-600">{servicio.description}</p>
+                            </Link>
                         ))}
                     </div>
                     <div className="mt-10 text-center">

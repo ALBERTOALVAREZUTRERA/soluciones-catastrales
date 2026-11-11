@@ -35,13 +35,13 @@ export function Footer() {
           <div>
             <h2 className="text-lg font-bold mb-6 font-headline">Servicios</h2>
             <ul className="space-y-4 text-sm text-gray-300">
-              <li><Link href="/servicios" className="hover:text-accent">Levantamientos y planos georreferenciados</Link></li>
-              <li><Link href="/servicios" className="hover:text-accent">Representación gráfica alternativa e ICUC</Link></li>
-              <li><Link href="/servicios" className="hover:text-accent">Subsanación de discrepancias catastrales</Link></li>
-              <li><Link href="/servicios" className="hover:text-accent">Nota simple del Registro</Link></li>
-              <li><Link href="/servicios" className="hover:text-accent">Proyectos de casetas y naves agrarias</Link></li>
-              <li><Link href="/servicios" className="hover:text-accent">Valoraciones agrarias y periciales</Link></li>
-              <li><Link href="/servicios" className="hover:text-accent">Segregaciones, servidumbres y caminos</Link></li>
+              <li><Link href="/servicios/levantamiento-topografico" className="hover:text-accent">Levantamientos y planos georreferenciados</Link></li>
+              <li><Link href="/servicios/representacion-grafica-alternativa" className="hover:text-accent">Representación gráfica alternativa e ICUC</Link></li>
+              <li><Link href="/servicios/subsanacion-discrepancias-catastrales" className="hover:text-accent">Subsanación de discrepancias catastrales</Link></li>
+              <li><Link href="/servicios/nota-simple-registro-propiedad" className="hover:text-accent">Nota simple del Registro</Link></li>
+              <li><Link href="/servicios/proyecto-caseta-aperos-nave-agraria" className="hover:text-accent">Proyectos de casetas y naves agrarias</Link></li>
+              <li><Link href="/servicios/valoracion-agraria" className="hover:text-accent">Valoraciones agrarias y periciales</Link></li>
+              <li><Link href="/servicios/segregacion-de-fincas" className="hover:text-accent">Segregaciones, servidumbres y caminos</Link></li>
               <li><Link href="/herramientas/conversor-gml" className="hover:text-accent">Archivos GML de parcela</Link></li>
               <li><Link href="/herramientas/conversor-edificio" className="hover:text-accent">GML de construcción</Link></li>
               <li><Link href="/tramites-catastrales" className="hover:text-accent">Trámites catastrales</Link></li>
