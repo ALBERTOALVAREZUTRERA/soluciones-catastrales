@@ -22,6 +22,66 @@ const VISOR = { href: "/herramientas/visor-catastral", label: "Visor catastral" 
 
 export const GUIAS: readonly Guia[] = [
   {
+    slug: "plano-georreferenciado",
+    title: "Plano georreferenciado: qué es, cuándo lo piden y cómo se hace",
+    description:
+      "Qué es un plano georreferenciado de una finca, en qué se diferencia de un croquis o de un plano catastral, cuándo lo exigen notarías, registros y ayuntamientos y qué debe contener.",
+    intro:
+      "Un plano georreferenciado representa una finca o una construcción situándola sobre el territorio mediante coordenadas. Cada vértice del perímetro tiene unas coordenadas en el sistema oficial, de modo que la finca queda ubicada de forma inequívoca y puede compararse con Catastro, con las fincas vecinas y con el dominio público.",
+    cuando: [
+      "El notario o el registrador piden la representación gráfica de la finca para una escritura.",
+      "El ayuntamiento exige plano de situación y emplazamiento para una licencia.",
+      "Se va a segregar, agrupar o dividir una finca.",
+      "Hay que corregir la superficie o los linderos en Catastro o en el Registro.",
+    ],
+    pasos: [
+      {
+        titulo: "Medición en campo.",
+        texto:
+          "Se toman los linderos y los elementos relevantes con receptor GNSS de precisión o estación total, enlazando con la red geodésica oficial.",
+      },
+      {
+        titulo: "Cálculo y dibujo.",
+        texto:
+          "Con los puntos medidos se dibuja el plano a escala, se calcula la superficie y se elabora el listado de coordenadas de los vértices en proyección UTM, sistema ETRS89 y huso correspondiente.",
+      },
+      {
+        titulo: "Comparación con Catastro.",
+        texto:
+          "El plano se superpone a la cartografía catastral y a la ortofotografía para detectar diferencias de superficie, desplazamientos o invasiones.",
+      },
+      {
+        titulo: "Entrega.",
+        texto:
+          "Se entrega el plano firmado en PDF y los archivos de trabajo. Si el destino es una escritura o un expediente catastral, se genera además el archivo GML y se valida en la Sede Electrónica del Catastro.",
+      },
+    ],
+    documentacion: [
+      "Referencia catastral o localización de la finca.",
+      "Escritura o nota simple, si existe.",
+      "Indicación de para qué se necesita el plano: escritura, licencia, Catastro o uso particular.",
+      "Acceso a la finca y, si es posible, alguien que indique los linderos.",
+    ],
+    faqs: [
+      {
+        question: "¿Qué diferencia hay entre un plano georreferenciado y un plano catastral?",
+        answer:
+          "El plano catastral es la representación que consta en Catastro, que puede no coincidir con la realidad. El plano georreferenciado procede de una medición real de la finca y refleja sus linderos tal como existen sobre el terreno.",
+      },
+      {
+        question: "¿Qué sistema de coordenadas debe llevar?",
+        answer:
+          "En la Península y Baleares el sistema oficial es ETRS89, en proyección UTM. La provincia de Jaén se encuentra en el huso 30. Catastro y el Registro trabajan en este sistema.",
+      },
+      {
+        question: "¿Un plano georreferenciado es lo mismo que un GML?",
+        answer:
+          "No. El plano es el documento gráfico; el GML es un archivo informático con las mismas coordenadas en el formato que exige Catastro. El GML se genera a partir del plano georreferenciado.",
+      },
+    ],
+    relacionados: [CONVERSOR_GML, VISOR, TRAMITES_REGISTRALES],
+  },
+  {
     slug: "rectificacion-de-cabida",
     title: "Rectificación de cabida: cómo corregir la superficie de una finca",
     description:
