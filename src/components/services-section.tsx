@@ -6,6 +6,36 @@ import { PlaceHolderImages } from "@/app/lib/placeholder-images";
 
 const services = [
   {
+    title: "Levantamiento Topográfico",
+    description: "Medición precisa del terreno con instrumental topográfico avanzado (GPS/Estación Total). Base fundamental para cualquier proyecto de ingeniería o delimitación de propiedad.",
+    imgId: "levantamiento-topografico",
+    detailedContent: {
+      subtitle: "Topografía de precisión para proyectos de ingeniería y delimitación de propiedad.",
+      points: [
+        "Levantamiento planimétrico y altimétrico.",
+        "Generación de Modelos Digitales del Terreno (MDT).",
+        "Replanteo de linderos sobre el terreno.",
+        "Georreferenciación con GPS de alta precisión."
+      ],
+      technicalNote: "La base geométrica precisa es el primer paso para evitar conflictos futuros con colindantes o administraciones."
+    }
+  },
+  {
+    title: "Representación Gráfica Alternativa (RGA)",
+    description: "Cuando la cartografía catastral no refleja la realidad de la finca, elaboramos la representación gráfica alternativa georreferenciada que exigen notarías y registros.",
+    imgId: "ivga",
+    detailedContent: {
+      subtitle: "Delimitación georreferenciada de la finca para su inscripción cuando Catastro no coincide con la realidad.",
+      points: [
+        "Medición de los linderos reales sobre el terreno.",
+        "Archivo GML de parcela en sistema ETRS89.",
+        "Informe de Validación Gráfica Alternativa (IVGA).",
+        "Informe técnico para notaría y Registro de la Propiedad."
+      ],
+      technicalNote: "Es la vía prevista en la Ley 13/2015 para rectificaciones de superficie, segregaciones, agrupaciones e inmatriculaciones cuando la certificación catastral no es válida."
+    }
+  },
+  {
     title: "Reclamación de Ingresos Indebidos (IBI)",
     description: "Revisamos la descripción y valoración catastral para detectar posibles errores. Si existen, preparamos la documentación técnica para solicitar su corrección y estudiar ingresos indebidos.",
     imgId: "revision-ibi", // Reusing the IBI image
@@ -101,18 +131,48 @@ const services = [
     imgId: "pericial",
   },
   {
-    title: "Levantamiento Topográfico",
-    description: "Medición precisa del terreno con instrumental topográfico avanzado (GPS/Estación Total). Base fundamental para cualquier proyecto de ingeniería o delimitación de propiedad.",
-    imgId: "levantamiento-topografico",
+    title: "Subsanación de Discrepancias Catastrales",
+    description: "Corregimos los datos erróneos de Catastro: superficie, linderos, uso, antigüedad o construcciones que no corresponden con la realidad del inmueble.",
+    imgId: "titularidad",
     detailedContent: {
-      subtitle: "Topografía de precisión para proyectos de ingeniería y delimitación de propiedad.",
+      subtitle: "Expediente técnico para que Catastro describa el inmueble como es en realidad.",
       points: [
-        "Levantamiento planimétrico y altimétrico.",
-        "Generación de Modelos Digitales del Terreno (MDT).",
-        "Replanteo de linderos sobre el terreno.",
-        "Georreferenciación con GPS de alta precisión."
+        "Revisión de la descripción catastral de suelo y construcciones.",
+        "Medición y documentación gráfica de la realidad física.",
+        "Presentación y seguimiento del expediente ante la Gerencia del Catastro.",
+        "Estudio posterior de ingresos indebidos de IBI, si procede."
       ],
-      technicalNote: "La base geométrica precisa es el primer paso para evitar conflictos futuros con colindantes o administraciones."
+      technicalNote: "La resolución corresponde a Catastro y su plazo depende de cada Gerencia y de la complejidad del caso."
+    }
+  },
+  {
+    title: "Nota Simple del Registro de la Propiedad",
+    description: "Solicitamos por usted la nota simple de su finca: titularidad, descripción, superficie y cargas. Es el punto de partida para cualquier trámite.",
+    imgId: "pericial",
+    detailedContent: {
+      subtitle: "Información registral actualizada de la finca, sin desplazamientos.",
+      points: [
+        "Solicitud al Registro de la Propiedad competente.",
+        "Localización de la finca por datos registrales, titular o referencia catastral.",
+        "Entrega de la nota por correo electrónico.",
+        "Comparación con Catastro para detectar discrepancias, si lo necesita."
+      ],
+      technicalNote: "La nota simple la emite el Registro de la Propiedad y tiene valor informativo."
+    }
+  },
+  {
+    title: "Proyectos de Casetas y Naves Agrarias",
+    description: "Redactamos el proyecto técnico de casetas de aperos, almacenes y naves agrarias para solicitar la licencia y ejecutar la obra en suelo rústico.",
+    imgId: "segregacion",
+    detailedContent: {
+      subtitle: "Documentación técnica para construir en la explotación agraria.",
+      points: [
+        "Estudio previo de viabilidad urbanística de la parcela.",
+        "Levantamiento topográfico y plano de situación y emplazamiento.",
+        "Memoria, planos, mediciones y presupuesto.",
+        "Alta de la construcción en Catastro al terminar la obra."
+      ],
+      technicalNote: "La autorización depende del planeamiento municipal y de la normativa urbanística y sectorial aplicable a cada parcela."
     }
   }
 ];
@@ -123,11 +183,11 @@ export function ServicesSection() {
       <div className="container mx-auto px-4 md:px-8">
         <div className="text-center mb-16 max-w-2xl mx-auto">
           <h2 className="text-3xl md:text-4xl font-bold font-headline text-primary mb-4 uppercase tracking-tight">
-            Ingeniería Técnica y Especialización GML
+            Topografía, Catastro, Registro y Proyectos Agrarios
           </h2>
           <div className="h-1 w-20 bg-accent mx-auto mb-6"></div>
           <p className="text-muted-foreground text-lg">
-            Soluciones avanzadas en cartografía catastral y coordinación técnica con el Registro de la Propiedad para proteger su patrimonio inmobiliario.
+            Levantamientos topográficos, representaciones gráficas alternativas, GML, ICUC, subsanación de discrepancias catastrales, notas simples y proyectos de casetas y naves agrarias.
           </p>
         </div>
 

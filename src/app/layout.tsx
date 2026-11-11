@@ -23,14 +23,14 @@ const inter = Inter({
 export const metadata: Metadata = {
   ...createPageMetadata({
     title: 'Ingeniería Catastral y Topografía en Jaén',
-    description: 'Ingeniería técnica en Jaén especializada en levantamientos topográficos, archivos GML, subsanación de discrepancias Catastro-Registro y revisiones de IBI en Andalucía.',
+    description: 'Levantamientos topográficos, representación gráfica alternativa, GML, ICUC, subsanación de discrepancias catastrales, nota simple y proyectos de casetas y naves agrarias en Jaén y Andalucía.',
     path: '/',
   }),
   title: {
     default: 'Ingeniería Catastral y Topografía en Jaén | Soluciones Catastrales',
     template: '%s | Soluciones Catastrales',
   },
-  keywords: ['Topógrafo Jaén', 'Archivo GML', 'Catastro', 'Registro de la Propiedad', 'Ingeniero Técnico', 'Andújar', 'Levantamiento Topográfico', 'Discrepancias Registrales', 'SOLUCIONES CATASTRALES'],
+  keywords: ['Topógrafo Jaén', 'Levantamiento Topográfico', 'Representación Gráfica Alternativa', 'ICUC', 'Subsanación de Discrepancias Catastrales', 'Nota Simple', 'Proyecto Nave Agrícola', 'Archivo GML', 'Catastro', 'Registro de la Propiedad', 'Ingeniero Técnico', 'Andújar', 'Levantamiento Topográfico', 'Discrepancias Registrales', 'SOLUCIONES CATASTRALES'],
   metadataBase: new URL(SITE_URL),
   applicationName: SITE_NAME,
   category: 'Ingeniería y topografía',
@@ -84,6 +84,19 @@ export default function RootLayout({
                   '@type': 'Person',
                   name: 'Alberto Álvarez Utrera',
                   jobTitle: 'Ingeniero técnico',
+                },
+                hasOfferCatalog: {
+                  '@type': 'OfferCatalog',
+                  name: 'Servicios',
+                  itemListElement: [
+                    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Levantamiento topográfico' } },
+                    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Representación gráfica alternativa' } },
+                    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Archivo GML de parcela y de edificio' } },
+                    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Informe Catastral de Ubicación de las Construcciones (ICUC)' } },
+                    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Subsanación de discrepancias catastrales' } },
+                    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Nota simple del Registro de la Propiedad' } },
+                    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Proyectos de casetas y naves agrarias' } },
+                  ],
                 },
                 knowsAbout: [
                   'Catastro inmobiliario',

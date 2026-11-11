@@ -206,6 +206,36 @@ export default function ServiciosPage() {
                 </div>
             </section>
 
+            <section className="py-24 bg-white">
+                <div className="container mx-auto px-4">
+                    <h2 className="text-3xl md:text-4xl font-bold text-primary text-center">
+                        Todos nuestros <span className="text-accent">servicios</span>
+                    </h2>
+                    <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+                        {[
+                            ["Levantamientos topográficos", "Medición de fincas y construcciones con GNSS y estación total, replanteo de linderos y planos georreferenciados."],
+                            ["Representación gráfica alternativa", "Delimitación georreferenciada de la finca para notaría y Registro cuando Catastro no refleja la realidad."],
+                            ["Archivos GML", "GML de parcela y de edificio con su Informe de Validación Gráfica Alternativa de la Sede del Catastro."],
+                            ["Informe Catastral de Ubicación de las Construcciones", "ICUC con las coordenadas de la edificación para declaraciones de obra nueva."],
+                            ["Subsanación de discrepancias catastrales", "Corrección de superficie, linderos, uso o construcciones erróneas en Catastro y revisión del IBI."],
+                            ["Nota simple del Registro de la Propiedad", "Solicitud de la nota simple de su finca y comparación con los datos catastrales."],
+                            ["Proyectos de casetas y naves agrarias", "Proyecto técnico de casetas de aperos, almacenes y naves agrarias para la licencia de obras."],
+                            ["Segregaciones, agrupaciones e informes periciales", "Documentación técnica para dividir o unir fincas y dictámenes sobre linderos y superficies."],
+                        ].map(([title, text]) => (
+                            <div key={title} className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
+                                <h3 className="text-lg font-bold text-primary">{title}</h3>
+                                <p className="mt-3 text-sm leading-relaxed text-slate-600">{text}</p>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="mt-10 text-center">
+                        <a href="/#tramites" className="inline-flex min-h-11 items-center justify-center rounded-md bg-accent px-8 py-3 font-bold text-primary">
+                            Pedir presupuesto sin compromiso
+                        </a>
+                    </div>
+                </div>
+            </section>
+
             <Footer />
             <WhatsAppButton />
             <Toaster />
