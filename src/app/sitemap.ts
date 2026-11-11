@@ -2,6 +2,7 @@ import { MetadataRoute } from 'next'
 import { absoluteUrl } from '@/lib/site-config'
 import { IBI_MUNICIPIOS } from '@/lib/ibi-municipios'
 import { GUIAS } from '@/data/guias'
+import { SERVICIOS } from '@/data/servicios'
 
 export default function sitemap(): MetadataRoute.Sitemap {
     const pages = [
@@ -9,6 +10,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
         { path: '',                                     priority: 1.0,  changeFreq: 'weekly'  },
         // Servicios y trámites
         { path: '/servicios',                           priority: 0.9,  changeFreq: 'monthly' },
+        ...SERVICIOS.map((servicio) => ({ path: `/servicios/${servicio.slug}`, priority: 0.85, changeFreq: 'monthly' })),
         { path: '/tramites-registrales',                priority: 0.9,  changeFreq: 'monthly' },
         { path: '/tramites-catastrales',                priority: 0.9,  changeFreq: 'monthly' },
         // Herramientas (alto valor SEO — tráfico orgánico)
