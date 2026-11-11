@@ -40,6 +40,7 @@ const navigationGroups = {
     items: [
       { name: "Trámites Registrales", href: "/tramites-registrales" },
       { name: "Trámites Catastrales", href: "/tramites-catastrales" },
+      { name: "Guías paso a paso", href: "/guias" },
     ]
   },
   map: { name: "Mapa Interactivo", href: "/herramientas/visor-catastral" }
