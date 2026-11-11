@@ -220,7 +220,11 @@ export default function ServiciosPage() {
                             ["Informe Catastral de Ubicación de las Construcciones", "ICUC con las coordenadas de la edificación para declaraciones de obra nueva."],
                             ["Subsanación de discrepancias catastrales", "Corrección de superficie, linderos, uso o construcciones erróneas en Catastro y revisión del IBI."],
                             ["Nota simple del Registro de la Propiedad", "Solicitud de la nota simple de su finca y comparación con los datos catastrales."],
-                            ["Proyectos de casetas y naves agrarias", "Proyecto técnico de casetas de aperos, almacenes y naves agrarias para la licencia de obras. También segregaciones, agrupaciones e informes periciales."],
+                            ["Proyectos de casetas y naves agrarias", "Proyecto técnico de casetas de aperos, almacenes y naves agrarias para la licencia de obras."],
+                            ["Segregaciones y agrupaciones", "Documentación técnica y GML para dividir una finca o unir varias colindantes."],
+                            ["Informes periciales", "Dictámenes sobre linderos, superficies, deslindes e invasiones para juicio o reclamación."],
+                            ["Valoraciones agrarias", "Valoración de fincas rústicas, cultivos y construcciones para herencias, compraventas, expropiaciones y daños."],
+                            ["Servidumbres y caminos", "Medición, plano e informe de servidumbres de paso, caminos y accesos a fincas."],
                         ].map(([title, text]) => (
                             <div key={title} className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
                                 <h3 className="text-lg font-bold text-primary">{title}</h3>

@@ -179,7 +179,10 @@ export function ProcessPortal() {
                       <SelectItem value="proyecto-agrario">Proyecto de Caseta o Nave Agraria</SelectItem>
                       <SelectItem value="titularidad">Cambio de Titularidad Catastral</SelectItem>
                       <SelectItem value="ibi">Revisión de Valor / Impuesto IBI</SelectItem>
-                      <SelectItem value="segregacion">Segregación / Agregación de Fincas</SelectItem>
+                      <SelectItem value="segregacion">Segregación / Agrupación de Fincas</SelectItem>
+                      <SelectItem value="pericial">Informe Pericial</SelectItem>
+                      <SelectItem value="valoracion-agraria">Valoración Agraria</SelectItem>
+                      <SelectItem value="servidumbres">Servidumbres y Caminos</SelectItem>
                       <SelectItem value="otros">Otros Informes Técnicos</SelectItem>
                     </SelectContent>
                   </Select>

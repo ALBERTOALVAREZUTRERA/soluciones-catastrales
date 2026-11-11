@@ -136,14 +136,64 @@ const services = [
     imgId: "ivga",
   },
   {
-    title: "Segregación y Agregación",
-    description: "Proyectos técnicos para la división o unión de parcelas. Incluye levantamiento topográfico de precisión y archivos GML de fincas resultantes.",
+    title: "Segregaciones y Agrupaciones",
+    description: "Documentación técnica para dividir una finca o unir varias colindantes: levantamiento topográfico, plano de las fincas resultantes y archivos GML validados.",
     imgId: "segregacion",
+    detailedContent: {
+      subtitle: "División, segregación, agrupación y agregación de fincas rústicas y urbanas.",
+      points: [
+        "Comprobación de la unidad mínima de cultivo o de la parcela mínima.",
+        "Medición de la finca matriz y definición de las fincas resultantes.",
+        "Documentación para la licencia o la declaración de innecesariedad.",
+        "GML e Informe de Validación Gráfica Alternativa para la escritura."
+      ],
+      technicalNote: "La viabilidad depende de la normativa agraria y urbanística aplicable a cada finca y municipio."
+    }
   },
   {
     title: "Informes Periciales",
     description: "Dictámenes periciales visados para uso judicial. Especialistas en deslindes, linderos y comprobaciones de valores frente a la administración.",
     imgId: "pericial",
+    detailedContent: {
+      subtitle: "Dictamen técnico para procedimientos judiciales, administrativos y extrajudiciales.",
+      points: [
+        "Deslindes, linderos e invasiones de finca.",
+        "Discrepancias de superficie entre título, Catastro y realidad.",
+        "Análisis de cartografía y ortofotografía histórica.",
+        "Ratificación del informe en sede judicial."
+      ],
+      technicalNote: "El informe documenta hechos medibles y su comparación con los títulos; la decisión corresponde al órgano que resuelve."
+    }
+  },
+  {
+    title: "Valoraciones Agrarias",
+    description: "Valoración de fincas rústicas, cultivos, plantaciones y construcciones agrarias para herencias, compraventas, expropiaciones, daños y repartos.",
+    imgId: "revision-ibi",
+    detailedContent: {
+      subtitle: "Informe de valoración de la explotación a una fecha y para una finalidad concretas.",
+      points: [
+        "Valoración del suelo según cultivo, aprovechamiento y situación.",
+        "Valoración de plantaciones, instalaciones de riego y construcciones.",
+        "Tasación de daños e indemnizaciones.",
+        "Lotes equilibrados para particiones de herencia."
+      ],
+      technicalNote: "El método de valoración se elige según la finalidad del informe y la normativa aplicable en cada caso."
+    }
+  },
+  {
+    title: "Servidumbres y Caminos",
+    description: "Estudio técnico de servidumbres de paso, caminos públicos y privados, vías pecuarias y accesos a fincas, con medición y plano del trazado.",
+    imgId: "levantamiento-topografico",
+    detailedContent: {
+      subtitle: "Documentación técnica para constituir, acreditar o defender un paso o un camino.",
+      points: [
+        "Levantamiento topográfico del trazado y de su anchura.",
+        "Estudio de títulos, Catastro y cartografía histórica.",
+        "Plano georreferenciado para escritura de constitución de servidumbre.",
+        "Informe pericial en conflictos de paso o de titularidad del camino."
+      ],
+      technicalNote: "La existencia y el alcance de una servidumbre dependen de los títulos, del uso y, en su caso, de resolución judicial."
+    }
   },
   {
     title: "Subsanación de Discrepancias Catastrales",
@@ -202,7 +252,7 @@ export function ServicesSection() {
           </h2>
           <div className="h-1 w-20 bg-accent mx-auto mb-6"></div>
           <p className="text-muted-foreground text-lg">
-            Levantamientos topográficos, planos georreferenciados, representaciones gráficas alternativas, GML, ICUC, subsanación de discrepancias catastrales, notas simples y proyectos de casetas y naves agrarias.
+            Levantamientos topográficos, planos georreferenciados, representaciones gráficas alternativas, GML, ICUC, subsanación de discrepancias catastrales, segregaciones, informes periciales, valoraciones agrarias, servidumbres y caminos, notas simples y proyectos de casetas y naves agrarias.
           </p>
         </div>
 

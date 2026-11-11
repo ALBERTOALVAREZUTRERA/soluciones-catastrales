@@ -40,6 +40,8 @@ export function Footer() {
               <li><Link href="/servicios" className="hover:text-accent">Subsanación de discrepancias catastrales</Link></li>
               <li><Link href="/servicios" className="hover:text-accent">Nota simple del Registro</Link></li>
               <li><Link href="/servicios" className="hover:text-accent">Proyectos de casetas y naves agrarias</Link></li>
+              <li><Link href="/servicios" className="hover:text-accent">Valoraciones agrarias y periciales</Link></li>
+              <li><Link href="/servicios" className="hover:text-accent">Segregaciones, servidumbres y caminos</Link></li>
               <li><Link href="/herramientas/conversor-gml" className="hover:text-accent">Archivos GML de parcela</Link></li>
               <li><Link href="/herramientas/conversor-edificio" className="hover:text-accent">GML de construcción</Link></li>
               <li><Link href="/tramites-catastrales" className="hover:text-accent">Trámites catastrales</Link></li>
