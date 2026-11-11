@@ -169,8 +169,13 @@ export function ProcessPortal() {
                       <SelectValue placeholder="Seleccione una opción" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="levantamiento">Levantamiento Topográfico</SelectItem>
+                      <SelectItem value="rga">Representación Gráfica Alternativa (RGA)</SelectItem>
                       <SelectItem value="gml-parcela">Archivo GML de Parcela (Linderos)</SelectItem>
                       <SelectItem value="icuc">Informe de Ubicación de Construcciones (ICUC)</SelectItem>
+                      <SelectItem value="subsanacion">Subsanación de Discrepancias Catastrales</SelectItem>
+                      <SelectItem value="nota-simple">Nota Simple del Registro de la Propiedad</SelectItem>
+                      <SelectItem value="proyecto-agrario">Proyecto de Caseta o Nave Agraria</SelectItem>
                       <SelectItem value="titularidad">Cambio de Titularidad Catastral</SelectItem>
                       <SelectItem value="ibi">Revisión de Valor / Impuesto IBI</SelectItem>
                       <SelectItem value="segregacion">Segregación / Agregación de Fincas</SelectItem>
