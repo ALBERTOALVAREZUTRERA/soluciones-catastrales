@@ -1,7 +1,9 @@
 
 "use client";
 
+import Link from "next/link";
 import { ServiceCard } from "./service-card";
+import { SERVICIOS } from "@/data/servicios";
 import { PlaceHolderImages } from "@/app/lib/placeholder-images";
 
 const services = [
@@ -271,6 +273,19 @@ export function ServicesSection() {
             );
           })}
         </div>
+
+        <nav aria-label="Todos los servicios" className="mt-16 rounded-2xl border bg-white p-8">
+          <h3 className="text-xl font-bold text-primary">Todos los servicios, uno por uno</h3>
+          <ul className="mt-4 grid gap-x-6 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
+            {SERVICIOS.map((servicio) => (
+              <li key={servicio.slug}>
+                <Link href={`/servicios/${servicio.slug}`} className="text-sm text-slate-700 underline underline-offset-4 hover:text-accent">
+                  {servicio.nombre}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
       </div>
     </section>
   );
