@@ -21,6 +21,21 @@ const services = [
     }
   },
   {
+    title: "Plano Georreferenciado",
+    description: "Plano de su finca o construcción con coordenadas oficiales UTM ETRS89, firmado por técnico. Es el que piden notarías, registros, ayuntamientos y Catastro.",
+    imgId: "gml-parcela",
+    detailedContent: {
+      subtitle: "Plano a escala con las coordenadas de cada vértice, válido para escrituras, licencias y expedientes catastrales.",
+      points: [
+        "Medición en campo con GNSS de precisión.",
+        "Coordenadas UTM en el sistema oficial ETRS89.",
+        "Listado de vértices, superficies y linderos.",
+        "Entrega en PDF firmado y en formatos DXF y GML."
+      ],
+      technicalNote: "Un plano georreferenciado sitúa la finca de forma inequívoca sobre el territorio y permite compararla con la cartografía catastral."
+    }
+  },
+  {
     title: "Representación Gráfica Alternativa (RGA)",
     description: "Cuando la cartografía catastral no refleja la realidad de la finca, elaboramos la representación gráfica alternativa georreferenciada que exigen notarías y registros.",
     imgId: "ivga",
@@ -187,7 +202,7 @@ export function ServicesSection() {
           </h2>
           <div className="h-1 w-20 bg-accent mx-auto mb-6"></div>
           <p className="text-muted-foreground text-lg">
-            Levantamientos topográficos, representaciones gráficas alternativas, GML, ICUC, subsanación de discrepancias catastrales, notas simples y proyectos de casetas y naves agrarias.
+            Levantamientos topográficos, planos georreferenciados, representaciones gráficas alternativas, GML, ICUC, subsanación de discrepancias catastrales, notas simples y proyectos de casetas y naves agrarias.
           </p>
         </div>
 

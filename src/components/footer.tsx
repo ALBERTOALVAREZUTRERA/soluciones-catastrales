@@ -35,7 +35,7 @@ export function Footer() {
           <div>
             <h2 className="text-lg font-bold mb-6 font-headline">Servicios</h2>
             <ul className="space-y-4 text-sm text-gray-300">
-              <li><Link href="/servicios" className="hover:text-accent">Levantamientos topográficos</Link></li>
+              <li><Link href="/servicios" className="hover:text-accent">Levantamientos y planos georreferenciados</Link></li>
               <li><Link href="/servicios" className="hover:text-accent">Representación gráfica alternativa e ICUC</Link></li>
               <li><Link href="/servicios" className="hover:text-accent">Subsanación de discrepancias catastrales</Link></li>
               <li><Link href="/servicios" className="hover:text-accent">Nota simple del Registro</Link></li>

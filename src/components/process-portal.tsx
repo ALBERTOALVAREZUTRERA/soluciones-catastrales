@@ -170,6 +170,7 @@ export function ProcessPortal() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="levantamiento">Levantamiento Topográfico</SelectItem>
+                      <SelectItem value="plano-georreferenciado">Plano Georreferenciado</SelectItem>
                       <SelectItem value="rga">Representación Gráfica Alternativa (RGA)</SelectItem>
                       <SelectItem value="gml-parcela">Archivo GML de Parcela (Linderos)</SelectItem>
                       <SelectItem value="icuc">Informe de Ubicación de Construcciones (ICUC)</SelectItem>
